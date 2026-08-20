@@ -1,0 +1,66 @@
+{
+  "info": {
+    "name": "照安心 API",
+    "description": "依資料夾順序測試。登入會自動保存 token；建立資料會保存常用 ID。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+  "item": [
+    {
+      "name": "0 系統",
+      "item": [{ "name": "Health", "auth": { "type": "noauth" }, "request": { "method": "GET", "url": "{{baseUrl}}/health" } }]
+    },
+    {
+      "name": "1 登入與四種身分",
+      "item": [
+        { "name": "註冊 USER", "auth": { "type": "noauth" }, "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j.token) pm.environment.set('token',j.token);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"account\": \"user01\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"王小明\",\n  \"phone\": \"0912345678\",\n  \"role\": \"USER\"\n}" }, "url": "{{baseUrl}}/auth/register" } },
+        { "name": "註冊 PATIENT", "auth": { "type": "noauth" }, "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"account\": \"patient01\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"陳阿姨\",\n  \"phone\": \"0922222222\",\n  \"role\": \"PATIENT\",\n  \"patientProfile\": { \"careLevel\": \"中度\", \"mobilityStatus\": \"需助行器\" }\n}" }, "url": "{{baseUrl}}/auth/register" } },
+        { "name": "註冊 ADMIN", "auth": { "type": "noauth" }, "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "x-admin-setup-key", "value": "{{adminSetupKey}}" }], "body": { "mode": "raw", "raw": "{\n  \"account\": \"admin01\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"系統管理員\",\n  \"role\": \"ADMIN\"\n}" }, "url": "{{baseUrl}}/auth/register" } },
+        { "name": "登入（修改 account 切換身分）", "auth": { "type": "noauth" }, "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j.token) pm.environment.set('token',j.token);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"account\": \"user01\",\n  \"password\": \"Passw0rd!\"\n}" }, "url": "{{baseUrl}}/auth/login" } },
+        { "name": "我的資料", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } },
+        { "name": "NURSE 申請（選擇證照檔）", "auth": { "type": "noauth" }, "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [{ "key": "account", "value": "nurse01", "type": "text" }, { "key": "password", "value": "Passw0rd!", "type": "text" }, { "key": "name", "value": "林居服員", "type": "text" }, { "key": "certificateNumber", "value": "TW-CARE-0001", "type": "text" }, { "key": "certificate", "type": "file", "src": "" }] }, "url": "{{baseUrl}}/auth/register-nurse" } }
+      ]
+    },
+    {
+      "name": "2 受照護者 CRUD",
+      "item": [
+        { "name": "新增", "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j._id) pm.environment.set('patientId',j._id);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"王奶奶\",\n  \"relationship\": \"祖孫\",\n  \"phone\": \"0933333333\",\n  \"careLevel\": \"中度\",\n  \"mobilityStatus\": \"輪椅\",\n  \"allergyNotes\": \"青黴素\",\n  \"attentionNotes\": \"右膝舊傷\"\n}" }, "url": "{{baseUrl}}/patients" } },
+        { "name": "查詢全部", "request": { "method": "GET", "url": "{{baseUrl}}/patients" } },
+        { "name": "查詢單筆", "request": { "method": "GET", "url": "{{baseUrl}}/patients/{{patientId}}" } },
+        { "name": "修改", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"attentionNotes\":\"更新注意事項\"}" }, "url": "{{baseUrl}}/patients/{{patientId}}" } },
+        { "name": "刪除", "request": { "method": "DELETE", "url": "{{baseUrl}}/patients/{{patientId}}" } }
+      ]
+    },
+    {
+      "name": "3 管理員與服務",
+      "item": [
+        { "name": "待審與全部居服員", "event": [{ "listen": "test", "script": { "exec": ["const rows=pm.response.json(); const n=rows.find(x=>x.verificationStatus==='PENDING') || rows[0]; if(n){ pm.environment.set('nurseProfileId',n._id); pm.environment.set('nurseUserId',n.userId._id); }"] } }], "request": { "method": "GET", "url": "{{baseUrl}}/admin/nurses" } },
+        { "name": "核准居服員", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"verificationStatus\":\"APPROVED\"}" }, "url": "{{baseUrl}}/nurses/{{nurseProfileId}}/verification" } },
+        { "name": "新增服務類型", "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j._id) pm.environment.set('serviceTypeId',j._id);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"生活照顧\",\"description\":\"陪伴、備餐與生活協助\",\"durationMinutes\":120,\"basePrice\":1200}" }, "url": "{{baseUrl}}/services/types" } },
+        { "name": "統計", "request": { "method": "GET", "url": "{{baseUrl}}/admin/statistics" } }
+      ]
+    },
+    {
+      "name": "4 需求、接案與 GPS",
+      "item": [
+        { "name": "USER 建立需求", "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j._id) pm.environment.set('serviceRequestId',j._id);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"recipientId\": \"{{patientId}}\",\n  \"serviceTypeIds\": [\"{{serviceTypeId}}\"],\n  \"preferredDate\": \"2026-08-10\",\n  \"preferredStartTime\": \"09:00\",\n  \"estimatedDuration\": 120,\n  \"serviceAddress\": {\"text\":\"台北市信義區市府路1號\"},\n  \"specialRequirements\": \"需會台語\"\n}" }, "url": "{{baseUrl}}/services/requests" } },
+        { "name": "NURSE 接案", "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j._id) pm.environment.set('bookingId',j._id);"] } }], "request": { "method": "POST", "url": "{{baseUrl}}/services/requests/{{serviceRequestId}}/accept" } },
+        { "name": "NURSE 出發", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"location\":{\"latitude\":25.0478,\"longitude\":121.5319},\"estimatedArrivalAt\":\"2026-08-10T09:00:00+08:00\"}" }, "url": "{{baseUrl}}/bookings/{{bookingId}}/depart" } },
+        { "name": "NURSE 更新 GPS / ETA", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"latitude\":25.0418,\"longitude\":121.5654,\"estimatedArrivalMinutes\":8}" }, "url": "{{baseUrl}}/bookings/{{bookingId}}/location" } },
+        { "name": "USER/PATIENT 查預約位置", "request": { "method": "GET", "url": "{{baseUrl}}/bookings/{{bookingId}}" } },
+        { "name": "NURSE 抵達", "request": { "method": "POST", "url": "{{baseUrl}}/bookings/{{bookingId}}/arrive" } }
+      ]
+    },
+    {
+      "name": "5 傷況、服務、評價、求救",
+      "item": [
+        { "name": "服務前傷況照片", "event": [{ "listen": "test", "script": { "exec": ["const j=pm.response.json(); if(j._id) pm.environment.set('injuryReportId',j._id);"] } }], "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [{ "key": "hasInjury", "value": "true", "type": "text" }, { "key": "description", "value": "右手臂有不明瘀青", "type": "text" }, { "key": "photos", "type": "file", "src": "" }] }, "url": "{{baseUrl}}/bookings/{{bookingId}}/injuries" } },
+        { "name": "USER/ADMIN 決定繼續", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"decision\":\"CONTINUE\",\"decisionNote\":\"已確認為舊傷\"}" }, "url": "{{baseUrl}}/bookings/{{bookingId}}/injuries/{{injuryReportId}}/decision" } },
+        { "name": "NURSE 開始服務", "request": { "method": "POST", "url": "{{baseUrl}}/bookings/{{bookingId}}/start" } },
+        { "name": "NURSE 完成服務", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"notes\":\"服務順利完成\",\"completedItems\":[\"陪伴\",\"備餐\"]}" }, "url": "{{baseUrl}}/bookings/{{bookingId}}/complete" } },
+        { "name": "建立評價", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"bookingId\":\"{{bookingId}}\",\"targetUserId\":\"{{nurseUserId}}\",\"rating\":5,\"comment\":\"服務細心且準時\"}" }, "url": "{{baseUrl}}/feedback/reviews" } },
+        { "name": "PATIENT 求救", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"bookingId\":\"{{bookingId}}\",\"message\":\"需要立即協助\",\"location\":{\"latitude\":25.033,\"longitude\":121.565}}" }, "url": "{{baseUrl}}/feedback/emergencies" } }
+      ]
+    }
+  ]
+}
