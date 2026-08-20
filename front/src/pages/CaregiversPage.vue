@@ -310,11 +310,23 @@ function ratingLabel(caregiver: Caregiver) {
   return caregiver.ratingCount ? `${(caregiver.ratingAverage || 0).toFixed(1)}（${caregiver.ratingCount}）` : '新加入';
 }
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+
 function assetUrl(path?: string) {
   if (!path) return '/chioansimicon.svg';
-  if (/^https?:\/\//.test(path)) return path;
-  // 後端上傳網址以 /uploads 開頭；開發時由 Quasar proxy 轉送，正式上線則可使用同網域路徑。
-  return path.startsWith('/') ? path : `/${path}`;
+
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  if (normalizedPath.startsWith('/uploads/')) {
+    return `${backendBaseUrl}${normalizedPath}`;
+  }
+
+  return normalizedPath;
 }
 
 function useFallbackPhoto(event: Event) {

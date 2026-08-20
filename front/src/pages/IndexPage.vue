@@ -221,10 +221,23 @@ function areaLabel(caregiver: Caregiver) {
   return caregiver.serviceAreas?.slice(0, 2).join('、') || '服務地區洽談';
 }
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+
 function assetUrl(path?: string) {
   if (!path) return '/chioansimicon.svg';
-  if (/^https?:\/\//.test(path)) return path;
-  return path.startsWith('/') ? path : `/${path}`;
+
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  if (normalizedPath.startsWith('/uploads/')) {
+    return `${backendBaseUrl}${normalizedPath}`;
+  }
+
+  return normalizedPath;
 }
 
 function useFallbackPhoto(event: Event) {
