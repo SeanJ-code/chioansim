@@ -58,16 +58,48 @@
           <p>選一張卡片，就能開始。</p>
         </div>
 
-        <div class="quick-grid">
-          <component v-for="item in quickActions" :key="item.title" :is="item.anchor ? 'a' : 'router-link'" :href="item.anchor" :to="item.to" class="quick-card">
-            <span class="quick-card__icon" :class="item.tone"><component :is="item.icon" :size="34" /></span>
-            <span class="quick-card__copy">
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.description }}</small>
-            </span>
-            <ChevronRight class="quick-card__arrow" :size="26" />
-          </component>
-        </div>
+<div class="quick-grid">
+  <template v-for="item in quickActions" :key="item.title">
+
+    <!-- 頁面內捲動 -->
+    <button
+      v-if="item.scrollTo"
+      type="button"
+      class="quick-card"
+      @click="scrollToSection(item.scrollTo)"
+    >
+      <span class="quick-card__icon" :class="item.tone">
+        <component :is="item.icon" :size="34" />
+      </span>
+
+      <span class="quick-card__copy">
+        <strong>{{ item.title }}</strong>
+        <small>{{ item.description }}</small>
+      </span>
+
+      <ChevronRight class="quick-card__arrow" :size="26" />
+    </button>
+
+    <!-- Vue Router 換頁 -->
+    <router-link
+      v-else-if="item.to"
+      :to="item.to"
+      class="quick-card"
+    >
+      <span class="quick-card__icon" :class="item.tone">
+        <component :is="item.icon" :size="34" />
+      </span>
+
+      <span class="quick-card__copy">
+        <strong>{{ item.title }}</strong>
+        <small>{{ item.description }}</small>
+      </span>
+
+      <ChevronRight class="quick-card__arrow" :size="26" />
+    </router-link>
+
+  </template>
+</div>
       </section>
 
       <section class="care-section" aria-labelledby="care-title">
@@ -192,9 +224,27 @@ const heroSlides = [
 ];
 
 const quickActions = [
-  { title: '線上預約服務', description: '替自己或家人找幫手', icon: markRaw(CalendarHeart), tone: 'coral', to: '/login' },
-  { title: '長照補助算算看', description: '四個選擇，簡單了解', icon: markRaw(Calculator), tone: 'sage', anchor: '#subsidy' },
-  { title: '看看居服員', description: '認識已通過審核的夥伴', icon: markRaw(UserRoundSearch), tone: 'wood', to: '/caregivers' },
+  {
+    title: '線上預約服務',
+    description: '替自己或家人找幫手',
+    icon: markRaw(CalendarHeart),
+    tone: 'coral',
+    to: '/login',
+  },
+  {
+    title: '長照補助算算看',
+    description: '四個選擇，簡單了解',
+    icon: markRaw(Calculator),
+    tone: 'sage',
+    scrollTo: 'subsidy',
+  },
+  {
+    title: '看看居服員',
+    description: '認識已通過審核的夥伴',
+    icon: markRaw(UserRoundSearch),
+    tone: 'wood',
+    to: '/caregivers',
+  },
 ];
 
 const steps = [
@@ -211,6 +261,12 @@ function changeHero(direction: number) {
   const currentIndex = heroSlides.findIndex((slide) => slide.name === heroSlide.value);
   const nextIndex = (currentIndex + direction + heroSlides.length) % heroSlides.length;
   heroSlide.value = heroSlides[nextIndex]?.name || heroSlides[0]!.name;
+}
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  });
 }
 
 function experienceLabel(caregiver: Caregiver) {
