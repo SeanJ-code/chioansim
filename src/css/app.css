@@ -1,0 +1,23 @@
+/*
+ * 「照安心」全站中文字型
+ * 字型檔存放在 public/fonts，部署後不需要依賴外部 CDN。
+ * jf open 粉圓目前只有 Regular 字重，瀏覽器會依畫面需求合成較粗字重。
+ */
+@font-face {
+  font-family: 'jf open 粉圓';
+  src: url('/fonts/jf-openhuninn-2.1.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --font-family-brand: 'jf open 粉圓', 'Source Han Sans TC', 'Noto Sans TC',
+    'PingFang TC', 'Microsoft JhengHei', sans-serif;
+}
+
+html,
+body,
+#q-app {
+  font-family: var(--font-family-brand);
+}

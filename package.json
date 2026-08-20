@@ -1,0 +1,48 @@
+{
+  "name": "chioansim-front",
+  "version": "0.0.1",
+  "description": "A Quasar Project",
+  "productName": "照安心",
+  "author": "sean <newqqa11@gmail.com>",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "typecheck": "vue-tsc --noEmit",
+    "postinstall": "quasar prepare --silent"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.28.0",
+    "@quasar/extras": "^2.0.0",
+    "axios": "^1.19.0",
+    "boring-avatars": "^2.0.4",
+    "boxicons": "^2.1.4",
+    "gsap": "^3.15.0",
+    "pinia": "^4.0.2",
+    "quasar": "^2.23.3",
+    "socket.io-client": "^4.8.3",
+    "vue": "^3.5.22",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^3.3.0",
+    "@types/node": "^22.19.11",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "typescript": "^6.0.0",
+    "vue-tsc": "^3.3.3"
+  },
+  "keywords": [
+    "quasar",
+    "quasar-app",
+    "quasar-cli",
+    "quasar-app-vite",
+    "vite",
+    "vue",
+    "vuejs"
+  ],
+  "engines": {
+    "node": ">= 26 || ^24 || ^22.12"
+  }
+}

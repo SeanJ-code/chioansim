@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">照安心品牌圖示</title>
+  <desc id="desc">兩位相互陪伴的人守護一顆代表即時照護的愛心</desc>
+  <circle cx="32" cy="32" r="30" fill="#FFF9F5" stroke="#EB9079" stroke-width="3"/>
+
+  <!-- 居服員與受照護者：以圓潤線條表達陪伴與親和力。 -->
+  <circle cx="23" cy="23" r="7" fill="#FFF9F5" stroke="#6E5750" stroke-width="3"/>
+  <circle cx="41" cy="23" r="7" fill="#FFF9F5" stroke="#6E5750" stroke-width="3"/>
+  <path d="M12.5 44c1.7-8 6.1-12 12.1-12 4 0 6.7 1.7 7.4 5.1.7-3.4 3.4-5.1 7.4-5.1 6 0 10.4 4 12.1 12"
+        fill="none" stroke="#6E5750" stroke-width="3.2" stroke-linecap="round"/>
+
+  <!-- 暖心與即時關照：心形內的小指針象徵即時掌握照護狀態。 -->
+  <path d="M32 53.5 20.8 43.2C15.5 38.4 18.1 30 25 30c3.2 0 5.6 1.8 7 4.1 1.4-2.3 3.8-4.1 7-4.1 6.9 0 9.5 8.4 4.2 13.2L32 53.5Z"
+        fill="#EB9079" stroke="#6E5750" stroke-width="2.4" stroke-linejoin="round"/>
+  <circle cx="32" cy="40.5" r="6.2" fill="#D96B27"/>
+  <path d="M32 36.8v4.1l3 2" fill="none" stroke="#FFF9F5" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 活力弧線：保留日系低飽和色彩，不增加小尺寸雜訊。 -->
+  <path d="M11 27.5A22 22 0 0 1 16.5 16" fill="none" stroke="#EB9079" stroke-width="3" stroke-linecap="round"/>
+  <path d="M47.5 16A22 22 0 0 1 53 27.5" fill="none" stroke="#D96B27" stroke-width="3" stroke-linecap="round"/>
+</svg>
