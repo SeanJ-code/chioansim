@@ -434,27 +434,31 @@ a:focus-visible, button:focus-visible { outline: 3px solid #f3a089; outline-offs
 }
 
 @media (max-width: 599px) {
-  main { padding: 16px 12px 48px; }
-  .hero-shell { border-radius: 24px; }
-  .hero-carousel { height: 590px; }
-  .hero-slide { padding: 28px 22px 64px; background-position: 64% center; }
-  .hero-overlay { background: linear-gradient(0deg, rgb(47 31 26 / 86%) 0%, rgb(65 42 35 / 56%) 58%, rgb(50 32 27 / 10%) 100%); }
-  .hero-content { width: 100%; justify-content: flex-end; }
-  .hero-content h1 { margin: 14px 0 12px; font-size: 2.35rem; }
-  .hero-content p { margin-bottom: 20px; font-size: 1.05rem; }
-  .hero-arrow { display: none; }
-  .quick-section, .care-section, .steps-section { padding-top: 52px; }
-  .section-heading { align-items: flex-start; margin-bottom: 20px; }
-  .compact-heading p { display: none; }
-  .section-heading h2 { font-size: 2rem; }
-  .quick-card { padding: 18px; border-radius: 20px; }
-  .quick-card__icon { flex-basis: 56px; width: 56px; height: 56px; border-radius: 18px; }
-  .caregiver-row { grid-auto-columns: 82%; gap: 16px; }
-  .caregiver-card__photo { height: 205px; }
-  .estimate-section { margin-top: 58px; padding: 28px 20px; border-radius: 26px; }
-  .estimate-card { padding: 22px 16px; border-radius: 22px; }
-  .choice-grid { grid-template-columns: 1fr; }
-  .line-banner { padding: 24px 20px; }
+  main {
+    width: 100%;
+    max-width: 100%;
+    padding: 16px 12px 48px;
+    overflow-x: hidden;
+  }
+
+  .estimate-section {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-top: 58px;
+    padding: 28px 16px;
+    border-radius: 26px;
+    box-sizing: border-box;
+  }
+
+  .estimate-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 22px 14px;
+    border-radius: 22px;
+    box-sizing: border-box;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

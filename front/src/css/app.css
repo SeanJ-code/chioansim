@@ -16,8 +16,18 @@
     'PingFang TC', 'Microsoft JhengHei', sans-serif;
 }
 
+/* 全站 RWD 尺寸計算統一 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #q-app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: var(--font-family-brand);
 }
