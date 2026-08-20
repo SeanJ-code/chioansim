@@ -12,8 +12,21 @@
   <meta name="msapplication-tap-highlight" content="no">
   <meta name="viewport"
     content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src https://www.google.com https://maps.google.com;<% if (ctx.dev) { %> connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 ws://localhost:*; worker-src 'self' blob:;<% } %>" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob: https:;
+    connect-src
+      'self'
+      https://chioansim-back.onrender.com
+      wss://chioansim-back.onrender.com
+      http://localhost:3000
+      http://127.0.0.1:3000
+      ws://localhost:*;
+    frame-src https://www.google.com https://maps.google.com;
+    worker-src 'self' blob:;
+  " />
 
   <!-- 照安心統一品牌圖示：瀏覽器頁籤與加入主畫面的捷徑皆使用同一張 Logo。 -->
   <link rel="icon" type="image/svg+xml" href="/chioansimicon.svg">
