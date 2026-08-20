@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
-uploads/*
-!uploads/.gitkeep
 
+# 暫時保留 uploads，讓 Render 展示環境能讀到既有測試圖片
+# uploads/*
+# !uploads/.gitkeep
