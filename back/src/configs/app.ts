@@ -14,6 +14,7 @@ import { patientRoutes } from '../routes/patient-routes'
 import { serviceRoutes } from '../routes/service-routes'
 import { notificationRoutes } from '../routes/notification-routes'
 import { favoriteRoutes } from '../routes/favorite-routes'
+import { ltcRoutes } from '../routes/ltc-routes'
 
 /**
  * Express 應用程式的「組裝中心」。
@@ -95,6 +96,7 @@ app.use('/api/feedback', feedbackRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/favorites', favoriteRoutes)
+app.use('/api/ltc', ltcRoutes)
 
 // 參考專案風格的簡短網址；保留上方 /api 版本，避免既有前端與測試失效。
 app.use('/auth', authRoutes)
@@ -106,6 +108,7 @@ app.use('/feedback', feedbackRoutes)
 app.use('/admin', adminRoutes)
 app.use('/notifications', notificationRoutes)
 app.use('/favorites', favoriteRoutes)
+app.use('/ltc', ltcRoutes)
 
 // 必須放最後：沒有任何路由符合才回 404；執行時的例外則交給 errorHandler。
 app.use(notFound)

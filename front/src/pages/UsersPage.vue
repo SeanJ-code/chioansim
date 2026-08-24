@@ -176,6 +176,60 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="serviceAreaDialog">
+      <q-card class="service-area-dialog">
+        <q-card-section class="detail-dialog__heading service-area-heading">
+          <div><small>使用政府開放資料</small><h2>查詢附近長照服務</h2></div>
+          <button class="detail-dialog__close" type="button" aria-label="關閉附近長照服務" v-close-popup><X :size="24" /></button>
+        </q-card-section>
+
+        <q-card-section class="service-area-body">
+          <p class="service-area-lead">按一下定位，幫您找出距離最近的長照 A、B、C 服務據點。</p>
+
+          <button class="locate-button" type="button" :disabled="serviceAreaLoading" @click="findNearbyServices()">
+            <MapPinned :size="25" />
+            <span><strong>{{ serviceAreaLoading ? '正在取得位置…' : '使用我目前的位置' }}</strong><small>瀏覽器會先詢問您是否同意</small></span>
+          </button>
+
+          <div v-if="serviceAreaError" class="service-area-message service-area-message--error" role="alert">
+            <AlertCircle :size="23" /><span><strong>目前無法查詢</strong>{{ serviceAreaError }}</span>
+          </div>
+
+          <template v-if="nearbyCenters.length || serviceAreaSearched">
+            <div class="service-area-toolbar">
+              <div><label id="radius-label">搜尋範圍</label><small>選擇您方便前往的距離</small></div>
+              <q-btn-toggle v-model="serviceRadius" aria-labelledby="radius-label" no-caps unelevated toggle-color="brown-7" :options="radiusOptions" @update:model-value="findNearbyServices(false)" />
+            </div>
+
+            <div v-if="nearbyCenters.length" class="service-area-message" aria-live="polite">
+              <CircleCheckBig :size="23" /><span><strong>{{ serviceLocation }}</strong>{{ serviceAreaCount }} 個據點在 {{ serviceRadius / 1000 }} 公里內，先顯示最近的 {{ nearbyCenters.length }} 個。</span>
+            </div>
+            <div v-else class="service-area-empty">
+              <MapPinned :size="34" /><strong>這個範圍內還沒有找到據點</strong><span>請改選較廣的搜尋範圍。</span>
+            </div>
+
+            <q-list v-if="nearbyCenters.length" bordered separator class="nearby-list">
+              <q-item v-for="center in nearbyCenters" :key="center.id" class="nearby-item">
+                <q-item-section avatar><span class="nearby-level">{{ center.level }}</span></q-item-section>
+                <q-item-section>
+                  <q-item-label class="nearby-name">{{ center.name }}</q-item-label>
+                  <q-item-label caption><strong>{{ levelLabel(center.level) }}</strong>・{{ formatDistance(center.distanceMeters) }}</q-item-label>
+                  <q-item-label caption>{{ center.address }}</q-item-label>
+                  <q-item-label v-if="center.service" caption class="nearby-service">{{ center.service }}</q-item-label>
+                  <div class="nearby-actions">
+                    <a v-if="center.phone" :href="`tel:${center.phone}`"><PhoneCall :size="18" />打電話</a>
+                    <a :href="navigationUrl(center)" target="_blank" rel="noopener noreferrer"><MapPinned :size="18" />地圖導航</a>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+
+            <q-btn v-if="serviceAreaCount > nearbyCenters.length && serviceLimit < 10" flat no-caps class="show-more-centers" label="再顯示 5 個據點" @click="showMoreCenters" />
+          </template>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="faqDialog">
       <q-card class="care-faq-dialog">
         <q-card-section class="detail-dialog__heading care-faq-heading">
@@ -625,6 +679,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
+import { useGeolocation } from '@/composables/useGeolocation';
 
 const authStore = useAuthStore();
 const liveSync = useLiveSyncStore();
@@ -634,6 +689,19 @@ const route = useRoute();
 const featureDialog = ref(false);
 const longTermCareDialog = ref(false);
 const faqDialog = ref(false);
+const serviceAreaDialog = ref(false);
+const serviceAreaLoading = ref(false);
+const serviceAreaSearched = ref(false);
+const serviceAreaError = ref('');
+const serviceAreaCount = ref(0);
+const serviceRadius = ref(5000);
+const serviceLimit = ref(5);
+const radiusOptions = [{ label: '3 公里', value: 3000 }, { label: '5 公里', value: 5000 }, { label: '10 公里', value: 10000 }];
+const { currentPosition, startTracking, stopTracking } = useGeolocation();
+type NearbyCenter = { id:string; name:string; level:string; address:string; phone:string; service:string; lat:number; lng:number; distanceMeters:number };
+const nearbyCenters = ref<NearbyCenter[]>([]);
+const serviceAreaLocation = ref<string[]>([]);
+const serviceLocation = computed(() => serviceAreaLocation.value.length ? `您附近（${serviceAreaLocation.value.join('')}）` : '您附近');
 const recipientDialog = ref(false);
 const recipientPickerDialog = ref(false);
 const emptyRecipientDialog = ref(false);
@@ -1140,12 +1208,39 @@ function handleFeatureItem(name: string) {
     longTermCareDialog.value = true;
     return;
   }
+  if (name === '各鄉鎮服務範圍') {
+    serviceAreaDialog.value = true;
+    return;
+  }
   if (name === '常見問題') {
     faqDialog.value = true;
     return;
   }
   openFeature(name);
 }
+
+function levelLabel(level:string) {
+  return ({ A: 'A 級｜社區整合型服務中心', B: 'B 級｜複合型服務中心', C: 'C 級｜巷弄長照站' } as Record<string,string>)[level] || '長照服務據點';
+}
+function formatDistance(meters:number) { return meters < 1000 ? `距離約 ${meters} 公尺` : `距離約 ${(meters / 1000).toFixed(1)} 公里`; }
+function navigationUrl(center:NearbyCenter) { return `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`; }
+async function findNearbyServices(requestLocation = true) {
+  serviceAreaLoading.value = true;
+  serviceAreaError.value = '';
+  try {
+    const location = requestLocation || !currentPosition.value ? await startTracking() : currentPosition.value;
+    stopTracking();
+    const { data } = await api.get<{ count:number; location:string[]; results:NearbyCenter[] }>('/ltc/nearby', { params: { lat:location.latitude, lng:location.longitude, radius:serviceRadius.value, limit:serviceLimit.value } });
+    nearbyCenters.value = data.results;
+    serviceAreaCount.value = data.count;
+    serviceAreaLocation.value = data.location;
+    serviceAreaSearched.value = true;
+  } catch (error:any) {
+    nearbyCenters.value = [];
+    serviceAreaError.value = error?.response?.data?.message || error?.message || '請稍後再試。';
+  } finally { serviceAreaLoading.value = false; }
+}
+function showMoreCenters() { serviceLimit.value = 10; void findNearbyServices(false); }
 
 async function openRatingSummary() {
   ratingDialog.value = true;
@@ -1197,6 +1292,7 @@ onMounted(async () => {
   if (route.query.recipientSaved === '1') openRecipient();
 });
 onBeforeUnmount(liveSync.stop);
+onBeforeUnmount(stopTracking);
 </script>
 
 <style scoped>
@@ -1233,6 +1329,7 @@ onBeforeUnmount(liveSync.stop);
 .detail-dialog__close{color:var(--chestnut)}
 .detail-actions{display:flex;justify-content:space-between;padding:0 26px 22px}.soft-delete-button{min-height:44px;color:#8d4b38;background:#fff0eb;border-radius:13px}.picker-dialog{width:min(470px,calc(100vw - 28px));padding:12px;color:var(--ink);background:#fffdfb;border-radius:25px}.picker-dialog small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.picker-dialog h2{margin:4px 0 8px;font-size:1.65rem}.picker-dialog p{margin:0;color:#7d675f}.picker-dialog :deep(.q-field__control){min-height:60px;border-radius:16px}.picker-actions{display:flex;justify-content:space-between;padding:12px 16px 16px}.delete-dialog{width:min(430px,calc(100vw - 28px));padding:24px;text-align:center;color:var(--ink);background:#fffdfb;border-radius:26px}.delete-dialog__icon{width:72px;height:72px;display:grid;place-items:center;margin:0 auto;color:#985039;background:#ffe7df;border-radius:23px}.delete-dialog h2{margin:0 0 9px;font-size:1.55rem}.delete-dialog p{margin:0;color:#765f57;line-height:1.7}.soft-delete-confirm{color:white;background:#a94d2d;border-radius:13px}.calculator-dialog{width:min(980px,calc(100vw - 48px));max-width:min(980px,calc(100vw - 48px))!important;max-height:92vh;overflow-y:auto;padding:20px;color:var(--ink);background:#fffdfb;border-radius:28px}.calculator-dialog__heading{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 16px}.calculator-dialog__heading small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.calculator-dialog__heading h2{margin:4px 0 0;font-size:1.9rem}.calculator-dialog__heading button{flex:0 0 48px;width:48px;height:48px;display:grid;place-items:center;color:var(--chestnut);background:#fff2ec;border:0;border-radius:14px;cursor:pointer}.calculator-dialog>.q-card__section:last-child{padding:18px 16px 20px}
 a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3px}
+.service-area-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:28px}.service-area-heading{position:sticky;z-index:2;top:0;background:#fffdfb}.service-area-body{display:grid;gap:18px;padding:4px 32px 30px}.service-area-lead{margin:0;color:#6e5750;font-size:1.08rem;line-height:1.75}.locate-button{min-height:76px;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 20px;color:white;background:#a94f27;border:0;border-radius:18px;cursor:pointer;box-shadow:0 10px 22px rgb(169 79 39 / 20%)}.locate-button:disabled{cursor:wait;opacity:.65}.locate-button span{display:grid;text-align:left}.locate-button strong{font-size:1.08rem}.locate-button small{margin-top:2px;color:rgb(255 255 255 / 84%)}.service-area-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;background:#f7eee8;border-radius:17px}.service-area-toolbar>div{display:grid;gap:3px}.service-area-toolbar label{font-size:1rem;font-weight:800}.service-area-toolbar small{color:#765f57}.service-area-toolbar :deep(.q-btn){min-height:46px;padding:0 15px}.service-area-message{display:flex;align-items:flex-start;gap:11px;padding:15px 16px;color:#315e4b;background:#e9f4ee;border-radius:16px}.service-area-message span{display:grid;line-height:1.55}.service-area-message--error{color:#883b31;background:#fbeae7}.service-area-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 18px;color:#725c54;background:#fff6f1;border-radius:18px;text-align:center}.service-area-empty strong{font-size:1.08rem}.nearby-list{overflow:hidden;border-color:#e4d6cf;border-radius:19px}.nearby-item{min-height:148px;padding:18px 16px}.nearby-level{width:50px;height:50px;display:grid;place-items:center;color:#94431f;background:#ffe9dd;border-radius:16px;font-size:1.2rem;font-weight:900}.nearby-name{font-size:1.08rem;font-weight:800;line-height:1.5}.nearby-item :deep(.q-item__label--caption){margin-top:5px;color:#715c54;font-size:.9rem;line-height:1.5}.nearby-item :deep(.q-item__label--caption strong){color:#9b481f}.nearby-service{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}.nearby-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.nearby-actions a{min-height:44px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 15px;color:#7c3d22;background:#fff1e9;border:1px solid #ebc4b1;border-radius:12px;font-weight:800;text-decoration:none}.nearby-actions a:last-child{color:white;background:#6b5a52;border-color:#6b5a52}.show-more-centers{min-height:50px;color:#8d3f20;background:#fff1e9;border-radius:14px;font-weight:800}
 .feature-title{min-width:0;display:flex;flex-direction:column;gap:3px}.feature-title small{color:rgb(255 255 255 / 78%);font-size:.78rem}
 .booking-list-dialog,.cancel-dialog,.journal-dialog{width:min(820px,calc(100vw - 32px));max-width:min(820px,calc(100vw - 32px))!important}
 .booking-filters{display:grid;grid-template-columns:1fr 210px;gap:12px;padding:4px 32px 14px}.booking-filters :deep(.q-field__control),.journal-body :deep(.q-field__control){border-radius:15px}
@@ -1241,6 +1338,7 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 @media(max-width:700px){.booking-filters,.journal-fixed{grid-template-columns:1fr}.journal-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important}.journal-body{padding-left:18px;padding-right:18px}.journal-rating{align-items:flex-start;flex-direction:column}}
 @media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-progress-panels{min-height:330px;max-height:54dvh}.booking-progress-panels :deep(.q-tab-panel){padding:18px 12px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-progress-tabs :deep(.q-tab){padding:0 7px;font-size:.88rem}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
 @media(max-width:700px){.long-term-care-dialog,.care-faq-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.long-term-care-body,.care-faq-body{padding-left:18px;padding-right:18px}.long-term-care-heading h2,.care-faq-heading h2{font-size:1.5rem}.long-term-care-actions,.care-faq-actions{grid-template-columns:1fr;padding:12px 18px 18px}.care-faq-compare{grid-template-columns:1fr}.care-faq-section-title{align-items:start;flex-direction:column;gap:3px}.care-faq-answer{padding-left:18px}}
+@media(max-width:700px){.service-area-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;border-radius:22px}.service-area-body{padding:2px 16px 24px}.service-area-heading{padding-left:18px;padding-right:18px}.service-area-heading h2{font-size:1.45rem}.service-area-toolbar{align-items:stretch;flex-direction:column}.service-area-toolbar :deep(.q-btn-group){width:100%}.service-area-toolbar :deep(.q-btn){flex:1;padding:0 9px}.nearby-item{align-items:flex-start;padding:16px 12px}.nearby-item :deep(.q-item__section--avatar){min-width:60px}.nearby-actions{display:grid;grid-template-columns:1fr 1fr}.nearby-actions a{padding:0 10px}}
 .manageable-bookings{display:grid;gap:12px}.manageable-booking{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;background:#fff7f2;border:1px solid #eadbd3;border-radius:18px;cursor:pointer;transition:border-color .2s ease,background-color .2s ease}.manageable-booking:hover,.manageable-booking.selected{background:#fff0e9;border-color:#e98a6f}.manageable-booking>div:first-child{min-width:0;display:flex;flex-direction:column;gap:4px}.manageable-booking strong{font-size:1.05rem}.manageable-booking span,.manageable-booking small{color:#836d65}.manageable-booking small{font-size:.82rem}.manageable-booking__actions{display:flex;gap:10px;flex-shrink:0}.manageable-booking__actions :deep(.q-btn){min-height:44px;padding:0 16px;border-radius:13px}.cancel-task-button{color:#fff;background:#a94835}.change-heading{display:flex;flex-direction:column;gap:4px;margin-top:4px;padding:15px 17px;color:#684e45;background:#f3e7e1;border-radius:15px}.change-heading small{color:var(--persimmon);font-weight:700}.cancellation-heading{background:#fce9e5}.booking-empty.compact{padding:28px 16px}.booking-empty.compact h3{font-size:1.05rem}
 @media(max-width:600px){.manageable-booking{align-items:stretch;flex-direction:column}.manageable-booking__actions{display:grid;grid-template-columns:1fr 1fr}.manageable-booking__actions :deep(.q-btn){width:100%}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
