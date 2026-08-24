@@ -164,7 +164,7 @@
         <q-card-section v-else-if="careCombos.length" class="care-combo-body">
           <article v-for="combo in careCombos" :key="combo.key" class="care-combo-card">
             <header class="care-combo-profile">
-              <q-avatar size="64px" class="care-combo-avatar"><img v-if="combo.photo" :src="assetUrl(combo.photo)" :alt="`${combo.caregiverName}的照片`"><UserRound v-else :size="30" /></q-avatar>
+              <q-avatar size="64px" class="care-combo-avatar"><img v-if="combo.photo" :src="assetUrl(combo.photo)" :alt="`${combo.caregiverName}的照片`" @error="combo.photo = undefined"><UserRound v-else :size="30" /></q-avatar>
               <div><strong>{{ combo.caregiverName }}</strong><span class="care-combo-rating" :aria-label="`平均評分 ${combo.ratingAverage.toFixed(1)} 顆星`"><Star :size="17" fill="currentColor" /> {{ combo.ratingAverage.toFixed(1) }} <small>・{{ combo.ratingCount }} 則評分</small></span></div>
               <q-badge rounded :label="`已服務 ${combo.completedCount} 次`" />
             </header>
@@ -614,6 +614,7 @@ interface CareRecipient {
 interface Booking { _id:string; bookingNumber?:string; scheduledStartAt:string; scheduledEndAt?:string; status:string; attendanceStatus?:string; createdAt?:string; acceptedAt?:string; departedAt?:string; arrivedAt?:string; serviceStartedAt?:string; completionRequestedAt?:string; completedAt?:string; cancelledAt?:string; serviceAddress?:{ text?:string }; recipientId?:{ _id?:string; name?:string }; caregiverId?:{ _id?:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ _id?:string; name?:string } }; serviceTypeIds?:Array<{ _id?:string; name:string }> }
 interface NotificationItem { _id:string; bookingId?:string; type:'BOOKING'|'SAFETY'|'SYSTEM'; title:string; message:string; status:'SENT'|'FAILED'|'READ'; createdAt:string }
 interface ComboSlot { _id:string; date:string; startTime:string; endTime:string }
+interface ComboCaregiver { _id:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ name?:string } }
 interface CareCombo { key:string; caregiverId:string; caregiverName:string; photo:string|undefined; ratingAverage:number; ratingCount:number; recipientId:string|undefined; recipientName:string; services:Array<{ _id:string; name:string }>; completedCount:number; lastCompletedAt:string; address:string; bookings:Booking[]; slots:ComboSlot[]; selectedSlotId:string; slotLoading:boolean; slotLoaded:boolean; booking:boolean }
 const careCombos = ref<CareCombo[]>([]);
 const nextBooking = computed(() => bookings.value.filter((item) => !['COMPLETED','CANCELLED','ABANDONED'].includes(item.status) && new Date(item.scheduledStartAt) >= new Date()).sort((a,b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt))[0]);
@@ -697,9 +698,12 @@ function openFeature(name: string) {
   featureDialog.value = true;
 }
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
 function assetUrl(path: string) {
   if (/^https?:\/\//.test(path)) return path;
-  return path;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return normalizedPath.startsWith('/uploads/') ? `${backendBaseUrl}${normalizedPath}` : normalizedPath;
 }
 
 async function loadRecipients() {
@@ -812,7 +816,8 @@ function buildCareCombos() {
   careCombos.value = [...combos.values()].sort((a,b) => b.completedCount - a.completedCount || +new Date(b.lastCompletedAt) - +new Date(a.lastCompletedAt));
 }
 async function loadComboSlots(combo:CareCombo) { combo.slotLoading = true; try { combo.slots = (await api.get<ComboSlot[]>(`/nurses/${combo.caregiverId}/availability`)).data; combo.selectedSlotId = combo.slots[0]?._id || ''; } catch { combo.slots = []; $q.notify({ type:'negative', message:'可預約時段暫時無法載入' }); } finally { combo.slotLoading = false; combo.slotLoaded = true; } }
-async function openCareComboDialog() { careComboDialog.value = true; careComboLoading.value = true; await loadBookings(); buildCareCombos(); await Promise.all(careCombos.value.slice(0,3).map(loadComboSlots)); careComboLoading.value = false; }
+async function refreshComboCaregiver(combo:CareCombo) { try { const nurse = (await api.get<ComboCaregiver>(`/nurses/${combo.caregiverId}`)).data; if (nurse._id !== combo.caregiverId) return; combo.caregiverName = nurse.userId?.name || combo.caregiverName; combo.photo = nurse.profilePhotoUrl; combo.ratingAverage = nurse.ratingAverage || 0; combo.ratingCount = nurse.ratingCount || 0; } catch { combo.photo = undefined; } }
+async function openCareComboDialog() { careComboDialog.value = true; careComboLoading.value = true; try { await loadBookings(); buildCareCombos(); await Promise.all(careCombos.value.map(refreshComboCaregiver)); await Promise.all(careCombos.value.slice(0,3).map(loadComboSlots)); } finally { careComboLoading.value = false; } }
 function formatComboSlot(slot:ComboSlot) { return `${new Intl.DateTimeFormat('zh-TW',{month:'numeric',day:'numeric',weekday:'short'}).format(new Date(slot.date))} ${slot.startTime}–${slot.endTime}`; }
 function openComboHistory(combo:CareCombo) { selectedCombo.value = combo; comboHistoryDialog.value = true; }
 async function openProgressFromCombo() { careComboDialog.value = false; await nextTick(); await openBookingList(); }

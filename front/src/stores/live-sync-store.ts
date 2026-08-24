@@ -3,6 +3,8 @@ import { defineStore } from 'pinia';
 import { io, type Socket } from 'socket.io-client';
 
 const SYNC_KEY = 'chioansim-data-changed';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+const realtimeBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
 let timer: ReturnType<typeof setInterval> | undefined;
 let refresh: (() => Promise<void>) | undefined;
 let socket: Socket | undefined;
@@ -42,7 +44,8 @@ export const useLiveSyncStore = defineStore('live-sync', () => {
     document.addEventListener('visibilitychange', onVisibilityChange);
     const token = sessionStorage.getItem('chioansim-access-token');
     if (token) {
-      socket = io({ auth: { token } });
+      socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
+      socket.on('connect_error', () => socket?.disconnect());
       for (const event of ['booking:changed', 'alert:changed', 'location:changed']) {
         socket.on(event, () => void refreshNow());
       }
