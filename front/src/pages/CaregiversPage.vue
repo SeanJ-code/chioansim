@@ -13,6 +13,11 @@
           <span v-if="!loading">目前有 <strong>{{ caregivers.length }}</strong> 位專業夥伴</span>
           <span v-else>正在整理安心名單…</span>
         </div>
+        <button v-if="authStore.user" class="favorites-button" type="button" @click="openFavorites">
+          <Heart :size="20" fill="currentColor" aria-hidden="true" />
+          我的收藏
+          <span>{{ favorites.length }}</span>
+        </button>
       </div>
       <div class="caregiver-hero__mark" aria-hidden="true">
         <img src="/chioansimicon.svg" alt="" />
@@ -83,6 +88,16 @@
               @error="useFallbackPhoto"
             />
             <span class="verified-badge"><BadgeCheck :size="16" /> 資格已認證</span>
+            <button
+              class="favorite-toggle"
+              type="button"
+              :class="{ active: caregiver.isFavorite }"
+              :aria-label="caregiver.isFavorite ? `取消收藏${caregiverName(caregiver)}` : `收藏${caregiverName(caregiver)}`"
+              :disabled="favoriteUpdating === caregiver._id"
+              @click.stop="toggleFavorite(caregiver)"
+            >
+              <Heart :size="22" :fill="caregiver.isFavorite ? 'currentColor' : 'none'" aria-hidden="true" />
+            </button>
           </div>
           <div class="caregiver-card__body">
             <div class="caregiver-card__heading">
@@ -151,6 +166,31 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="favoritesOpen" transition-show="scale" transition-hide="scale">
+      <q-card class="favorites-dialog">
+        <header class="favorites-dialog__heading">
+          <div><small>常用與偏好</small><h2><Heart :size="24" fill="currentColor" /> 收藏的居服員</h2></div>
+          <button type="button" aria-label="關閉收藏清單" @click="favoritesOpen = false"><X :size="22" /></button>
+        </header>
+        <q-card-section v-if="favoritesLoading" class="favorites-list"><q-skeleton v-for="item in 2" :key="item" type="rect" height="170px" /></q-card-section>
+        <q-card-section v-else-if="!favorites.length" class="favorites-empty">
+          <Heart :size="42" /><h3>還沒有收藏的居服員</h3><p>在居服員卡片右上角點愛心，就能放進這裡。</p>
+        </q-card-section>
+        <q-card-section v-else class="favorites-list">
+          <article v-for="caregiver in favorites" :key="caregiver._id" class="favorite-card">
+            <img :src="assetUrl(caregiver.profilePhotoUrl)" :alt="`${caregiverName(caregiver)}的居服員個人近照`" @error="useFallbackPhoto">
+            <div class="favorite-card__content">
+              <div class="favorite-card__heading"><div><h3>{{ caregiverName(caregiver) }}</h3><span><Star :size="16" fill="currentColor" /> {{ ratingLabel(caregiver) }}</span></div><button type="button" :aria-label="`取消收藏${caregiverName(caregiver)}`" @click="toggleFavorite(caregiver)"><Heart :size="21" fill="currentColor" /></button></div>
+              <p>{{ experienceLabel(caregiver) }}・{{ caregiver.serviceTypeIds?.map(item => item.name).join('、') || '照護服務' }}</p>
+              <section v-if="caregiver.myPreviousJobs?.length" class="previous-jobs"><strong>曾為您服務</strong><span v-for="job in caregiver.myPreviousJobs" :key="job._id">{{ formatJobDate(job.scheduledStartAt) }}・{{ job.serviceTypeIds?.map(item => item.name).join('、') || '照護服務' }}</span></section>
+              <section v-if="caregiver.reviews?.length" class="favorite-review"><strong>近期評價</strong><p>「{{ caregiver.reviews[0]?.comment }}」</p></section>
+              <button class="favorite-card__detail" type="button" @click="openFavoriteDetails(caregiver)">查看詳細資料</button>
+            </div>
+          </article>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="bookingOpen" transition-show="scale" transition-hide="scale">
       <q-card class="booking-dialog">
         <header class="booking-dialog__heading">
@@ -196,6 +236,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useQuasar } from 'quasar';
 import {
   ArrowRight,
   BadgeCheck,
@@ -204,6 +245,7 @@ import {
   CarFront,
   ChevronDown,
   HeartHandshake,
+  Heart,
   MapPin,
   RefreshCw,
   Search,
@@ -216,7 +258,7 @@ import {
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 type Transportation = 'CAR' | 'MOTORCYCLE' | 'TRANSIT' | string;
 
@@ -230,6 +272,10 @@ interface Caregiver {
   transportation?: Transportation;
   ratingAverage?: number;
   ratingCount?: number;
+  isFavorite?: boolean;
+  serviceTypeIds?: Array<{ name: string }>;
+  myPreviousJobs?: Array<{ _id: string; scheduledStartAt: string; serviceTypeIds?: Array<{ name: string }> }>;
+  reviews?: Array<{ _id: string; rating: number; comment?: string }>;
 }
 
 const caregivers = ref<Caregiver[]>([]);
@@ -240,7 +286,13 @@ const transportation = ref('ALL');
 const detailsOpen = ref(false);
 const selectedCaregiver = ref<Caregiver | null>(null);
 const authStore = useAuthStore();
+const $q = useQuasar();
 const router = useRouter();
+const route = useRoute();
+const favorites = ref<Caregiver[]>([]);
+const favoritesOpen = ref(false);
+const favoritesLoading = ref(false);
+const favoriteUpdating = ref('');
 const bookingOpen = ref(false);
 const bookingSubmitting = ref(false);
 const slotLoading = ref(false);
@@ -308,6 +360,46 @@ function experienceLabel(caregiver: Caregiver) {
 
 function ratingLabel(caregiver: Caregiver) {
   return caregiver.ratingCount ? `${(caregiver.ratingAverage || 0).toFixed(1)}（${caregiver.ratingCount}）` : '新加入';
+}
+
+function formatJobDate(value: string) {
+  return new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+}
+
+async function loadFavorites() {
+  if (!authStore.user || !['USER', 'PATIENT'].includes(authStore.user.role)) return;
+  const { data } = await api.get<Caregiver[]>('/favorites');
+  favorites.value = data;
+  const ids = new Set(data.map((item) => item._id));
+  caregivers.value.forEach((item) => { item.isFavorite = ids.has(item._id); });
+}
+
+async function openFavorites() {
+  favoritesOpen.value = true;
+  favoritesLoading.value = true;
+  try { await loadFavorites(); }
+  catch { $q.notify({ type: 'negative', message: '收藏清單暫時無法載入' }); }
+  finally { favoritesLoading.value = false; }
+}
+
+async function toggleFavorite(caregiver: Caregiver) {
+  if (!authStore.user) { await router.push({ path: '/login', query: { redirect: '/caregivers' } }); return; }
+  if (!['USER', 'PATIENT'].includes(authStore.user.role)) { $q.notify({ type: 'warning', message: '收藏功能提供給使用者與受照護者帳號' }); return; }
+  favoriteUpdating.value = caregiver._id;
+  try {
+    const { data } = await api.post<{ isFavorite: boolean; message: string }>('/favorites/toggle', { caregiverId: caregiver._id });
+    caregiver.isFavorite = data.isFavorite;
+    await loadFavorites();
+    $q.notify({ type: 'positive', message: data.message });
+  } catch (error: unknown) {
+    const candidate = error as { response?: { data?: { message?: string } } };
+    $q.notify({ type: 'negative', message: candidate.response?.data?.message || '收藏操作失敗，請稍後再試' });
+  } finally { favoriteUpdating.value = ''; }
+}
+
+function openFavoriteDetails(caregiver: Caregiver) {
+  favoritesOpen.value = false;
+  openDetails(caregiver);
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
@@ -419,6 +511,7 @@ async function loadCaregivers() {
   try {
     const { data } = await api.get<Caregiver[]>('/nurses');
     caregivers.value = data.map((caregiver) => ({ ...caregiver, serviceAreas: caregiver.serviceAreas || [] }));
+    await loadFavorites();
   } catch {
     errorMessage.value = '請確認後端服務與資料庫已啟動，再重新整理一次。';
   } finally {
@@ -426,7 +519,10 @@ async function loadCaregivers() {
   }
 }
 
-onMounted(loadCaregivers);
+onMounted(async () => {
+  await loadCaregivers();
+  if (route.query.favorites === '1' && authStore.user) await openFavorites();
+});
 </script>
 
 <style scoped>
@@ -467,6 +563,8 @@ onMounted(loadCaregivers);
 .caregiver-hero p { max-width: 650px; margin: 20px 0 26px; color: #fff6f1; font-size: clamp(1rem, 2vw, 1.18rem); line-height: 1.9; }
 .caregiver-hero__summary { width: fit-content; display: flex; align-items: center; gap: 10px; padding: 11px 17px; color: var(--ink); background: #fff7f1; border-radius: 999px; }
 .caregiver-hero__summary strong { color: var(--persimmon); font-size: 1.2em; }
+.favorites-button { min-height: 46px; display: inline-flex; align-items: center; gap: 9px; margin-top: 14px; padding: 0 16px; color: white; background: rgb(255 255 255 / 12%); border: 1px solid rgb(255 255 255 / 34%); border-radius: 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.favorites-button span { min-width: 25px; padding: 2px 7px; color: var(--persimmon); background: white; border-radius: 999px; text-align: center; }
 .caregiver-hero__mark { position: relative; z-index: 1; flex: 0 0 auto; width: 150px; height: 150px; display: grid; place-items: center; margin-left: 28px; background: var(--paper); border: 6px solid var(--peach); border-radius: 50%; box-shadow: 0 18px 36px rgb(40 25 20 / 18%); }
 .caregiver-hero__mark img { width: 100%; height: 100%; object-fit: contain; }
 
@@ -487,6 +585,9 @@ onMounted(loadCaregivers);
 .photo-fallback { width: 100%; height: 100%; display: grid; place-items: center; color: var(--peach); background: #fff2ec; }
 .verified-badge { position: absolute; left: 16px; bottom: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; color: #345d50; background: #f3fff9; border: 1px solid rgb(74 107 93 / 23%); border-radius: 999px; font-size: .8rem; font-weight: 700; box-shadow: 0 6px 16px rgb(48 75 65 / 12%); }
 .verified-badge--static { position: static; width: fit-content; }
+.favorite-toggle { position: absolute; z-index: 2; top: 14px; right: 14px; width: 48px; height: 48px; display: grid; place-items: center; color: #765f58; background: rgb(255 253 251 / 94%); border: 1px solid rgb(110 87 80 / 15%); border-radius: 50%; box-shadow: 0 7px 20px rgb(70 45 37 / 14%); cursor: pointer; }
+.favorite-toggle.active { color: #bd453c; }
+.favorite-toggle:disabled { cursor: wait; opacity: .55; }
 .caregiver-card__body { padding: 22px; }
 .caregiver-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .caregiver-card__role { margin: 0 0 4px; color: var(--persimmon); font-size: .76rem; font-weight: 700; letter-spacing: .12em; }
@@ -507,6 +608,31 @@ onMounted(loadCaregivers);
 .primary-button { color: white; background: var(--persimmon); }
 .secondary-button { color: var(--chestnut); }
 .text-button { min-height: 44px; color: var(--persimmon); font-weight: 700; }
+
+.favorites-dialog { width: min(760px, calc(100vw - 28px)); max-width: 760px !important; max-height: 90dvh; overflow-y: auto; color: var(--chestnut); background: #fffdfb; border-radius: 26px; }
+.favorites-dialog__heading { position: sticky; z-index: 3; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 18px; background: #fffdfb; border-bottom: 1px solid #f0e3dd; }
+.favorites-dialog__heading small { color: var(--persimmon); font-weight: 700; letter-spacing: .1em; }
+.favorites-dialog__heading h2 { display: flex; align-items: center; gap: 9px; margin: 4px 0 0; color: var(--ink); font-size: 1.65rem; }
+.favorites-dialog__heading h2 svg { color: #bd453c; }
+.favorites-dialog__heading>button { width: 44px; height: 44px; display: grid; place-items: center; color: var(--chestnut); background: #fff2ec; border: 0; border-radius: 14px; cursor: pointer; }
+.favorites-list { display: grid; gap: 14px; padding: 20px 28px 28px; }
+.favorites-list>.q-skeleton { border-radius: 18px; }
+.favorite-card { display: grid; grid-template-columns: 150px minmax(0, 1fr); overflow: hidden; border: 1px solid #eadbd4; border-radius: 19px; }
+.favorite-card>img { width: 100%; height: 100%; min-height: 190px; object-fit: cover; background: #f7e9e2; }
+.favorite-card__content { min-width: 0; padding: 17px 18px; }
+.favorite-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.favorite-card__heading h3 { margin: 0 0 5px; color: var(--ink); font-size: 1.2rem; }
+.favorite-card__heading span { display: flex; align-items: center; gap: 5px; color: #a15b25; font-size: .85rem; }
+.favorite-card__heading>button { width: 44px; height: 44px; display: grid; place-items: center; flex: none; color: #bd453c; background: #fff0ed; border: 0; border-radius: 50%; cursor: pointer; }
+.favorite-card__content>p { margin: 10px 0; color: #765f58; line-height: 1.5; }
+.previous-jobs, .favorite-review { display: grid; gap: 3px; margin-top: 10px; padding: 10px 12px; background: #fff5ef; border-radius: 11px; font-size: .82rem; }
+.previous-jobs strong, .favorite-review strong { color: var(--persimmon); }
+.favorite-review p { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; }
+.favorite-card__detail { min-height: 44px; margin-top: 12px; padding: 0 14px; color: var(--persimmon); background: transparent; border: 1px solid rgb(197 84 24 / 35%); border-radius: 11px; font: inherit; font-weight: 700; cursor: pointer; }
+.favorites-empty { padding: 58px 24px; text-align: center; }
+.favorites-empty svg { color: #d6aaa0; }
+.favorites-empty h3 { margin: 12px 0 5px; color: var(--ink); }
+.favorites-empty p { margin: 0; }
 
 .detail-dialog {
   --paper: #fffdfb;
@@ -578,6 +704,11 @@ button:focus-visible, :deep(.q-field--focused), :deep(.q-btn:focus-visible) { ou
   .detail-dialog__facts { grid-template-columns: 1fr; }
   .detail-dialog__actions { bottom: -24px; flex-direction: column-reverse; margin: 0 -20px -24px; padding: 12px 20px 18px; }
   .detail-dialog__actions .q-btn { width: 100%; }
+  .favorites-dialog { width: calc(100vw - 20px); }
+  .favorites-dialog__heading, .favorites-list { padding-inline: 18px; }
+  .favorite-card { grid-template-columns: 96px minmax(0, 1fr); }
+  .favorite-card>img { min-height: 150px; }
+  .favorite-card__content { padding: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

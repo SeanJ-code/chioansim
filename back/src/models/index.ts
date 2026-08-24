@@ -136,6 +136,16 @@ const caregiverSchema = new Schema(
   { timestamps: true },
 )
 
+// 收藏是帳號與居服員之間的關係，獨立保存以避免把可變清單塞進 User。
+const favoriteSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    caregiverId: { type: Schema.Types.ObjectId, ref: 'CaregiverProfile', required: true },
+  },
+  { timestamps: true },
+)
+favoriteSchema.index({ userId: 1, caregiverId: 1 }, { unique: true })
+
 // 平日 09:00–17:00 預設可服務；此集合只記錄居服員主動設定的休假例外。
 const availabilitySchema = new Schema(
   {
@@ -340,6 +350,7 @@ export const User = model<any>('User', userSchema)
 export const CareRecipient = model<any>('CareRecipient', careRecipientSchema)
 export const UserRecipientRelation = model<any>('UserRecipientRelation', relationSchema)
 export const CaregiverProfile = model<any>('CaregiverProfile', caregiverSchema)
+export const Favorite = model<any>('Favorite', favoriteSchema)
 export const Availability = model<any>('Availability', availabilitySchema)
 export const ServiceType = model<any>('ServiceType', serviceTypeSchema)
 export const ServiceRequest = model<any>('ServiceRequest', serviceRequestSchema)

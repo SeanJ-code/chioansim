@@ -154,6 +154,72 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="careComboDialog">
+      <q-card class="care-combo-dialog">
+        <q-card-section class="detail-dialog__heading care-combo-heading">
+          <div><small>常用與偏好</small><h2>常用照顧組合</h2><p>從已完成的服務快速再次預約熟悉的照護夥伴。</p></div>
+          <button class="detail-dialog__close" type="button" aria-label="關閉常用照顧組合" v-close-popup><X :size="24" /></button>
+        </q-card-section>
+        <q-card-section v-if="careComboLoading" class="care-combo-loading"><q-skeleton v-for="item in 3" :key="item" type="rect" height="250px" /></q-card-section>
+        <q-card-section v-else-if="careCombos.length" class="care-combo-body">
+          <article v-for="combo in careCombos" :key="combo.key" class="care-combo-card">
+            <header class="care-combo-profile">
+              <q-avatar size="64px" class="care-combo-avatar"><img v-if="combo.photo" :src="assetUrl(combo.photo)" :alt="`${combo.caregiverName}的照片`"><UserRound v-else :size="30" /></q-avatar>
+              <div><strong>{{ combo.caregiverName }}</strong><span class="care-combo-rating" :aria-label="`平均評分 ${combo.ratingAverage.toFixed(1)} 顆星`"><Star :size="17" fill="currentColor" /> {{ combo.ratingAverage.toFixed(1) }} <small>・{{ combo.ratingCount }} 則評分</small></span></div>
+              <q-badge rounded :label="`已服務 ${combo.completedCount} 次`" />
+            </header>
+            <div class="care-combo-facts"><div><span>受照護者</span><strong>{{ combo.recipientName }}</strong></div><div><span>最近完成</span><strong>{{ formatBookingDate(combo.lastCompletedAt) }}</strong></div></div>
+            <div class="care-combo-services"><span>這組照顧服務</span><div><q-chip v-for="service in combo.services" :key="service._id" dense>{{ service.name }}</q-chip></div></div>
+            <div class="care-combo-slots">
+              <div class="care-combo-slots__title"><span>下次可預約時間</span><q-btn flat dense no-caps label="重新查詢" :loading="combo.slotLoading" @click="loadComboSlots(combo)" /></div>
+              <div v-if="combo.slots.length" class="care-combo-slot-list"><button v-for="slot in combo.slots.slice(0, 6)" :key="slot._id" type="button" :class="{ selected: combo.selectedSlotId === slot._id }" @click="combo.selectedSlotId = slot._id"><CalendarClock :size="17" /><span>{{ formatComboSlot(slot) }}</span></button></div>
+              <p v-else-if="combo.slotLoaded && !combo.slotLoading">未來 14 天尚無可預約時段。</p>
+            </div>
+            <footer class="care-combo-actions"><q-btn flat no-caps label="服務紀錄" @click="openComboHistory(combo)" /><q-btn outline no-caps label="查看預約進度" @click="openProgressFromCombo" /><q-btn unelevated no-caps label="再次預約" :disable="!combo.selectedSlotId" :loading="combo.booking" @click="bookCareCombo(combo)" /></footer>
+          </article>
+        </q-card-section>
+        <q-card-section v-else class="booking-empty"><CalendarHeart :size="38" /><h3>尚無常用照顧組合</h3><p>完成第一次服務後，熟悉的居服員與服務項目會顯示在這裡。</p></q-card-section>
+        <q-card-actions align="right"><q-btn flat no-caps class="dialog-button" label="關閉" v-close-popup /></q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="comboHistoryDialog">
+      <q-card class="booking-list-dialog"><q-card-section class="detail-dialog__heading"><div><small>歷史服務紀錄</small><h2>{{ selectedCombo?.caregiverName }} ・ {{ selectedCombo?.recipientName }}</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉服務紀錄" v-close-popup><X :size="24" /></button></q-card-section><q-list separator class="booking-list"><q-item v-for="booking in selectedCombo?.bookings || []" :key="booking._id" class="booking-list__item"><q-item-section avatar><span class="booking-date"><strong>{{ bookingDay(booking) }}</strong><small>{{ bookingMonth(booking) }} 月</small></span></q-item-section><q-item-section><q-item-label class="booking-list__title">{{ formatBookingDate(booking.scheduledStartAt) }}</q-item-label><q-item-label caption>{{ serviceNames(booking) }}</q-item-label></q-item-section><q-item-section side><q-badge rounded class="status-success" label="已完成" /></q-item-section></q-item></q-list></q-card>
+    </q-dialog>
+
+    <q-dialog v-model="bookingProgressDialog">
+      <q-card class="booking-progress-dialog">
+        <q-card-section class="detail-dialog__heading">
+          <div><small>預約服務進度</small><h2>{{ selectedProgressBooking ? bookingProgressCopy(selectedProgressBooking).title : '居服員出發與打卡通知' }}</h2></div>
+          <button class="detail-dialog__close" type="button" aria-label="關閉預約進度" v-close-popup><X :size="24" /></button>
+        </q-card-section>
+        <q-card-section v-if="selectedProgressBooking" class="booking-progress-body">
+          <div class="booking-current-status" aria-live="polite">
+            <span><MapPinned :size="23" /></span>
+            <div><strong>{{ bookingProgressCopy(selectedProgressBooking).title }}</strong><p>{{ bookingProgressCopy(selectedProgressBooking).description }}</p></div>
+            <q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(selectedProgressBooking))" :label="bookingStatusLabel(bookingDisplayStatus(selectedProgressBooking))" />
+          </div>
+          <section class="booking-timeline" aria-labelledby="booking-timeline-title">
+            <h3 id="booking-timeline-title">任務歷程</h3>
+            <div v-for="(event, index) in bookingTimeline(selectedProgressBooking)" :key="event.label" :class="['booking-timeline__item', { current: index === bookingTimeline(selectedProgressBooking).length - 1, danger: event.danger }]">
+              <span class="booking-timeline__marker"><X v-if="event.danger" :size="14" /><Check v-else :size="14" /></span>
+              <div><time :datetime="event.at">{{ formatProgressDate(event.at) }}</time><strong>{{ event.label }}</strong><small v-if="index === bookingTimeline(selectedProgressBooking).length - 1">目前進度</small></div>
+            </div>
+          </section>
+          <section v-if="selectedProgressBooking.serviceAddress?.text" class="booking-map" aria-labelledby="booking-map-title">
+            <h3 id="booking-map-title">服務地點</h3>
+            <p><MapPinned :size="18" /> {{ selectedProgressBooking.serviceAddress.text }}</p>
+            <div class="map-panel">
+              <iframe :src="bookingMapEmbedUrl(selectedProgressBooking)" :title="`${selectedProgressBooking.serviceAddress.text}服務地點地圖`" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+              <a :href="bookingMapSearchUrl(selectedProgressBooking)" target="_blank" rel="noopener noreferrer"><MapPinned :size="19" /> 在地圖中確認位置</a>
+            </div>
+          </section>
+        </q-card-section>
+        <q-card-section v-else class="booking-empty"><BellRing :size="38" /><h3>目前沒有預約進度</h3><p>居服員出發或打卡後，會在這裡顯示最新歷程。</p></q-card-section>
+        <q-card-actions align="right"><q-btn flat no-caps class="dialog-button" label="安心看完了" v-close-popup /></q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="completionDialog" persistent>
       <q-card class="booking-list-dialog completion-dialog">
         <q-card-section class="detail-dialog__heading"><div><small>雙方完成確認</small><h2>確認這次照護已完成</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉完成確認" @click="completionDialog=false"><X :size="24" /></button></q-card-section>
@@ -394,6 +460,7 @@ import {
   BellRing,
   CalendarClock,
   CalendarHeart,
+  Check,
   ChevronDown,
   ChevronRight,
   CircleHelp,
@@ -437,6 +504,12 @@ const deleteDialog = ref(false);
 const calculatorDialog = ref(false);
 const lineDialog = ref(false);
 const bookingDialog = ref(false);
+const careComboDialog = ref(false);
+const comboHistoryDialog = ref(false);
+const careComboLoading = ref(false);
+const selectedCombo = ref<CareCombo | null>(null);
+const bookingProgressDialog = ref(false);
+const selectedProgressBooking = ref<Booking | null>(null);
 const bookingLoading = ref(false);
 const bookingSearch = ref('');
 const bookingStatusFilter = ref('ALL');
@@ -527,7 +600,10 @@ interface CareRecipient {
   address?: { text?: string };
   emergencyContact?: { name?: string; phone?: string; relationship?: string };
 }
-interface Booking { _id:string; bookingNumber?:string; scheduledStartAt:string; scheduledEndAt?:string; status:string; attendanceStatus?:string; serviceAddress?:{ text?:string }; recipientId?:{ name?:string }; caregiverId?:{ userId?:{ _id?:string; name?:string } }; serviceTypeIds?:Array<{ name:string }> }
+interface Booking { _id:string; bookingNumber?:string; scheduledStartAt:string; scheduledEndAt?:string; status:string; attendanceStatus?:string; createdAt?:string; acceptedAt?:string; departedAt?:string; arrivedAt?:string; serviceStartedAt?:string; completionRequestedAt?:string; completedAt?:string; cancelledAt?:string; serviceAddress?:{ text?:string }; recipientId?:{ _id?:string; name?:string }; caregiverId?:{ _id?:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ _id?:string; name?:string } }; serviceTypeIds?:Array<{ _id?:string; name:string }> }
+interface ComboSlot { _id:string; date:string; startTime:string; endTime:string }
+interface CareCombo { key:string; caregiverId:string; caregiverName:string; photo:string|undefined; ratingAverage:number; ratingCount:number; recipientId:string|undefined; recipientName:string; services:Array<{ _id:string; name:string }>; completedCount:number; lastCompletedAt:string; address:string; bookings:Booking[]; slots:ComboSlot[]; selectedSlotId:string; slotLoading:boolean; slotLoaded:boolean; booking:boolean }
+const careCombos = ref<CareCombo[]>([]);
 const nextBooking = computed(() => bookings.value.filter((item) => !['COMPLETED','CANCELLED','ABANDONED'].includes(item.status) && new Date(item.scheduledStartAt) >= new Date()).sort((a,b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt))[0]);
 const activeBookings = computed(() => bookings.value.filter((item) => !['COMPLETED','CANCELLED','ABANDONED'].includes(item.status)));
 const visibleBookings = computed(() => {
@@ -578,7 +654,7 @@ const features: MemberFeature[] = [
   {
     title: '常用與偏好', tone: 'peach', icon: markRaw(Heart),
     items: [
-      { label: '收藏的居服員', icon: markRaw(Heart), to: '/caregivers' },
+      { label: '收藏的居服員', icon: markRaw(Heart), to: '/caregivers?favorites=1' },
       { label: '常用照顧組合', caption: '快速再次預約', icon: markRaw(Sparkles) },
       { label: '最近瀏覽居服員', icon: markRaw(History), to: '/caregivers' },
     ],
@@ -595,7 +671,7 @@ const features: MemberFeature[] = [
     title: '幫助與長照指南', tone: 'cream', icon: markRaw(CircleHelp),
     items: [
       { label: '長照服務申請說明', icon: markRaw(CircleHelp) },
-      { label: '花蓮各鄉鎮服務範圍', icon: markRaw(MapPinned) },
+      { label: '各鄉鎮服務範圍', icon: markRaw(MapPinned) },
       { label: '常見問題', icon: markRaw(MessageCircleHeart) },
     ],
   },
@@ -634,6 +710,32 @@ function formatBookingRange(booking:Booking) { return `${formatBookingDate(booki
 function bookingDay(booking:Booking) { return new Date(booking.scheduledStartAt).getDate(); }
 function bookingMonth(booking:Booking) { return new Date(booking.scheduledStartAt).getMonth() + 1; }
 function bookingStatusTone(status:string) { return ['ACCEPTED','ARRIVED','IN_SERVICE'].includes(status) ? 'status-success' : ['PENDING','DEPARTED','WAITING_DECISION','AWAITING_USER_CONFIRMATION'].includes(status) ? 'status-waiting' : ['CANCELLED','ABANDONED','LATE','OVERDUE'].includes(status) ? 'status-warning' : 'status-muted'; }
+function bookingTimeline(booking:Booking) {
+  return [
+    { label:'使用者提出照護需求', at:booking.createdAt }, { label:'居服員確認任務', at:booking.acceptedAt },
+    { label:'居服員開始前往', at:booking.departedAt }, { label:'抵達服務地點', at:booking.arrivedAt },
+    { label:'開始執行服務', at:booking.serviceStartedAt }, { label:'居服員提出完成', at:booking.completionRequestedAt },
+    { label:'雙方確認完成', at:booking.completedAt }, { label:'任務取消', at:booking.cancelledAt, danger:true },
+  ].filter((event): event is { label:string; at:string; danger?:boolean } => Boolean(event.at));
+}
+function bookingProgressCopy(booking:Booking) {
+  if (booking.cancelledAt || booking.status === 'CANCELLED') return { title:'預約已取消', description:'這筆照護服務已取消。' };
+  if (booking.completedAt || booking.status === 'COMPLETED') return { title:'服務已完成', description:'本次照護服務已由雙方確認完成。' };
+  if (booking.completionRequestedAt || booking.status === 'AWAITING_USER_CONFIRMATION') return { title:'等待您確認完成', description:'居服員已提出服務完成，等待您確認。' };
+  if (booking.serviceStartedAt || booking.status === 'IN_SERVICE') return { title:'居服員正在執行服務', description:'居服員已抵達，目前正在執行照護服務。' };
+  if (booking.arrivedAt || ['ARRIVED','WAITING_DECISION'].includes(booking.status)) return { title:'居服員已抵達', description:'居服員已抵達您的服務地點。' };
+  if (booking.departedAt || booking.status === 'DEPARTED') return { title:'居服員前往服務地點中', description:'居服員已出發，正在前往您的服務地點。' };
+  if (booking.acceptedAt || booking.status === 'ACCEPTED') return { title:'居服員已確認任務', description:'居服員已確認這筆照護服務。' };
+  return { title:'等待居服員確認', description:'您的照護需求已送出，等待居服員確認任務。' };
+}
+function formatProgressDate(value:string) { return new Intl.DateTimeFormat('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)); }
+function bookingMapSearchUrl(booking:Booking) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.serviceAddress?.text || '')}`; }
+function bookingMapEmbedUrl(booking:Booking) { return `https://maps.google.com/maps?q=${encodeURIComponent(booking.serviceAddress?.text || '')}&z=16&hl=zh-TW&output=embed`; }
+async function openBookingProgress() {
+  await loadBookings();
+  selectedProgressBooking.value = bookings.value.find((booking) => ['DEPARTED','ARRIVED','WAITING_DECISION','IN_SERVICE','AWAITING_USER_CONFIRMATION'].includes(booking.status)) || activeBookings.value[0] || bookings.value[0] || null;
+  bookingProgressDialog.value = true;
+}
 async function openCompletionConfirm(booking:Booking) {
   completionBooking.value = booking;
   bookingDialog.value = false;
@@ -664,6 +766,37 @@ async function openBookingList() {
   bookingLoading.value = false;
 }
 function openNextCare() { nextBooking.value ? void openBookingList() : void router.push('/caregivers'); }
+
+function buildCareCombos() {
+  const combos = new Map<string, CareCombo>();
+  bookings.value.filter((booking) => booking.status === 'COMPLETED').forEach((booking) => {
+    const caregiverId = booking.caregiverId?._id;
+    const serviceIds = (booking.serviceTypeIds || []).map((item) => item._id).filter((id): id is string => Boolean(id)).sort();
+    if (!caregiverId || !serviceIds.length) return;
+    const recipientId = booking.recipientId?._id;
+    const key = `${caregiverId}|${recipientId || 'SELF'}|${serviceIds.join(',')}`;
+    const existing = combos.get(key);
+    if (existing) {
+      existing.bookings.push(booking); existing.completedCount++;
+      if (+new Date(booking.completedAt || booking.scheduledStartAt) > +new Date(existing.lastCompletedAt)) { existing.lastCompletedAt = booking.completedAt || booking.scheduledStartAt; existing.address = booking.serviceAddress?.text || existing.address; }
+      return;
+    }
+    combos.set(key, { key, caregiverId, caregiverName:bookingCaregiverName(booking), photo:booking.caregiverId?.profilePhotoUrl, ratingAverage:booking.caregiverId?.ratingAverage || 0, ratingCount:booking.caregiverId?.ratingCount || 0, recipientId, recipientName:booking.recipientId?.name || '申請人本人', services:(booking.serviceTypeIds || []).map((item) => ({ _id:item._id!, name:item.name })), completedCount:1, lastCompletedAt:booking.completedAt || booking.scheduledStartAt, address:booking.serviceAddress?.text || '', bookings:[booking], slots:[], selectedSlotId:'', slotLoading:false, slotLoaded:false, booking:false });
+  });
+  careCombos.value = [...combos.values()].sort((a,b) => b.completedCount - a.completedCount || +new Date(b.lastCompletedAt) - +new Date(a.lastCompletedAt));
+}
+async function loadComboSlots(combo:CareCombo) { combo.slotLoading = true; try { combo.slots = (await api.get<ComboSlot[]>(`/nurses/${combo.caregiverId}/availability`)).data; combo.selectedSlotId = combo.slots[0]?._id || ''; } catch { combo.slots = []; $q.notify({ type:'negative', message:'可預約時段暫時無法載入' }); } finally { combo.slotLoading = false; combo.slotLoaded = true; } }
+async function openCareComboDialog() { careComboDialog.value = true; careComboLoading.value = true; await loadBookings(); buildCareCombos(); await Promise.all(careCombos.value.slice(0,3).map(loadComboSlots)); careComboLoading.value = false; }
+function formatComboSlot(slot:ComboSlot) { return `${new Intl.DateTimeFormat('zh-TW',{month:'numeric',day:'numeric',weekday:'short'}).format(new Date(slot.date))} ${slot.startTime}–${slot.endTime}`; }
+function openComboHistory(combo:CareCombo) { selectedCombo.value = combo; comboHistoryDialog.value = true; }
+async function openProgressFromCombo() { careComboDialog.value = false; await nextTick(); await openBookingList(); }
+async function bookCareCombo(combo:CareCombo) {
+  if (!combo.selectedSlotId || !combo.address) { $q.notify({ type:'warning', message:'找不到原服務地址，請從居服員頁面預約' }); return; }
+  combo.booking = true;
+  try { await api.post('/bookings', { availabilityId:combo.selectedSlotId, recipientId:combo.recipientId, serviceTypeIds:combo.services.map((item) => item._id), serviceAddress:{ text:combo.address } }); await loadBookings(); liveSync.notifyChanged(); careComboDialog.value = false; bookingDialog.value = true; $q.notify({ type:'positive', message:'預約已送出，等待居服員確認' }); }
+  catch (error:any) { $q.notify({ type:'negative', message:error?.response?.data?.message || '預約沒有送出成功，請重新選擇時段' }); await loadComboSlots(combo); }
+  finally { combo.booking = false; }
+}
 
 async function confirmCancelBooking() {
   const booking = selectedCancelBooking.value;
@@ -769,6 +902,8 @@ function handleFeatureItem(name: string) {
     return;
   }
   if (name === '查看預約及照護進度') { void openBookingList(); return; }
+  if (name === '常用照顧組合') { void openCareComboDialog(); return; }
+  if (name === '居服員出發與打卡通知') { void openBookingProgress(); return; }
   if (name === '變更或取消服務') {
     cancelBookingId.value = null;
     bookingAction.value = 'CHANGE'; changeDate.value = ''; changeSlot.value = ''; cancelReason.value = 'SCHEDULE_CHANGE';
@@ -874,6 +1009,7 @@ onBeforeUnmount(liveSync.stop);
 .login-state{min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:var(--paper);border-radius:28px}.login-state__icon{width:92px;height:92px;display:grid;place-items:center;color:var(--persimmon);background:#ffe8df;border-radius:30px}.login-state>span{margin-top:22px;color:var(--persimmon);font-weight:700;letter-spacing:.12em}.login-state h1{margin:10px 0;font-size:clamp(2rem,5vw,3rem)}.login-state p{margin:0 0 24px;color:#79635b;font-size:1.08rem}.login-state a{min-height:52px;display:inline-flex;align-items:center;gap:8px;padding:0 24px;color:white;background:var(--persimmon);border-radius:15px;font-size:1.06rem;font-weight:700;text-decoration:none}
 .feature-dialog{width:min(460px,calc(100vw - 32px));padding:10px;background:#fffdfb;border-radius:24px}.feature-dialog__heading{display:flex;align-items:center;gap:14px}.feature-dialog__heading>span{width:54px;height:54px;display:grid;place-items:center;color:#9e421a;background:#ffe7de;border-radius:17px}.feature-dialog small{color:var(--persimmon);font-weight:700}.feature-dialog h2{margin:3px 0 0;font-size:1.55rem}.feature-dialog p{margin:0;color:#725c54;font-size:1rem;line-height:1.7}.dialog-button{min-height:44px;color:white;background:var(--persimmon);border-radius:13px;padding:0 17px}
 .booking-list-dialog,.cancel-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-skeleton{display:grid;gap:12px}.booking-skeleton>*{border-radius:17px}.booking-list{padding:0 24px}.booking-list__item{min-height:112px;padding:16px 8px}.booking-date{width:58px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a44820;background:#fff0e9;border-radius:16px}.booking-date strong{font-size:1.35rem}.booking-date small{font-size:.75rem}.booking-list__title{margin-bottom:5px;font-size:1.08rem;font-weight:800}.booking-list__side{align-items:flex-end;gap:8px}.booking-list__side :deep(.q-badge){padding:7px 10px;font-weight:700}.status-success{color:#2f6652;background:#dff1e8}.status-waiting{color:#765020;background:#fff0cd}.status-warning{color:#8e3e31;background:#f8dfdb}.status-muted{color:#695b56;background:#eae5e2}.booking-empty{padding:36px;text-align:center;color:#8b756d}.booking-empty h3{margin:10px 0 4px;color:var(--ink)}.booking-empty p{margin:0}.cancel-dialog__body{display:grid;gap:16px;padding:12px 32px 26px}.cancel-dialog :deep(.q-field__control){border-radius:16px}.refund-note{display:flex;align-items:flex-start;gap:10px;padding:15px;color:#315f4c;background:#e5f3ec;border-radius:16px}.refund-note.warning{color:#8d3f32;background:#fce7e2}.cancel-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 32px 24px;border-top:1px solid #eee1da}.cancel-confirm,.completion-confirm{min-height:44px;padding:0 18px;color:white;background-color: #f7941d;border-radius:13px}.completion-dialog .journal-fixed{margin:0 24px}.completion-dialog .refund-note{margin:0 24px 8px}
+.booking-progress-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-progress-body{display:grid;gap:26px;padding:4px 32px 28px}.booking-current-status{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:18px;color:#315f4c;background:#e8f3ed;border-radius:18px}.booking-current-status>span{width:46px;height:46px;display:grid;place-items:center;color:white;background:#4f7264;border-radius:15px}.booking-current-status div{display:grid;gap:3px}.booking-current-status strong{font-size:1.08rem}.booking-current-status p{margin:0;color:#5d746a;line-height:1.55}.booking-current-status :deep(.q-badge){padding:7px 10px;font-weight:700}.booking-timeline h3,.booking-map h3{margin:0 0 18px;font-size:1.15rem}.booking-timeline__item{position:relative;display:flex;gap:15px;min-height:75px}.booking-timeline__item:not(:last-child)::before{content:'';position:absolute;top:21px;bottom:-1px;left:10px;width:2px;background:#e8cfc5}.booking-timeline__marker{position:relative;z-index:1;flex:0 0 22px;width:22px;height:22px;display:grid;place-items:center;color:white;background:#4f8a6c;border-radius:50%}.booking-timeline__item.current .booking-timeline__marker{background:#c55418;box-shadow:0 0 0 5px #ffebe2}.booking-timeline__item.danger .booking-timeline__marker{background:#a94835}.booking-timeline__item>div{display:grid;align-content:start;gap:4px;padding-bottom:18px}.booking-timeline time{color:#8b756d;font-size:.82rem}.booking-timeline__item strong{font-size:1rem}.booking-timeline__item small{width:max-content;padding:3px 9px;color:#a5441e;background:#fff0e9;border-radius:999px;font-weight:800}.booking-map>p{display:flex;align-items:flex-start;gap:7px;margin:-8px 0 0;color:#725c54;line-height:1.55}.booking-map>p svg{flex:none;margin-top:3px}.booking-progress-dialog .map-panel{margin-top:14px}
 .detail-dialog{width:min(880px,calc(100vw - 40px));max-width:min(880px,calc(100vw - 40px))!important;max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.detail-dialog__heading{display:flex;align-items:center;justify-content:space-between;padding:28px 32px 18px}.detail-dialog__heading small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.detail-dialog__heading h2{margin:5px 0 0;font-size:1.9rem}.detail-dialog__close{min-width:44px;min-height:44px;display:grid;place-items:center;color:var(--wood);background:#fff5f0;border:0;border-radius:14px;cursor:pointer}.detail-dialog__body{padding:10px 32px 24px}.profile-detail{display:grid;grid-template-columns:230px 1fr;gap:22px}.profile-photo{overflow:hidden;min-height:230px;background:#f5ebe6;border-radius:22px}.profile-photo :deep(.q-img){height:100%;margin:0;border-radius:22px}.profile-photo__empty{height:100%;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8b7067}.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.detail-grid>div,.reminder-grid>div,.address-detail>div{display:flex;flex-direction:column;gap:5px;padding:15px;background:#fff6f1;border-radius:15px}.detail-grid span,.reminder-grid span,.address-detail span{color:#8a7067}.detail-grid strong,.reminder-grid strong,.address-detail strong{font-size:1rem;line-height:1.55}.detail-photo-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.detail-photo-strip :deep(.q-img){overflow:hidden;margin:0;border-radius:16px}.reminder-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.reminder-grid .wide{grid-column:1/-1}.address-detail{display:grid;grid-template-columns:1fr 1fr;gap:14px}.address-detail span{display:flex;align-items:center;gap:7px}.map-panel{overflow:hidden;margin-top:18px;background:#f4e8e1;border-radius:20px}.map-panel iframe{width:100%;height:310px;display:block;border:0}.map-panel a{min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;color:white;background:#6e5750;font-weight:700;text-decoration:none}.emergency-detail{display:grid;grid-template-columns:80px repeat(3,1fr);align-items:center;gap:12px;padding:20px;background:#fff5ef;border-radius:20px}.emergency-detail__icon{width:68px;height:68px;display:grid;place-items:center;color:#a8461d;background:#ffe3d8;border-radius:21px}.emergency-detail>div{display:flex;flex-direction:column;gap:5px}.emergency-detail small{color:#8d746b}.emergency-detail strong{font-size:1.08rem}.detail-note{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:15px;color:#3c6454;background:#e9f4ee;border-radius:15px}.line-dialog{width:min(460px,calc(100vw - 28px));padding:26px;text-align:center;color:var(--ink);background:#fffdfb;border-radius:28px}.line-dialog__mark{width:84px;height:84px;display:grid;place-items:center;margin:0 auto;color:white;background:#4f8a5b;border-radius:27px;box-shadow:0 14px 30px rgb(79 138 91 / 24%)}.line-dialog__copy small{color:#4f7659;font-weight:700;letter-spacing:.1em}.line-dialog__copy h2{margin:7px 0 16px;font-size:1.75rem;line-height:1.35}.line-dialog__copy p{margin:0;color:#816a62}.line-dialog__copy strong{display:block;margin:4px 0 18px;font-size:1.45rem}.line-dialog__copy a{min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;color:white;background:#3f7d4d;border-radius:15px;font-weight:700;text-decoration:none}
 .detail-dialog__close{color:var(--chestnut)}
 .detail-actions{display:flex;justify-content:space-between;padding:0 26px 22px}.soft-delete-button{min-height:44px;color:#8d4b38;background:#fff0eb;border-radius:13px}.picker-dialog{width:min(470px,calc(100vw - 28px));padding:12px;color:var(--ink);background:#fffdfb;border-radius:25px}.picker-dialog small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.picker-dialog h2{margin:4px 0 8px;font-size:1.65rem}.picker-dialog p{margin:0;color:#7d675f}.picker-dialog :deep(.q-field__control){min-height:60px;border-radius:16px}.picker-actions{display:flex;justify-content:space-between;padding:12px 16px 16px}.delete-dialog{width:min(430px,calc(100vw - 28px));padding:24px;text-align:center;color:var(--ink);background:#fffdfb;border-radius:26px}.delete-dialog__icon{width:72px;height:72px;display:grid;place-items:center;margin:0 auto;color:#985039;background:#ffe7df;border-radius:23px}.delete-dialog h2{margin:0 0 9px;font-size:1.55rem}.delete-dialog p{margin:0;color:#765f57;line-height:1.7}.soft-delete-confirm{color:white;background:#a94d2d;border-radius:13px}.calculator-dialog{width:min(980px,calc(100vw - 48px));max-width:min(980px,calc(100vw - 48px))!important;max-height:92vh;overflow-y:auto;padding:20px;color:var(--ink);background:#fffdfb;border-radius:28px}.calculator-dialog__heading{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 16px}.calculator-dialog__heading small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.calculator-dialog__heading h2{margin:4px 0 0;font-size:1.9rem}.calculator-dialog__heading button{flex:0 0 48px;width:48px;height:48px;display:grid;place-items:center;color:var(--chestnut);background:#fff2ec;border:0;border-radius:14px;cursor:pointer}.calculator-dialog>.q-card__section:last-child{padding:18px 16px 20px}
@@ -884,7 +1020,7 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 .journal-dialog{max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.journal-body{display:grid;gap:16px;padding:8px 32px 24px}.journal-fixed{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.journal-fixed>div{display:flex;flex-direction:column;gap:4px;padding:14px;background:#fff4ee;border-radius:15px}.journal-fixed>div:last-child{grid-column:1/-1}.journal-fixed span,.journal-rating>span{color:#8a7067;font-size:.85rem}.journal-fixed strong{line-height:1.45}.journal-rating{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;background:#fff7f2;border-radius:15px}.journal-stars{display:flex;gap:4px;color:#e06b24}.journal-stars button{display:grid;padding:3px;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:8px}.journal-stars button:focus-visible{outline:2px solid #d96b27;outline-offset:2px}.journal-locked{display:flex;align-items:flex-start;gap:10px;padding:14px;color:#35604f;background:#eaf4ef;border-radius:15px;line-height:1.55}
 @media(max-width:980px){.overview-grid{grid-template-columns:1fr}.feature-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.booking-filters,.journal-fixed{grid-template-columns:1fr}.journal-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important}.journal-body{padding-left:18px;padding-right:18px}.journal-rating{align-items:flex-start;flex-direction:column}}
-@media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
+@media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.booking-progress-body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
 .manageable-bookings{display:grid;gap:12px}.manageable-booking{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;background:#fff7f2;border:1px solid #eadbd3;border-radius:18px;cursor:pointer;transition:border-color .2s ease,background-color .2s ease}.manageable-booking:hover,.manageable-booking.selected{background:#fff0e9;border-color:#e98a6f}.manageable-booking>div:first-child{min-width:0;display:flex;flex-direction:column;gap:4px}.manageable-booking strong{font-size:1.05rem}.manageable-booking span,.manageable-booking small{color:#836d65}.manageable-booking small{font-size:.82rem}.manageable-booking__actions{display:flex;gap:10px;flex-shrink:0}.manageable-booking__actions :deep(.q-btn){min-height:44px;padding:0 16px;border-radius:13px}.cancel-task-button{color:#fff;background:#a94835}.change-heading{display:flex;flex-direction:column;gap:4px;margin-top:4px;padding:15px 17px;color:#684e45;background:#f3e7e1;border-radius:15px}.change-heading small{color:var(--persimmon);font-weight:700}.cancellation-heading{background:#fce9e5}.booking-empty.compact{padding:28px 16px}.booking-empty.compact h3{font-size:1.05rem}
 @media(max-width:600px){.manageable-booking{align-items:stretch;flex-direction:column}.manageable-booking__actions{display:grid;grid-template-columns:1fr 1fr}.manageable-booking__actions :deep(.q-btn){width:100%}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
@@ -903,4 +1039,7 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 .journal-status{display:grid;gap:10px;padding:14px 16px;background:#fff7f2;border-radius:15px}.journal-status>span{color:#8a7067;font-size:.85rem}.journal-status :deep(.q-option-group){display:flex;flex-wrap:wrap;gap:8px 16px}.journal-status :deep(.q-radio){min-height:44px;margin:0}.journal-submit-button{min-width:170px;font-weight:800;box-shadow:0 10px 22px rgb(197 84 24 / 18%)}
 .rating-detail-list{width:100%;display:grid;gap:10px;margin-top:18px;text-align:left}.rating-detail-card{padding:15px 16px;background:#fff6f1;border:1px solid #eddfd8;border-radius:16px}.rating-detail-card__heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.rating-detail-card__heading>span{color:#b34d20;font-size:.82rem;font-weight:800}.rating-detail-card__heading>div{display:flex;color:#d96b27}.rating-detail-card>strong{display:block;margin-top:7px;color:var(--ink);font-size:1rem}.rating-detail-card>p{margin:5px 0 0;color:#6e5750;line-height:1.6}.rating-empty{width:100%;margin-top:16px;padding:14px;color:#806a62;background:#fff6f1;border-radius:14px}
 @media(max-width:700px){.journal-dialog>.cancel-actions{padding:12px 18px 18px}.journal-dialog>.cancel-actions :deep(.q-btn){flex:1}}
+.care-combo-dialog{width:min(920px,calc(100vw - 32px));max-width:min(920px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.care-combo-heading p{margin:6px 0 0;color:#806a62}.care-combo-loading,.care-combo-body{display:grid;gap:16px;padding:6px 32px 24px}.care-combo-loading>*{border-radius:20px}.care-combo-card{padding:20px;background:#fff;border:1px solid #eadbd3;border-radius:22px;box-shadow:0 10px 28px rgb(78 52 43 / 7%)}.care-combo-profile{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px}.care-combo-avatar{color:#9b4b29;background:#fff0e9}.care-combo-profile>div{display:grid;gap:4px}.care-combo-profile strong{font-size:1.25rem}.care-combo-profile>.q-badge{padding:7px 11px;color:#35604f;background:#e6f2ec;font-weight:800}.care-combo-rating{display:flex;align-items:center;gap:5px;color:#c35a1d;font-weight:800}.care-combo-rating small{color:#806a62;font-weight:500}.care-combo-facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.care-combo-facts>div{display:grid;gap:4px;padding:13px 15px;background:#fff6f1;border-radius:14px}.care-combo-facts span,.care-combo-services>span,.care-combo-slots__title>span{color:#806a62;font-size:.85rem}.care-combo-services{margin-top:15px}.care-combo-services>div{display:flex;flex-wrap:wrap;margin-top:5px}.care-combo-services :deep(.q-chip){color:#664d44;background:#f3e7e1}.care-combo-slots{margin-top:14px;padding:15px;background:#f0f6f3;border-radius:17px}.care-combo-slots__title{display:flex;align-items:center;justify-content:space-between}.care-combo-slots__title :deep(.q-btn){min-height:44px;color:#416b59}.care-combo-slot-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.care-combo-slot-list button{min-height:48px;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px;color:#4f665d;background:#fff;border:1px solid #cbded4;border-radius:12px;cursor:pointer}.care-combo-slot-list button.selected{color:#fff;background:#4f7264;border-color:#4f7264}.care-combo-slots>p{margin:8px 0 0;color:#725c54}.care-combo-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:17px;padding-top:16px;border-top:1px solid #eee1da}.care-combo-actions :deep(.q-btn){min-height:44px;padding:0 15px;border-radius:12px}.care-combo-actions :deep(.q-btn:last-child){color:#fff;background:#c55418}.care-combo-actions :deep(.q-btn--disabled){background:#ddd2cd}
+@media(max-width:700px){.care-combo-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;border-radius:22px}.care-combo-body,.care-combo-loading{padding:4px 14px 18px}.care-combo-card{padding:16px}.care-combo-profile{grid-template-columns:auto 1fr}.care-combo-profile>.q-badge{grid-column:2;width:max-content}.care-combo-facts{grid-template-columns:1fr}.care-combo-slot-list{grid-template-columns:1fr 1fr}.care-combo-actions{display:grid;grid-template-columns:1fr 1fr}.care-combo-actions :deep(.q-btn:last-child){grid-column:1/-1}}
+@media(max-width:420px){.care-combo-slot-list,.care-combo-actions{grid-template-columns:1fr}.care-combo-actions :deep(.q-btn:last-child){grid-column:auto}.care-combo-heading p{display:none}}
 </style>
