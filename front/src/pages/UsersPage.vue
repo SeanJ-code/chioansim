@@ -168,6 +168,55 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="faqDialog">
+      <q-card class="care-faq-dialog">
+        <q-card-section class="detail-dialog__heading care-faq-heading">
+          <div><small>先找到方向，再看細節</small><h2>長照常見問題</h2></div>
+          <button class="detail-dialog__close" type="button" aria-label="關閉長照常見問題" v-close-popup><X :size="24" /></button>
+        </q-card-section>
+
+        <q-card-section class="care-faq-body">
+          <section class="care-faq-intro" aria-labelledby="faq-intro-title">
+            <span><MessageCircleHeart :size="27" /></span>
+            <div><h3 id="faq-intro-title">先分清楚兩種服務</h3><p>政府長照要申請與評估；照安心是自費預約平台，兩者不是同一套服務。</p></div>
+          </section>
+
+          <div class="care-faq-compare" aria-label="政府長照與照安心自費服務比較">
+            <article><span>政府長照</span><strong>先申請、再評估</strong><small>依核定照顧計畫，由長照特約單位提供服務。</small></article>
+            <article><span>照安心自費服務</span><strong>依平台方式預約</strong><small>費用由使用者負擔，不能扣抵政府長照給付。</small></article>
+          </div>
+
+          <section aria-labelledby="care-faq-list-title">
+            <div class="care-faq-section-title"><h3 id="care-faq-list-title">家屬最常問的 8 件事</h3><small>點問題看簡短回答</small></div>
+            <q-expansion-item
+              v-for="(faq, index) in careFaqs"
+              :key="faq.question"
+              :default-opened="index === 0"
+              class="care-faq-item"
+              expand-separator
+              header-class="care-faq-item__header"
+            >
+              <template #header>
+                <q-item-section avatar><span class="care-faq-number">{{ index + 1 }}</span></q-item-section>
+                <q-item-section><q-item-label>{{ faq.question }}</q-item-label></q-item-section>
+              </template>
+              <div class="care-faq-answer">
+                <p><strong>{{ faq.shortAnswer }}</strong>{{ faq.answer }}</p>
+                <a v-if="faq.source" :href="faq.source" target="_blank" rel="noopener noreferrer">查看衛福部說明 <ArrowRight :size="17" /></a>
+              </div>
+            </q-expansion-item>
+          </section>
+
+          <div class="care-faq-notice" role="note"><ShieldCheck :size="22" /><p>本頁只提供資訊導引，不做資格或補助判定。資格、額度與服務安排，以主管機關最新規定及照管專員評估為準。</p></div>
+        </q-card-section>
+
+        <q-card-actions class="care-faq-actions">
+          <a href="tel:1966"><PhoneCall :size="20" /><span><small>政府長照申請</small><strong>撥打 1966</strong></span></a>
+          <router-link to="/caregivers" @click="faqDialog = false"><Search :size="20" /><span><small>需要自費照顧</small><strong>查看居服員</strong></span></router-link>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="bookingDialog">
       <q-card class="booking-list-dialog">
         <q-card-section class="detail-dialog__heading"><div><small>預約與照護進度</small><h2>我的安心服務安排</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉預約清單" v-close-popup><X :size="24" /></button></q-card-section>
@@ -559,6 +608,7 @@ const router = useRouter();
 const route = useRoute();
 const featureDialog = ref(false);
 const longTermCareDialog = ref(false);
+const faqDialog = ref(false);
 const recipientDialog = ref(false);
 const recipientPickerDialog = ref(false);
 const emptyRecipientDialog = ref(false);
@@ -743,6 +793,54 @@ const features: MemberFeature[] = [
       { label: '各鄉鎮服務範圍', icon: markRaw(MapPinned) },
       { label: '常見問題', icon: markRaw(MessageCircleHeart) },
     ],
+  },
+];
+
+const careFaqs: Array<{ question:string; shortAnswer:string; answer:string; source?:string }> = [
+  {
+    question: '政府長照補助可以在照安心折抵嗎？',
+    shortAnswer: '目前不可以。',
+    answer: '照安心是自費預約平台，無法直接扣抵政府長照給付額度；政府核定服務請依個管員安排使用。',
+  },
+  {
+    question: '我要怎麼申請政府長照？',
+    shortAnswer: '最簡單是撥打 1966。',
+    answer: '也可聯絡所在地照管中心、線上申請，或在住院期間詢問出院準備團隊。流程是申請、評估、擬定照顧計畫、開始服務。',
+    source: 'https://1966.gov.tw/LTC/cp-6533-70777-207.html',
+  },
+  {
+    question: '申請後就一定有補助嗎？',
+    shortAnswer: '不一定。',
+    answer: '需由照管中心評估長照需要等級，再依身分與照顧計畫確認可用服務和給付額度。',
+    source: 'https://1966.gov.tw/LTC/cp-6533-70777-207.html',
+  },
+  {
+    question: '政府長照和自費服務差在哪裡？',
+    shortAnswer: '申請方式和付費制度不同。',
+    answer: '政府長照依評估與核定計畫使用；自費服務依平台規則預約並由使用者負擔費用。兩者沒有額度串接。',
+  },
+  {
+    question: '家人快出院，回家後沒人照顧怎麼辦？',
+    shortAnswer: '出院前就先向醫院詢問。',
+    answer: '可詢問「出院準備銜接長照服務」，或撥打 1966，提早進行需求評估與服務銜接。',
+    source: 'https://1966.gov.tw/LTC/cp-6458-69942-207.html',
+  },
+  {
+    question: '家裡有外籍看護，還能申請長照嗎？',
+    shortAnswer: '仍可提出申請。',
+    answer: '符合評估條件者，可能使用部分長照服務；實際項目與照顧空窗規定，以政府評估為準。',
+    source: 'https://1966.gov.tw/LTC/cp-6460-69943-207.html',
+  },
+  {
+    question: '照顧者太累，可以找人暫時替手嗎？',
+    shortAnswer: '可以詢問喘息服務。',
+    answer: '照顧者需要休息或暫時無法照顧時，可撥打 1966，由長照體系評估並協助連結服務。',
+    source: 'https://1966.gov.tw/LTC/cp-6454-70075-207.html',
+  },
+  {
+    question: '現在就需要照顧，應該先做什麼？',
+    shortAnswer: '緊急狀況先打 119。',
+    answer: '若不是醫療緊急狀況，可同步撥打 1966 詢問政府長照，並另行了解平台提供的自費服務。',
   },
 ];
 
@@ -1017,6 +1115,10 @@ function handleFeatureItem(name: string) {
     longTermCareDialog.value = true;
     return;
   }
+  if (name === '常見問題') {
+    faqDialog.value = true;
+    return;
+  }
   openFeature(name);
 }
 
@@ -1098,6 +1200,7 @@ onBeforeUnmount(liveSync.stop);
 .login-state{min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:var(--paper);border-radius:28px}.login-state__icon{width:92px;height:92px;display:grid;place-items:center;color:var(--persimmon);background:#ffe8df;border-radius:30px}.login-state>span{margin-top:22px;color:var(--persimmon);font-weight:700;letter-spacing:.12em}.login-state h1{margin:10px 0;font-size:clamp(2rem,5vw,3rem)}.login-state p{margin:0 0 24px;color:#79635b;font-size:1.08rem}.login-state a{min-height:52px;display:inline-flex;align-items:center;gap:8px;padding:0 24px;color:white;background:var(--persimmon);border-radius:15px;font-size:1.06rem;font-weight:700;text-decoration:none}
 .feature-dialog{width:min(460px,calc(100vw - 32px));padding:10px;background:#fffdfb;border-radius:24px}.feature-dialog__heading{display:flex;align-items:center;gap:14px}.feature-dialog__heading>span{width:54px;height:54px;display:grid;place-items:center;color:#9e421a;background:#ffe7de;border-radius:17px}.feature-dialog small{color:var(--persimmon);font-weight:700}.feature-dialog h2{margin:3px 0 0;font-size:1.55rem}.feature-dialog p{margin:0;color:#725c54;font-size:1rem;line-height:1.7}.dialog-button{min-height:44px;color:white;background:var(--persimmon);border-radius:13px;padding:0 17px}
 .long-term-care-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:26px}.long-term-care-heading{flex:none;border-bottom:1px solid #eee1da}.long-term-care-body{min-height:0;overflow-y:auto;padding:20px 32px 24px}.long-term-care-lead{margin:0 0 24px;color:#694f47;font-size:1.05rem;line-height:1.8}.long-term-care-body h3{margin:0 0 14px;font-size:1.25rem}.long-term-care-steps{display:grid;gap:10px;margin:0 0 20px;padding:0;list-style:none}.long-term-care-steps li{display:grid;grid-template-columns:42px 1fr;align-items:start;gap:13px;padding:15px;background:#fff6f1;border:1px solid #f0e2db;border-radius:16px}.long-term-care-steps li>span{width:42px;height:42px;display:grid;place-items:center;color:white;background:#b84f16;border-radius:13px;font-weight:800}.long-term-care-steps li>div{display:grid;gap:4px}.long-term-care-steps strong{font-size:1.03rem}.long-term-care-steps small{color:#765f57;font-size:.91rem;line-height:1.6}.long-term-care-expansion{overflow:hidden;margin-top:10px;border:1px solid #e8d9d1;border-radius:15px}.long-term-care-expansion :deep(.q-item){min-height:58px;color:#5d4942;font-weight:700}.long-term-care-expansion :deep(.q-expansion-item__content)>div{padding:2px 18px 18px;color:#725c54;line-height:1.7}.long-term-care-notice{display:flex;align-items:flex-start;gap:11px;margin-top:18px;padding:16px;color:#315f4c;background:#e8f3ed;border-radius:16px}.long-term-care-notice svg{flex:none;margin-top:2px}.long-term-care-notice p{margin:0;line-height:1.65}.long-term-care-notice strong{display:block;margin-bottom:3px}.long-term-care-actions{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 32px 22px;border-top:1px solid #eee1da}.care-action{min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:14px;font-weight:800;text-decoration:none}.care-action--phone{color:#3b6654;background:#e5f1eb}.care-action--official{color:white;background:#b84f16}
+.care-faq-dialog{width:min(780px,calc(100vw - 32px));max-width:min(780px,calc(100vw - 32px))!important;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:26px}.care-faq-heading{flex:none;border-bottom:1px solid #eee1da}.care-faq-body{min-height:0;overflow-y:auto;padding:22px 32px 26px}.care-faq-intro{display:flex;align-items:flex-start;gap:14px;padding:18px;color:#65451f;background:#fff3d6;border:1px solid #f0dfb7;border-radius:18px}.care-faq-intro>span{width:48px;height:48px;display:grid;place-items:center;flex:none;color:#8a5522;background:#fffaf0;border-radius:15px}.care-faq-intro h3{margin:0 0 4px;font-size:1.2rem}.care-faq-intro p{margin:0;line-height:1.65}.care-faq-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 26px}.care-faq-compare article{display:grid;gap:5px;padding:17px;border:1px solid #e7d9d1;border-radius:17px}.care-faq-compare article:first-child{background:#edf5f1}.care-faq-compare article:last-child{background:#fff3ed}.care-faq-compare span{color:#796159;font-size:.84rem;font-weight:800}.care-faq-compare strong{font-size:1.05rem}.care-faq-compare small{color:#6f5b54;font-size:.9rem;line-height:1.55}.care-faq-section-title{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}.care-faq-section-title h3{margin:0;font-size:1.25rem}.care-faq-section-title small{color:#806a62}.care-faq-item{overflow:hidden;margin-top:9px;border:1px solid #e8d9d1;border-radius:15px}.care-faq-item :deep(.q-item){min-height:64px;padding:10px 14px}.care-faq-item :deep(.q-item__label){color:#513e38;font-size:1rem;font-weight:800;line-height:1.45}.care-faq-number{width:34px;height:34px;display:grid;place-items:center;color:#8b451f;background:#ffeadf;border-radius:11px;font-weight:800}.care-faq-answer{padding:2px 18px 18px 66px}.care-faq-answer p{margin:0;color:#6e5850;line-height:1.75}.care-faq-answer p strong{margin-right:5px;color:#3e302c}.care-faq-answer a{display:inline-flex;align-items:center;gap:5px;margin-top:10px;color:#9d451d;font-weight:800;text-decoration:none}.care-faq-notice{display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:15px;color:#315f4c;background:#e8f3ed;border-radius:15px}.care-faq-notice svg{flex:none;margin-top:2px}.care-faq-notice p{margin:0;line-height:1.65}.care-faq-actions{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px 32px 21px;border-top:1px solid #eee1da}.care-faq-actions a{min-height:58px;display:flex;align-items:center;justify-content:center;gap:10px;color:white;background:#4f7264;border-radius:15px;text-decoration:none}.care-faq-actions a:last-child{background:#b84f16}.care-faq-actions span{display:grid}.care-faq-actions small{font-size:.78rem;font-weight:600;opacity:.85}.care-faq-actions strong{font-size:1rem}
 .booking-list-dialog,.cancel-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-skeleton{display:grid;gap:12px}.booking-skeleton>*{border-radius:17px}.booking-list{padding:0 24px}.booking-list__item{min-height:112px;padding:16px 8px}.booking-date{width:58px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a44820;background:#fff0e9;border-radius:16px}.booking-date strong{font-size:1.35rem}.booking-date small{font-size:.75rem}.booking-list__title{margin-bottom:5px;font-size:1.08rem;font-weight:800}.booking-list__side{align-items:flex-end;gap:8px}.booking-list__side :deep(.q-badge){padding:7px 10px;font-weight:700}.status-success{color:#2f6652;background:#dff1e8}.status-waiting{color:#765020;background:#fff0cd}.status-warning{color:#8e3e31;background:#f8dfdb}.status-muted{color:#695b56;background:#eae5e2}.booking-empty{padding:36px;text-align:center;color:#8b756d}.booking-empty h3{margin:10px 0 4px;color:var(--ink)}.booking-empty p{margin:0}.cancel-dialog__body{display:grid;gap:16px;padding:12px 32px 26px}.cancel-dialog :deep(.q-field__control){border-radius:16px}.refund-note{display:flex;align-items:flex-start;gap:10px;padding:15px;color:#315f4c;background:#e5f3ec;border-radius:16px}.refund-note.warning{color:#8d3f32;background:#fce7e2}.cancel-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 32px 24px;border-top:1px solid #eee1da}.cancel-confirm,.completion-confirm{min-height:44px;padding:0 18px;color:white;background-color: #f7941d;border-radius:13px}.completion-dialog .journal-fixed{margin:0 24px}.completion-dialog .refund-note{margin:0 24px 8px}
 .booking-progress-dialog{width:min(700px,calc(100vw - 32px));max-width:min(700px,calc(100vw - 32px))!important;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-progress-dialog>.detail-dialog__heading{flex:none;padding-bottom:20px}.booking-progress-tabs{flex:none;color:#806a62}.booking-progress-tabs :deep(.q-tab){min-height:52px;font-weight:700}.booking-progress-tabs :deep(.q-tab--active){color:var(--persimmon)}.booking-progress-tabs :deep(.q-tab__indicator){background:var(--persimmon)}.booking-progress-tabs :deep(.q-badge){margin-left:5px;color:white;background:#b84f16}.booking-progress-panels{min-height:350px;max-height:56dvh;overflow-y:auto;background:#fffdfb}.booking-progress-panels :deep(.q-tab-panel){padding:24px 30px}.booking-current-status{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:18px;color:#315f4c;background:#e8f3ed;border:1px solid #d4e8de;border-radius:18px}.booking-current-status>span{width:46px;height:46px;display:grid;place-items:center;color:white;background:#4f7264;border-radius:15px}.booking-current-status div{display:grid;gap:3px}.booking-current-status strong{font-size:1.08rem}.booking-current-status p{margin:0;color:#5d746a;line-height:1.55}.booking-current-status :deep(.q-badge){padding:7px 10px;font-weight:700}.progress-expansion{overflow:hidden;margin-top:16px;border:1px solid #eadbd4;border-radius:16px}.progress-expansion :deep(.q-item){min-height:68px}.progress-expansion :deep(.q-item__label){font-weight:700}.progress-expansion :deep(.q-item__label--caption){margin-top:3px;color:#806a62;font-weight:400}.progress-expansion :deep(.q-timeline){padding:4px 0}.current-progress-label{display:inline-flex;padding:3px 9px;color:#a5441e;background:#fff0e9;border-radius:999px;font-size:.78rem;font-weight:800}.service-address{display:flex;align-items:flex-start;gap:13px;padding:18px;background:#fff6f1;border:1px solid #eadbd4;border-radius:17px}.service-address>span{width:44px;height:44px;display:grid;place-items:center;flex:none;color:#a54820;background:#ffe6da;border-radius:14px}.service-address>div{display:grid;gap:4px}.service-address small{color:#806a62}.service-address strong{font-size:1.02rem;line-height:1.55}.booking-progress-dialog .map-panel{margin:0;border-radius:0}.booking-progress-dialog .map-panel iframe{height:270px}.booking-progress-dialog>.q-card__actions{flex:none;padding:10px 20px 16px}
 .care-notifications__heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}.care-notifications__heading h3{margin:0;font-size:1.15rem}.care-notifications__heading p{margin:4px 0 0;color:#806a62}.care-notifications__heading :deep(.q-badge){padding:6px 10px;color:#77431e;background:#ffe5c2}.care-notification-list{overflow:hidden;border-color:#eadbd4;border-radius:17px}.care-notification-list :deep(.q-item){min-height:82px;padding:12px 15px}.care-notification-list :deep(.q-item.unread){background:#fff7ed}.care-notification-list :deep(.q-item__label){font-weight:700}.care-notification-list :deep(.q-item__label--caption){margin-top:3px;color:#806a62;font-weight:400;line-height:1.45}.care-notification-list :deep(.q-item__section--side){display:flex;align-items:center;flex-direction:row;gap:7px}.care-notification-list :deep(.q-item__section--side .q-badge){color:white;background:#b84f16}.care-notification-icon{width:40px;height:40px;display:grid;place-items:center;color:#a54820;background:#ffe8dc;border-radius:13px}
@@ -1112,7 +1215,7 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 @media(max-width:980px){.overview-grid{grid-template-columns:1fr}.feature-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.booking-filters,.journal-fixed{grid-template-columns:1fr}.journal-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important}.journal-body{padding-left:18px;padding-right:18px}.journal-rating{align-items:flex-start;flex-direction:column}}
 @media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-progress-panels{min-height:330px;max-height:54dvh}.booking-progress-panels :deep(.q-tab-panel){padding:18px 12px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-progress-tabs :deep(.q-tab){padding:0 7px;font-size:.88rem}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
-@media(max-width:700px){.long-term-care-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.long-term-care-body{padding-left:18px;padding-right:18px}.long-term-care-heading h2{font-size:1.5rem}.long-term-care-actions{grid-template-columns:1fr;padding:12px 18px 18px}}
+@media(max-width:700px){.long-term-care-dialog,.care-faq-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.long-term-care-body,.care-faq-body{padding-left:18px;padding-right:18px}.long-term-care-heading h2,.care-faq-heading h2{font-size:1.5rem}.long-term-care-actions,.care-faq-actions{grid-template-columns:1fr;padding:12px 18px 18px}.care-faq-compare{grid-template-columns:1fr}.care-faq-section-title{align-items:start;flex-direction:column;gap:3px}.care-faq-answer{padding-left:18px}}
 .manageable-bookings{display:grid;gap:12px}.manageable-booking{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;background:#fff7f2;border:1px solid #eadbd3;border-radius:18px;cursor:pointer;transition:border-color .2s ease,background-color .2s ease}.manageable-booking:hover,.manageable-booking.selected{background:#fff0e9;border-color:#e98a6f}.manageable-booking>div:first-child{min-width:0;display:flex;flex-direction:column;gap:4px}.manageable-booking strong{font-size:1.05rem}.manageable-booking span,.manageable-booking small{color:#836d65}.manageable-booking small{font-size:.82rem}.manageable-booking__actions{display:flex;gap:10px;flex-shrink:0}.manageable-booking__actions :deep(.q-btn){min-height:44px;padding:0 16px;border-radius:13px}.cancel-task-button{color:#fff;background:#a94835}.change-heading{display:flex;flex-direction:column;gap:4px;margin-top:4px;padding:15px 17px;color:#684e45;background:#f3e7e1;border-radius:15px}.change-heading small{color:var(--persimmon);font-weight:700}.cancellation-heading{background:#fce9e5}.booking-empty.compact{padding:28px 16px}.booking-empty.compact h3{font-size:1.05rem}
 @media(max-width:600px){.manageable-booking{align-items:stretch;flex-direction:column}.manageable-booking__actions{display:grid;grid-template-columns:1fr 1fr}.manageable-booking__actions :deep(.q-btn){width:100%}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
