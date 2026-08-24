@@ -23,6 +23,22 @@
         </article>
       </section>
 
+      <section class="attention-card" aria-labelledby="attention-title">
+        <header>
+          <div><p class="section-kicker">TODAY'S CARE</p><h2 id="attention-title">今天需要關心</h2></div>
+          <q-badge rounded :label="`${attentionCount} 件待處理`" color="deep-orange-8" />
+        </header>
+        <q-list v-if="dashboard.attention.length" separator>
+          <q-item v-for="item in dashboard.attention" :key="item.type" clickable v-ripple class="attention-item" @click="openAttention(item)">
+            <q-item-section avatar><q-avatar :class="`attention-${item.priority.toLowerCase()}`"><TriangleAlert :size="21" /></q-avatar></q-item-section>
+            <q-item-section><q-item-label class="text-weight-bold">{{ item.title }}</q-item-label><q-item-label caption>{{ item.description }}</q-item-label></q-item-section>
+            <q-item-section side><q-badge outline color="deep-orange-9" :label="`${item.count} 件`" /></q-item-section>
+            <q-item-section side><ChevronRight :size="20" aria-hidden="true" /></q-item-section>
+          </q-item>
+        </q-list>
+        <div v-else class="attention-clear"><ShieldCheck :size="28" /><span>目前沒有需要優先處理的事情</span></div>
+      </section>
+
       <q-tabs v-model="tab" class="admin-tabs" align="left" no-caps outside-arrows mobile-arrows>
         <q-tab name="overview" label="理解總覽" />
         <q-tab name="quality" :label="`品質警訊 ${dashboard.alerts.length || ''}`" />
@@ -32,7 +48,7 @@
 
       <q-tab-panels v-model="tab" animated class="admin-panels">
         <q-tab-panel name="overview">
-          <div class="insight-grid">
+          <div class="insight-grid overview-grid">
             <article class="insight-card ratings-card">
               <header>
                 <div class="icon-disc"><Star :size="25" /></div>
@@ -47,28 +63,11 @@
                   <span>{{ dashboard.reviews.summary.count }} 則真實回饋・{{ positiveRate }}% 為 4 星以上</span>
                 </div>
               </div>
-              <div class="rating-bars">
-                <div v-for="number in [5, 4, 3, 2, 1]" :key="number" class="rating-row">
-                  <span>{{ number }} 星</span>
-                  <div><i :style="{ width: `${ratingPercent(number)}%` }"></i></div>
-                  <strong>{{ ratingCount(number) }}</strong>
-                </div>
+              <div class="performance-list">
+                <div><span>本月完成率</span><q-linear-progress rounded size="9px" :value="dashboard.performance.completionRate / 100" color="positive" track-color="brown-2" /><strong>{{ dashboard.performance.completionRate }}%</strong></div>
+                <div><span>本月取消率</span><q-linear-progress rounded size="9px" :value="dashboard.performance.cancellationRate / 100" color="deep-orange-7" track-color="brown-2" /><strong>{{ dashboard.performance.cancellationRate }}%</strong></div>
+                <div><span>評價填寫率</span><q-linear-progress rounded size="9px" :value="dashboard.performance.reviewRate / 100" color="brown-6" track-color="brown-2" /><strong>{{ dashboard.performance.reviewRate }}%</strong></div>
               </div>
-            </article>
-
-            <article class="insight-card demand-card">
-              <header>
-                <div class="icon-disc green"><ChartNoAxesColumnIncreasing :size="25" /></div>
-                <div><p class="section-kicker">使用頻率</p><h2>大家最常需要的服務</h2></div>
-              </header>
-              <div v-if="dashboard.serviceDemand.length" class="demand-list">
-                <div v-for="(service, index) in dashboard.serviceDemand" :key="service.name" :class="{ 'service-alert': service.count >= 3 && service.completedCount / service.count < .5 }">
-                  <span><b>{{ index + 1 }}</b>{{ service.code }} {{ service.name }}</span>
-                  <div><i :style="{ width: `${serviceWidth(service.count)}%` }"></i></div>
-                  <strong>{{ service.count }} 次・{{ service.uniqueRequesterCount }} 位使用者・{{ service.uniqueCaregiverCount }} 位居服員</strong>
-                </div>
-              </div>
-              <p v-else class="empty-copy">完成預約後，這裡會顯示熱門服務排行。</p>
             </article>
 
             <article class="insight-card journey-card">
@@ -84,6 +83,13 @@
               <p class="soft-note">可看出使用者在哪個步驟停下，作為後續關懷與介面改善依據。</p>
             </article>
 
+            <q-expansion-item class="ranking-expansion" label="查看服務與居服員排行" header-class="ranking-header">
+            <div class="ranking-grid">
+            <article class="insight-card demand-card">
+              <header><div class="icon-disc green"><ChartNoAxesColumnIncreasing :size="25" /></div><div><p class="section-kicker">使用頻率</p><h2>常用服務</h2></div></header>
+              <div v-if="dashboard.serviceDemand.length" class="demand-list"><div v-for="(service, index) in dashboard.serviceDemand.slice(0, 5)" :key="service.name"><span><b>{{ index + 1 }}</b>{{ service.name }}</span><strong>{{ service.count }} 次</strong></div></div>
+              <p v-else class="empty-copy">尚無服務頻率資料。</p>
+            </article>
             <article class="insight-card caregivers-card">
               <header>
                 <div class="icon-disc brown"><HeartHandshake :size="25" /></div>
@@ -98,6 +104,8 @@
               </div>
               <p v-else class="empty-copy">尚無居服員預約頻率資料。</p>
             </article>
+            </div>
+            </q-expansion-item>
           </div>
         </q-tab-panel>
 
@@ -191,6 +199,9 @@
           <q-btn flat round aria-label="關閉預約資料" v-close-popup>×</q-btn>
         </q-card-section>
         <q-card-section v-if="selectedBooking" class="booking-detail-body">
+          <q-tabs v-model="bookingDetailTab" dense no-caps align="left" class="detail-tabs"><q-tab name="summary" label="任務概況" /><q-tab name="care" label="照護資訊" /><q-tab name="history" label="任務歷程" /></q-tabs>
+          <q-tab-panels v-model="bookingDetailTab" animated class="detail-panels">
+          <q-tab-panel name="summary">
           <q-img v-if="selectedBooking.recipientId?.carePhotoUrls?.[0]" :src="selectedBooking.recipientId.carePhotoUrls[0]" ratio="1.45" :alt="`${selectedBooking.recipientId.name}的照護近照`" />
           <div class="booking-detail-grid">
             <div><span>申請人</span><strong>{{ selectedBooking.requesterUserId?.name || '未提供' }}</strong></div>
@@ -199,10 +210,7 @@
             <div><span>預約狀態</span><strong>{{ bookingStatusLabel(selectedBooking.status) }}</strong></div>
             <div><span>預約時間</span><strong>{{ formatFullDate(selectedBooking.scheduledStartAt) }}</strong></div>
             <div><span>服務項目</span><strong>{{ serviceNames(selectedBooking) }}</strong></div>
-            <div><span>身高／體重</span><strong>{{ recipientMeasurement(selectedBooking.recipientId) }}</strong></div>
-            <div><span>照護程度／行動狀況</span><strong>{{ selectedBooking.recipientId?.careLevel || '未填' }}／{{ selectedBooking.recipientId?.mobilityStatus || '未填' }}</strong></div>
             <div class="wide"><span>服務地址</span><strong>{{ selectedBooking.serviceAddress?.text || selectedBooking.serviceRequestId?.serviceAddress?.text || '未填寫' }}</strong></div>
-            <div class="wide"><span>照護提醒與需求</span><strong>{{ selectedBooking.serviceRequestId?.specialRequirements || selectedBooking.recipientId?.attentionNotes || '目前沒有特別提醒' }}</strong></div>
           </div>
 
           <section class="booking-progress" aria-label="任務執行進度">
@@ -223,21 +231,22 @@
               此任務已{{ selectedBooking.status === 'CANCELLED' ? '取消' : '棄單' }}{{ selectedBooking.cancellationReason ? `：${selectedBooking.cancellationReason}` : '。' }}
             </q-banner>
 
-            <div class="booking-progress-grid">
-              <div>
-                <h3>任務歷程</h3>
-                <q-timeline color="deep-orange-7" layout="dense">
-                  <q-timeline-entry v-for="event in bookingTimeline(selectedBooking)" :key="event.label" :title="event.label" :subtitle="formatFullDate(event.at)" />
-                </q-timeline>
-              </div>
-              <aside class="booking-location">
+          </section>
+          </q-tab-panel>
+          <q-tab-panel name="care">
+            <q-img v-if="selectedBooking.recipientId?.carePhotoUrls?.[0]" :src="selectedBooking.recipientId.carePhotoUrls[0]" ratio="1.45" :alt="`${selectedBooking.recipientId.name}的照護近照`" />
+            <div class="booking-detail-grid"><div><span>身高／體重</span><strong>{{ recipientMeasurement(selectedBooking.recipientId) }}</strong></div><div><span>照護程度／行動狀況</span><strong>{{ selectedBooking.recipientId?.careLevel || '未填' }}／{{ selectedBooking.recipientId?.mobilityStatus || '未填' }}</strong></div><div class="wide"><span>照護提醒與需求</span><strong>{{ selectedBooking.serviceRequestId?.specialRequirements || selectedBooking.recipientId?.attentionNotes || '目前沒有特別提醒' }}</strong></div></div>
+          </q-tab-panel>
+          <q-tab-panel name="history">
+            <div class="booking-progress-grid"><div><h3>完整任務歷程</h3><q-timeline color="deep-orange-7" layout="dense"><q-timeline-entry v-for="event in bookingTimeline(selectedBooking)" :key="event.label" :title="event.label" :subtitle="formatFullDate(event.at)" /></q-timeline></div><aside class="booking-location">
                 <Route :size="25" />
                 <div><span>居服員最新位置</span><strong>{{ formatCoordinate(selectedBooking.latestLocation) }}</strong></div>
                 <a v-if="selectedBooking.latestLocation?.latitude" :href="locationMapUrl(selectedBooking.latestLocation)" target="_blank" rel="noopener noreferrer">在地圖確認</a>
                 <small v-else>尚未開始分享位置；出發後會即時更新。</small>
               </aside>
             </div>
-          </section>
+          </q-tab-panel>
+          </q-tab-panels>
         </q-card-section>
         <q-card-actions align="right"><q-btn flat no-caps label="安心看完了" v-close-popup class="resolve-button" /></q-card-actions>
       </q-card>
@@ -277,7 +286,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRouter } from 'vue-router';
 import {
-  CalendarClock, ChartNoAxesColumnIncreasing, EyeOff, HeartHandshake, MessageCircleHeart,
+  CalendarClock, ChartNoAxesColumnIncreasing, ChevronRight, EyeOff, HeartHandshake, MessageCircleHeart,
   Pencil, RefreshCw, Route, Search, ShieldCheck, Star, TriangleAlert, UsersRound,
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
@@ -293,11 +302,13 @@ type Dashboard = {
   serviceDemand: { code?: string; name: string; count: number; completedCount: number; uniqueRequesterCount: number; uniqueCaregiverCount: number }[];
   caregiverFrequency: PlainObject[];
   journey: PlainObject;
+  performance: PlainObject;
+  attention: PlainObject[];
   alerts: AlertItem[];
   recentBookings: PlainObject[];
 };
 
-const emptyDashboard = (): Dashboard => ({ generatedAt: '', pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, alerts: [], recentBookings: [] });
+const emptyDashboard = (): Dashboard => ({ generatedAt: '', pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [] });
 const dashboard = reactive<Dashboard>(emptyDashboard());
 const users = ref<PlainObject[]>([]);
 const tab = ref('overview');
@@ -308,6 +319,7 @@ const bookingStatus = ref('ALL');
 const loading = ref(false);
 const editDialog = ref(false);
 const bookingDialog = ref(false);
+const bookingDetailTab = ref('summary');
 const selectedBooking = ref<PlainObject | null>(null);
 const createDialog = ref(false);
 const creating = ref(false);
@@ -325,10 +337,11 @@ const $q = useQuasar();
 const refreshedAt = computed(() => dashboard.generatedAt ? `更新於 ${new Date(dashboard.generatedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}` : '準備資料中');
 const reviewAverage = computed(() => Number(dashboard.reviews.summary.average || 0).toFixed(1));
 const positiveRate = computed(() => dashboard.reviews.summary.count ? Math.round((dashboard.reviews.summary.positive / dashboard.reviews.summary.count) * 100) : 0);
+const attentionCount = computed(() => dashboard.attention.reduce((sum, item) => sum + Number(item.count), 0));
 const pulseCards = computed(() => [
-  { label: '平台有效成員', value: Object.values(dashboard.pulse.roleCounts || {}).reduce((sum: number, value) => sum + Number(value), 0), note: `${dashboard.pulse.recipientCount || 0} 位受照護者`, icon: UsersRound, tone: 'brown' },
   { label: '今日預約服務', value: dashboard.pulse.todayBookings || 0, note: `${dashboard.pulse.activeServices || 0} 件進行中`, icon: CalendarClock, tone: 'orange' },
-  { label: '品質與安全警訊', value: dashboard.alerts.length + Number(dashboard.pulse.openEmergencies || 0), note: `${dashboard.pulse.openComplaints || 0} 件申訴處理中`, icon: TriangleAlert, tone: 'red' },
+  { label: '本月完成率', value: `${dashboard.performance.completionRate || 0}%`, note: `取消率 ${dashboard.performance.cancellationRate || 0}%`, icon: ChartNoAxesColumnIncreasing, tone: 'brown' },
+  { label: '需要關心', value: attentionCount.value, note: `${dashboard.pulse.openComplaints || 0} 件申訴處理中`, icon: TriangleAlert, tone: 'red' },
   { label: '待審居服員文件', value: dashboard.pulse.pendingCredentials || 0, note: `共 ${dashboard.pulse.caregiverCount || 0} 位居服員`, icon: ShieldCheck, tone: 'green' },
 ]);
 const journeySteps = computed(() => [
@@ -398,7 +411,8 @@ function bookingTimeline(booking: PlainObject) {
 function formatCoordinate(location?: PlainObject) { return location?.address || (location?.latitude ? `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}` : '尚未分享位置'); }
 function locationMapUrl(location: PlainObject) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location.latitude},${location.longitude}`)}`; }
 function recipientMeasurement(recipient?: PlainObject) { return recipient ? `${recipient.heightCm || '未填'} 公分／${recipient.weightKg || '未填'} 公斤` : '未建立受照護者資料'; }
-function openBooking(booking: PlainObject) { selectedBooking.value = booking; bookingDialog.value = true; }
+function openBooking(booking: PlainObject) { selectedBooking.value = booking; bookingDetailTab.value = 'summary'; bookingDialog.value = true; }
+function openAttention(item: PlainObject) { tab.value = item.targetTab; if (item.targetStatus) bookingStatus.value = item.targetStatus; }
 
 async function handleAlert(alert: AlertItem, action: string, status: string) {
   await api.patch(`/admin/quality-alerts/${alert._id}`, { action, status, adminNote: alert.note });
@@ -440,9 +454,12 @@ onBeforeUnmount(liveSync.stop);
 .pulse-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 22px 0; }
 .pulse-card { min-height: 142px; display: flex; align-items: flex-start; gap: 17px; padding: 24px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 22px; box-shadow: 0 12px 30px rgb(78 52 43 / 7%); }
 .pulse-card > svg { flex: 0 0 auto; box-sizing: content-box; padding: 12px; border-radius: 15px; }.pulse-card div { display: grid; }.pulse-card strong { font-size: 1.8rem; line-height: 1; }.pulse-card span { margin-top: 9px; font-weight: 800; }.pulse-card small { margin-top: 5px; color: #8a756e; }.pulse-card.brown svg { color: #6e5750; background: #eee4df; }.pulse-card.orange svg { color: #b84f16; background: #ffeadf; }.pulse-card.red svg { color: #b13d33; background: #fde5e1; }.pulse-card.green svg { color: #3f725e; background: #e2f0ea; }
+.attention-card { margin-bottom: 22px; overflow: hidden; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 22px; box-shadow: 0 12px 34px rgb(78 52 43 / 7%); }.attention-card > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 14px; }.attention-card h2 { margin: 0; font-size: 1.35rem; }.attention-item { min-height: 72px; padding: 12px 24px; }.attention-item :deep(.q-item__section--side) { color: #755f57; }.attention-item :deep(.q-avatar) { width: 44px; height: 44px; }.attention-high { color: #a7352c; background: #fde5e1; }.attention-medium { color: #a95619; background: #ffeadf; }.attention-low { color: #4a6b5d; background: #e2f0ea; }.attention-clear { display: flex; align-items: center; gap: 12px; padding: 18px 24px 24px; color: #3f725e; }
 .admin-tabs { margin-bottom: 16px; color: #6e5750; background: #fffdfb; border: 1px solid rgb(110 87 80 / 11%); border-radius: 18px; }.admin-tabs :deep(.q-tab--active) { color: #b84f16; }.admin-panels { background: transparent; }.admin-panels :deep(.q-tab-panel) { padding: 0; }
 .insight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }.insight-card { min-width: 0; padding: 28px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; box-shadow: 0 12px 34px rgb(78 52 43 / 7%); }.insight-card header, .recent-reviews header { display: flex; align-items: center; gap: 13px; }.insight-card h2, .quality-heading h2, .table-heading h2, .recent-reviews h2, .edit-dialog h2 { margin: 0; font-size: 1.35rem; }.insight-card .section-kicker, .quality-heading .section-kicker, .table-heading .section-kicker, .recent-reviews .section-kicker, .edit-dialog .section-kicker { color: #b84f16; }.icon-disc { display: grid; place-items: center; width: 48px; height: 48px; color: #b84f16; background: #ffeadf; border-radius: 15px; }.icon-disc.green { color: #3f725e; background: #e2f0ea; }.icon-disc.peach { color: #a84e3e; background: #f7dfd8; }.icon-disc.brown { color: #6e5750; background: #eee4df; }
+.overview-grid > .ranking-expansion { grid-column: 1 / -1; }.ranking-expansion { overflow: hidden; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 20px; }.ranking-expansion :deep(.ranking-header) { min-height: 58px; color: #6e5750; font-weight: 800; }.ranking-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 0 18px 18px; }.ranking-grid .insight-card { box-shadow: none; }
 .rating-summary { display: flex; align-items: center; gap: 22px; margin: 28px 0 20px; }.rating-summary > strong { font-size: 4.2rem; line-height: 1; }.rating-summary > div { display: grid; gap: 7px; color: #876f67; }.large-stars { display: flex; gap: 5px; }.large-stars svg { width: 27px; color: #d9c9c3; }.large-stars .filled, .small-stars .filled, .filled-star { color: #d96b27; fill: currentColor; }.rating-bars { display: grid; gap: 9px; }.rating-row { display: grid; grid-template-columns: 45px 1fr 28px; align-items: center; gap: 10px; font-size: .85rem; }.rating-row > div, .demand-list > div > div { height: 9px; overflow: hidden; background: #f0e6e1; border-radius: 99px; }.rating-row i, .demand-list i { height: 100%; display: block; background: #eb9079; border-radius: inherit; }
+.performance-list { display: grid; gap: 13px; }.performance-list > div { display: grid; grid-template-columns: 92px 1fr 42px; align-items: center; gap: 12px; color: #755f57; font-size: .86rem; }.performance-list strong { color: #4b3934; text-align: right; }
 .demand-list { display: grid; gap: 10px; margin-top: 27px; }.demand-list > div { display: grid; grid-template-columns: minmax(190px, 1fr) 1fr minmax(190px,auto); align-items: center; gap: 12px;padding:8px;border-radius:12px }.demand-list > div.service-alert{background:#eceae8}.demand-list span { display: flex; align-items: center; gap: 9px; }.demand-list b { display: grid; place-items: center; width: 25px; height: 25px; color: #b84f16; background: #ffeadf; border-radius: 9px; }.demand-list i { background: #4f806d; }.demand-list strong { font-size: .8rem; text-align: right; }.empty-copy { margin: 28px 0 0; color: #8a756e; }
 .journey-flow { display: grid; grid-template-columns: repeat(5, 1fr); margin: 30px 0 20px; }.journey-flow div { position: relative; display: grid; justify-items: center; gap: 8px; }.journey-flow div:not(:last-child)::after { content: ''; position: absolute; top: 22px; left: 67%; width: 66%; border-top: 2px dashed #e7c6b9; }.journey-flow span { z-index: 1; width: 46px; height: 46px; display: grid; place-items: center; color: white; background: #d96b27; border-radius: 50%; font-weight: 800; }.journey-flow small { color: #79635c; text-align: center; }.soft-note { margin: 0; padding: 14px 16px; color: #755f57; background: #fff3ed; border-radius: 13px; line-height: 1.6; }
 .caregiver-list { display: grid; margin-top: 20px; }.caregiver-list > div { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid #eee4df; }.avatar { width: 42px; height: 42px; display: grid; place-items: center; color: white; background: #80665d; border-radius: 14px; font-weight: 800; }.caregiver-list div div:nth-child(2) { display: grid; }.caregiver-list span { color: #8a756e; font-size: .8rem; }.caregiver-list small { display: flex; align-items: center; gap: 4px; font-weight: 800; }
@@ -450,6 +467,7 @@ onBeforeUnmount(liveSync.stop);
 .alert-list { display: grid; gap: 15px; }.alert-card { display: flex; gap: 20px; padding: 24px; background: #fffdfb; border: 1px solid rgb(177 61 51 / 24%); border-left: 6px solid #b13d33; border-radius: 22px; box-shadow: 0 12px 34px rgb(78 52 43 / 7%); }.alert-icon { flex: 0 0 auto; width: 62px; height: 62px; display: grid; place-items: center; color: #b13d33; background: #fde5e1; border-radius: 19px; }.alert-body { flex: 1; min-width: 0; }.alert-title { display: flex; justify-content: space-between; gap: 12px; }.alert-title span { color: #b13d33; font-size: .78rem; font-weight: 800; }.alert-title h3 { margin: 5px 0 0; font-size: 1.25rem; }.alert-body > p { color: #765f58; }.review-quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }.review-quotes blockquote { margin: 0; padding: 12px; color: #755f57; background: #fff4ef; border-radius: 12px; line-height: 1.6; }.note-input { margin-top: 14px; }.alert-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 13px; }.resolve-button { color: white; background: #b84f16; border-radius: 11px; }.all-clear { display: grid; justify-items: center; padding: 55px 20px; color: #3f725e; background: #f1f8f4; border-radius: 22px; }.all-clear h3 { margin: 13px 0 5px; }.all-clear p { margin: 0; }
 .recent-reviews { margin-top: 20px; padding: 28px; background: #fffdfb; border-radius: 22px; }.review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-top: 20px; }.review-grid article { padding: 17px; background: #fff7f2; border-radius: 15px; }.small-stars { display: flex; gap: 2px; }.small-stars svg { width: 17px; color: #d9c9c3; }.review-grid p { min-height: 52px; line-height: 1.6; }.review-grid small { color: #88736b; }
 .member-tools { display: flex; align-items: center; gap: 10px; }.member-tools :deep(.q-field) { width: min(340px, 100%); }.booking-tools{display:grid;grid-template-columns:minmax(260px,1fr) 170px 190px;gap:10px;flex:1;max-width:760px}.booking-tools :deep(.q-field__control){min-height:48px;border-radius:14px}.member-table { overflow: hidden; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 22px; }.member-row { display: grid; grid-template-columns: 1.2fr .7fr 1.2fr .65fr .55fr; align-items: center; gap: 14px; min-height: 72px; padding: 12px 20px; border-bottom: 1px solid #eee4df; }.member-row:last-child { border: 0; }.table-label { min-height: 48px; color: #8a756e; background: #f8efea; font-size: .82rem; font-weight: 800; }.member-name { display: grid; grid-template-columns: 40px 1fr; align-items: center; }.member-name i { grid-row: span 2; width: 38px; height: 38px; display: grid; place-items: center; color: white; background: #80665d; border-radius: 13px; font-style: normal; }.member-name small, .contact small { color: #907a72; }.contact { display: grid; }.row-actions { display: flex; }.booking-list { display: grid; gap: 12px; }.booking-list article { display: grid; grid-template-columns: 50px 1fr auto auto; align-items: center; gap: 16px; padding: 19px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 18px; cursor:pointer;transition:.2s ease; }.booking-list article:hover,.booking-list article:focus-visible{border-color:#dc8d6f;box-shadow:0 10px 28px rgb(90 58 47 / 10%);outline:none;transform:translateY(-1px)}.booking-icon { width: 48px; height: 48px; display: grid; place-items: center; color: #b84f16; background: #ffeadf; border-radius: 15px; }.booking-list article > div:nth-child(2) { display: grid; }.booking-list span, .booking-list small { color: #826d65; }.booking-list time { color: #715b54; font-weight: 700; }.booking-empty{padding:32px;text-align:center;color:#826d65;background:#fffdfb;border:1px dashed #ddc9c0;border-radius:18px}.edit-dialog { width: min(520px, calc(100vw - 32px)); padding: 10px; color: #4b3934; background: #fffdfb; border-radius: 23px; }.booking-detail-dialog{width:min(940px,calc(100vw - 32px));max-width:min(940px,calc(100vw - 32px))!important;max-height:90vh;overflow:auto;color:#4b3934;background:#fffdfb;border-radius:26px}.booking-detail-heading{display:flex;align-items:center;justify-content:space-between;padding:26px 30px 14px}.booking-detail-heading h2{margin:4px 0 0;font-size:1.8rem}.booking-detail-body{padding:10px 30px 24px}.booking-detail-body :deep(.q-img){max-height:260px;margin-bottom:18px;border-radius:20px}.booking-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.booking-detail-grid>div{display:flex;flex-direction:column;gap:5px;padding:15px 17px;background:#fff4ee;border-radius:16px}.booking-detail-grid span,.booking-progress span{color:#8a7067;font-size:.86rem}.booking-detail-grid strong{font-size:1rem;line-height:1.5}.booking-detail-grid .wide{grid-column:1/-1}.booking-progress{margin-top:22px;padding:20px;border:1px solid #eadbd4;background:#fffaf7;border-radius:20px}.booking-progress>header{display:flex;align-items:center;justify-content:space-between;gap:16px}.booking-progress h3{margin:4px 0 0;font-size:1.1rem}.booking-progress :deep(.q-stepper){margin-top:14px;background:transparent;box-shadow:none}.booking-progress :deep(.q-stepper__content){display:none}.booking-progress__warning{margin:10px 0;color:#9c3f35;background:#fce5e1}.booking-progress-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,.72fr);gap:18px;padding-top:12px;border-top:1px solid #eadbd4}.booking-progress-grid>div>h3{margin-bottom:12px}.booking-progress :deep(.q-timeline__title){font-size:.98rem}.booking-progress :deep(.q-timeline__subtitle){color:#8a7067}.booking-location{align-self:start;display:grid;grid-template-columns:auto 1fr;gap:10px;padding:18px;color:#4a6b5d;background:#eef7f2;border-radius:17px}.booking-location div{display:grid;gap:4px}.booking-location a,.booking-location small{grid-column:1/-1;color:#4a6b5d}.booking-location a{font-weight:800;text-decoration:underline;text-underline-offset:3px}
-@media (max-width: 900px) { .pulse-grid, .insight-grid { grid-template-columns: repeat(2, 1fr); }.review-grid { grid-template-columns: 1fr 1fr; }.member-row { grid-template-columns: 1.1fr .7fr 1fr .5fr; }.member-row > :nth-child(3), .table-label > :nth-child(3) { display: none; } }
-@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.hero-status { width: 100%; }.pulse-grid, .insight-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 118px; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.demand-list > div { grid-template-columns: 1fr; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
+.detail-tabs { margin-bottom: 16px; color: #6e5750; border-bottom: 1px solid #eadbd4; }.detail-tabs :deep(.q-tab--active) { color: #b84f16; }.detail-panels { background: transparent; }.detail-panels :deep(.q-tab-panel) { padding: 8px 0; }
+@media (max-width: 900px) { .pulse-grid, .insight-grid, .ranking-grid { grid-template-columns: repeat(2, 1fr); }.review-grid { grid-template-columns: 1fr 1fr; }.member-row { grid-template-columns: 1.1fr .7fr 1fr .5fr; }.member-row > :nth-child(3), .table-label > :nth-child(3) { display: none; } }
+@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.hero-status { width: 100%; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
 </style>

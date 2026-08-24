@@ -238,6 +238,11 @@ adminRoutes.get(
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const inThirtyDays = new Date(now.getTime() + 30 * 86400000)
 
     // 補齊既有歷史資料的三次一星警訊；未結案時不會重複建立。
     const oneStarGroups = await Review.aggregate([
@@ -291,6 +296,10 @@ adminRoutes.get(
       alerts,
       recentReviews,
       recentBookings,
+      monthlyBookings,
+      pendingTooLong,
+      awaitingConfirmation,
+      expiringCredentials,
     ] = await Promise.all([
       User.aggregate([
         { $match: { status: { $ne: 'DELETED' } } },
@@ -411,10 +420,40 @@ adminRoutes.get(
         .populate('serviceRequestId', 'specialRequirements serviceAddress')
         .sort({ updatedAt: -1 })
         .limit(60),
+      Booking.aggregate([
+        { $match: { hidden: { $ne: true }, scheduledStartAt: { $gte: monthStart } } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      Booking.countDocuments({
+        status: 'PENDING',
+        createdAt: { $lte: twoHoursAgo },
+        hidden: { $ne: true },
+      }),
+      Booking.countDocuments({
+        status: 'AWAITING_USER_CONFIRMATION',
+        completionRequestedAt: { $lte: twentyFourHoursAgo },
+        hidden: { $ne: true },
+      }),
+      CaregiverCredential.countDocuments({
+        verificationStatus: 'APPROVED',
+        expiresAt: { $gte: now, $lte: inThirtyDays },
+      }),
     ])
 
     const roleCounts = Object.fromEntries(roles.map((item) => [item._id, item.count]))
     const [registered, requested, booked, completed, reviewed] = journey
+    const bookingCounts: Record<string, number> = Object.fromEntries(
+      monthlyBookings.map((item) => [String(item._id), Number(item.count)]),
+    )
+    const monthlyTotal = Object.values(bookingCounts).reduce((sum, count) => sum + Number(count), 0)
+    const completedCount = Number(bookingCounts.COMPLETED || 0)
+    const cancelledCount = Number(bookingCounts.CANCELLED || 0) + Number(bookingCounts.ABANDONED || 0)
+    const attention = [
+      { type: 'BOOKING_PENDING', priority: 'HIGH', count: pendingTooLong, title: '預約等待居服員確認超過 2 小時', description: '建議優先確認居服員安排', targetTab: 'services', targetStatus: 'PENDING' },
+      { type: 'USER_CONFIRMATION', priority: 'MEDIUM', count: awaitingConfirmation, title: '使用者等待確認完成超過 24 小時', description: '可主動關懷服務是否順利完成', targetTab: 'services', targetStatus: 'AWAITING_USER_CONFIRMATION' },
+      { type: 'QUALITY_ALERT', priority: 'HIGH', count: alerts.length + openEmergencies, title: '品質與安全事件待處理', description: '包含低星評價與開啟中的安全通報', targetTab: 'quality' },
+      { type: 'CREDENTIAL', priority: 'LOW', count: pendingCredentials + expiringCredentials, title: '居服員文件待審或即將到期', description: `${pendingCredentials} 件待審、${expiringCredentials} 件 30 日內到期`, targetTab: 'members' },
+    ].filter((item) => item.count > 0)
     response.json({
       generatedAt: new Date(),
       pulse: {
@@ -435,6 +474,13 @@ adminRoutes.get(
       serviceDemand,
       caregiverFrequency,
       journey: { registered, requested, booked, completed, reviewed },
+      performance: {
+        completionRate: monthlyTotal ? Math.round((completedCount / monthlyTotal) * 100) : 0,
+        cancellationRate: monthlyTotal ? Math.round((cancelledCount / monthlyTotal) * 100) : 0,
+        reviewRate: Number(completed) ? Math.round((Number(reviewed) / Number(completed)) * 100) : 0,
+        ratingAverage: reviewSummary[0]?.average || 0,
+      },
+      attention,
       alerts,
       recentBookings,
     })
