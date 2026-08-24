@@ -127,6 +127,47 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="longTermCareDialog">
+      <q-card class="long-term-care-dialog">
+        <q-card-section class="detail-dialog__heading long-term-care-heading">
+          <div><small>長照政策與申請資訊</small><h2>政府長照服務申請說明</h2></div>
+          <button class="detail-dialog__close" type="button" aria-label="關閉長照服務申請說明" v-close-popup><X :size="24" /></button>
+        </q-card-section>
+
+        <q-card-section class="long-term-care-body">
+          <p class="long-term-care-lead">家中有長期照顧需求，可先透過官方管道提出申請。經各縣市長期照顧管理中心評估後，再依個別需求擬定照顧計畫與連結服務。</p>
+
+          <section aria-labelledby="care-application-steps">
+            <h3 id="care-application-steps">四個申請步驟</h3>
+            <ol class="long-term-care-steps">
+              <li><span>1</span><div><strong>提出申請</strong><small>撥打 1966、聯絡地方照管中心、線上申請，或由住院的出院準備團隊協助。</small></div></li>
+              <li><span>2</span><div><strong>專業評估</strong><small>由照管專員了解生活功能與照顧需求，確認長照需要等級及給付額度。</small></div></li>
+              <li><span>3</span><div><strong>擬定照顧計畫</strong><small>符合資格後，與個案管理員討論服務項目與實際安排。</small></div></li>
+              <li><span>4</span><div><strong>接受長照服務</strong><small>依核定的照顧計畫，由長照特約單位提供服務。</small></div></li>
+            </ol>
+          </section>
+
+          <q-expansion-item class="long-term-care-expansion" icon="person_search" label="誰可以申請？" header-class="long-term-care-expansion__header">
+            <div>主要由各縣市照管中心評估長期照顧需求。是否符合資格、可使用的服務與額度，均以現行規定及實際評估為準。</div>
+          </q-expansion-item>
+          <q-expansion-item class="long-term-care-expansion" icon="medical_services" label="可能有哪些服務？" header-class="long-term-care-expansion__header">
+            <div>依個別評估與照顧計畫，可能包含照顧及專業服務、交通接送、輔具與居家無障礙環境改善，以及喘息服務。</div>
+          </q-expansion-item>
+
+          <div class="long-term-care-notice" role="note">
+            <ShieldCheck :size="23" />
+            <p><strong>平台服務說明</strong>本平台提供照顧資訊及自費照顧服務預約，並非政府長期照顧管理中心。平台預約不等同申請政府長照服務或取得給付資格；資格、額度、部分負擔與服務安排，以主管機關最新公告及評估為準。</p>
+          </div>
+        </q-card-section>
+
+        <q-card-actions class="long-term-care-actions">
+          <a class="care-action care-action--phone" href="tel:1966"><PhoneCall :size="20" />撥打 1966</a>
+          <a class="care-action care-action--official" href="https://1966.gov.tw/LTC/cp-6533-70777-207.html" target="_blank" rel="noopener noreferrer">前往官方申請說明 <ArrowRight :size="20" />
+          </a>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="bookingDialog">
       <q-card class="booking-list-dialog">
         <q-card-section class="detail-dialog__heading"><div><small>預約與照護進度</small><h2>我的安心服務安排</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉預約清單" v-close-popup><X :size="24" /></button></q-card-section>
@@ -193,40 +234,51 @@
           <div><small>預約服務進度</small><h2>{{ selectedProgressBooking ? bookingProgressCopy(selectedProgressBooking).title : '居服員出發與打卡通知' }}</h2></div>
           <button class="detail-dialog__close" type="button" aria-label="關閉預約進度" v-close-popup><X :size="24" /></button>
         </q-card-section>
-        <q-card-section v-if="selectedProgressBooking" class="booking-progress-body">
-          <section v-if="careNotifications.length" class="care-notifications" aria-labelledby="care-notifications-title">
-            <div class="care-notifications__heading"><div><h3 id="care-notifications-title">最新照護動態</h3><p>開啟後已全部標記為已讀</p></div><q-badge rounded :label="`${careNotifications.length} 則`" /></div>
-            <q-list separator bordered class="care-notification-list">
-              <q-item v-for="notification in careNotifications" :key="notification._id" clickable v-ripple :class="{ unread: notification.status !== 'READ' }" @click="selectNotificationBooking(notification)">
-                <q-item-section avatar><span class="care-notification-icon"><BellRing :size="19" /></span></q-item-section>
-                <q-item-section><q-item-label>{{ notification.title }}</q-item-label><q-item-label caption>{{ notification.message }}</q-item-label><q-item-label caption>{{ formatProgressDate(notification.createdAt) }}</q-item-label></q-item-section>
-                <q-item-section side><q-badge v-if="notification.status !== 'READ'" rounded label="新" /><ChevronRight :size="19" /></q-item-section>
-              </q-item>
-            </q-list>
-          </section>
-          <div class="booking-current-status" aria-live="polite">
-            <span><MapPinned :size="23" /></span>
-            <div><strong>{{ bookingProgressCopy(selectedProgressBooking).title }}</strong><p>{{ bookingProgressCopy(selectedProgressBooking).description }}</p></div>
-            <q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(selectedProgressBooking))" :label="bookingStatusLabel(bookingDisplayStatus(selectedProgressBooking))" />
-          </div>
-          <section class="booking-timeline" aria-labelledby="booking-timeline-title">
-            <h3 id="booking-timeline-title">任務歷程</h3>
-            <div v-for="(event, index) in bookingTimeline(selectedProgressBooking)" :key="event.label" :class="['booking-timeline__item', { current: index === bookingTimeline(selectedProgressBooking).length - 1, danger: event.danger }]">
-              <span class="booking-timeline__marker"><X v-if="event.danger" :size="14" /><Check v-else :size="14" /></span>
-              <div><time :datetime="event.at">{{ formatProgressDate(event.at) }}</time><strong>{{ event.label }}</strong><small v-if="index === bookingTimeline(selectedProgressBooking).length - 1">目前進度</small></div>
-            </div>
-          </section>
-          <section v-if="selectedProgressBooking.serviceAddress?.text" class="booking-map" aria-labelledby="booking-map-title">
-            <h3 id="booking-map-title">服務地點</h3>
-            <p><MapPinned :size="18" /> {{ selectedProgressBooking.serviceAddress.text }}</p>
-            <div class="map-panel">
-              <iframe :src="bookingMapEmbedUrl(selectedProgressBooking)" :title="`${selectedProgressBooking.serviceAddress.text}服務地點地圖`" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-              <a :href="bookingMapSearchUrl(selectedProgressBooking)" target="_blank" rel="noopener noreferrer"><MapPinned :size="19" /> 在地圖中確認位置</a>
-            </div>
-          </section>
-        </q-card-section>
+        <template v-if="selectedProgressBooking">
+          <q-tabs v-model="progressTab" dense align="justify" no-caps narrow-indicator class="booking-progress-tabs">
+            <q-tab name="progress" label="目前進度" />
+            <q-tab name="notifications"><span>通知 <q-badge v-if="careNotifications.length" rounded :label="careNotifications.length" /></span></q-tab>
+            <q-tab name="service" label="服務資訊" />
+          </q-tabs>
+          <q-separator />
+          <q-tab-panels v-model="progressTab" animated swipeable class="booking-progress-panels">
+            <q-tab-panel name="progress">
+              <div class="booking-current-status" aria-live="polite">
+                <span><MapPinned :size="23" /></span>
+                <div><strong>{{ bookingProgressCopy(selectedProgressBooking).title }}</strong><p>{{ bookingProgressCopy(selectedProgressBooking).description }}</p></div>
+                <q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(selectedProgressBooking))" :label="bookingStatusLabel(bookingDisplayStatus(selectedProgressBooking))" />
+              </div>
+              <q-expansion-item class="progress-expansion" expand-separator label="查看完整任務歷程" caption="預約、承接、出發與抵達紀錄">
+                <q-card flat><q-card-section>
+                  <q-timeline color="deep-orange-7" layout="dense">
+                    <q-timeline-entry v-for="(event, index) in bookingTimeline(selectedProgressBooking)" :key="`${event.label}-${event.at}`" :title="event.label" :subtitle="formatProgressDate(event.at)" :color="event.danger ? 'negative' : 'deep-orange-7'" :icon="event.danger ? 'close' : 'check'">
+                      <span v-if="index === bookingTimeline(selectedProgressBooking).length - 1" class="current-progress-label">目前進度</span>
+                    </q-timeline-entry>
+                  </q-timeline>
+                </q-card-section></q-card>
+              </q-expansion-item>
+            </q-tab-panel>
+            <q-tab-panel name="notifications">
+              <div class="care-notifications__heading"><div><h3>最新照護動態</h3><p>開啟後已全部標記為已讀</p></div><q-badge rounded :label="`${careNotifications.length} 則`" /></div>
+              <q-list v-if="careNotifications.length" separator bordered class="care-notification-list">
+                <q-item v-for="notification in careNotifications" :key="notification._id" clickable v-ripple :class="{ unread: notification.status !== 'READ' }" @click="selectNotificationBooking(notification)">
+                  <q-item-section avatar><span class="care-notification-icon"><BellRing :size="19" /></span></q-item-section>
+                  <q-item-section><q-item-label>{{ notification.title }}</q-item-label><q-item-label caption lines="2">{{ notification.message }}</q-item-label><q-item-label caption>{{ formatProgressDate(notification.createdAt) }}</q-item-label></q-item-section>
+                  <q-item-section side><q-badge v-if="notification.status !== 'READ'" rounded label="新" /><ChevronRight :size="19" /></q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="booking-empty"><BellRing :size="38" /><h3>目前沒有通知</h3><p>新的照護動態會顯示在這裡。</p></div>
+            </q-tab-panel>
+            <q-tab-panel name="service">
+              <div class="service-address"><span><MapPinned :size="22" /></span><div><small>服務地點</small><strong>{{ selectedProgressBooking.serviceAddress?.text || '尚未提供服務地址' }}</strong></div></div>
+              <q-expansion-item v-if="selectedProgressBooking.serviceAddress?.text" class="progress-expansion" expand-separator label="查看服務地點地圖" caption="展開 Google 地圖">
+                <div class="map-panel"><iframe :src="bookingMapEmbedUrl(selectedProgressBooking)" :title="`${selectedProgressBooking.serviceAddress.text}服務地點地圖`" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe><a :href="bookingMapSearchUrl(selectedProgressBooking)" target="_blank" rel="noopener noreferrer"><MapPinned :size="19" /> 在地圖中確認位置</a></div>
+              </q-expansion-item>
+            </q-tab-panel>
+          </q-tab-panels>
+        </template>
         <q-card-section v-else class="booking-empty"><BellRing :size="38" /><h3>目前沒有預約進度</h3><p>居服員出發或打卡後，會在這裡顯示最新歷程。</p></q-card-section>
-        <q-card-actions align="right"><q-btn flat no-caps class="dialog-button" label="安心看完了" v-close-popup /></q-card-actions>
+        <q-separator /><q-card-actions align="right"><q-btn flat no-caps class="dialog-button" label="關閉" v-close-popup /></q-card-actions>
       </q-card>
     </q-dialog>
 
@@ -470,7 +522,6 @@ import {
   BellRing,
   CalendarClock,
   CalendarHeart,
-  Check,
   ChevronDown,
   ChevronRight,
   CircleHelp,
@@ -507,6 +558,7 @@ const $q = useQuasar();
 const router = useRouter();
 const route = useRoute();
 const featureDialog = ref(false);
+const longTermCareDialog = ref(false);
 const recipientDialog = ref(false);
 const recipientPickerDialog = ref(false);
 const emptyRecipientDialog = ref(false);
@@ -519,6 +571,7 @@ const comboHistoryDialog = ref(false);
 const careComboLoading = ref(false);
 const selectedCombo = ref<CareCombo | null>(null);
 const bookingProgressDialog = ref(false);
+const progressTab = ref<'progress'|'notifications'|'service'>('progress');
 const selectedProgressBooking = ref<Booking | null>(null);
 const bookingLoading = ref(false);
 const bookingSearch = ref('');
@@ -754,6 +807,7 @@ function formatProgressDate(value:string) { return new Intl.DateTimeFormat('zh-T
 function bookingMapSearchUrl(booking:Booking) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.serviceAddress?.text || '')}`; }
 function bookingMapEmbedUrl(booking:Booking) { return `https://maps.google.com/maps?q=${encodeURIComponent(booking.serviceAddress?.text || '')}&z=16&hl=zh-TW&output=embed`; }
 async function openBookingProgress() {
+  progressTab.value = 'progress';
   await Promise.all([loadBookings(), loadNotifications()]);
   const notifiedBooking = careNotifications.value.find((item) => item.bookingId)?.bookingId;
   selectedProgressBooking.value = bookings.value.find((booking) => booking._id === notifiedBooking) || bookings.value.find((booking) => ['DEPARTED','ARRIVED','WAITING_DECISION','IN_SERVICE','AWAITING_USER_CONFIRMATION'].includes(booking.status)) || activeBookings.value[0] || bookings.value[0] || null;
@@ -959,6 +1013,10 @@ function handleFeatureItem(name: string) {
     calculatorDialog.value = true;
     return;
   }
+  if (name === '長照服務申請說明') {
+    longTermCareDialog.value = true;
+    return;
+  }
   openFeature(name);
 }
 
@@ -1039,8 +1097,9 @@ onBeforeUnmount(liveSync.stop);
 .support-banner{display:flex;align-items:center;gap:20px;margin-top:52px;padding:27px 32px;color:white;background:var(--sage);border-radius:24px}.support-banner__icon{flex:0 0 64px;width:64px;height:64px;display:grid;place-items:center;background:rgb(255 255 255 / 13%);border-radius:20px}.support-banner span{color:#dcebe4}.support-banner h2{margin:4px 0 0;font-size:clamp(1.3rem,3vw,1.9rem)}.support-banner button{min-height:48px;margin-left:auto;padding:0 20px;color:#315344;background:#f0faf4;border:0;border-radius:14px;font:inherit;font-weight:700;cursor:pointer}
 .login-state{min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;background:var(--paper);border-radius:28px}.login-state__icon{width:92px;height:92px;display:grid;place-items:center;color:var(--persimmon);background:#ffe8df;border-radius:30px}.login-state>span{margin-top:22px;color:var(--persimmon);font-weight:700;letter-spacing:.12em}.login-state h1{margin:10px 0;font-size:clamp(2rem,5vw,3rem)}.login-state p{margin:0 0 24px;color:#79635b;font-size:1.08rem}.login-state a{min-height:52px;display:inline-flex;align-items:center;gap:8px;padding:0 24px;color:white;background:var(--persimmon);border-radius:15px;font-size:1.06rem;font-weight:700;text-decoration:none}
 .feature-dialog{width:min(460px,calc(100vw - 32px));padding:10px;background:#fffdfb;border-radius:24px}.feature-dialog__heading{display:flex;align-items:center;gap:14px}.feature-dialog__heading>span{width:54px;height:54px;display:grid;place-items:center;color:#9e421a;background:#ffe7de;border-radius:17px}.feature-dialog small{color:var(--persimmon);font-weight:700}.feature-dialog h2{margin:3px 0 0;font-size:1.55rem}.feature-dialog p{margin:0;color:#725c54;font-size:1rem;line-height:1.7}.dialog-button{min-height:44px;color:white;background:var(--persimmon);border-radius:13px;padding:0 17px}
+.long-term-care-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:26px}.long-term-care-heading{flex:none;border-bottom:1px solid #eee1da}.long-term-care-body{min-height:0;overflow-y:auto;padding:20px 32px 24px}.long-term-care-lead{margin:0 0 24px;color:#694f47;font-size:1.05rem;line-height:1.8}.long-term-care-body h3{margin:0 0 14px;font-size:1.25rem}.long-term-care-steps{display:grid;gap:10px;margin:0 0 20px;padding:0;list-style:none}.long-term-care-steps li{display:grid;grid-template-columns:42px 1fr;align-items:start;gap:13px;padding:15px;background:#fff6f1;border:1px solid #f0e2db;border-radius:16px}.long-term-care-steps li>span{width:42px;height:42px;display:grid;place-items:center;color:white;background:#b84f16;border-radius:13px;font-weight:800}.long-term-care-steps li>div{display:grid;gap:4px}.long-term-care-steps strong{font-size:1.03rem}.long-term-care-steps small{color:#765f57;font-size:.91rem;line-height:1.6}.long-term-care-expansion{overflow:hidden;margin-top:10px;border:1px solid #e8d9d1;border-radius:15px}.long-term-care-expansion :deep(.q-item){min-height:58px;color:#5d4942;font-weight:700}.long-term-care-expansion :deep(.q-expansion-item__content)>div{padding:2px 18px 18px;color:#725c54;line-height:1.7}.long-term-care-notice{display:flex;align-items:flex-start;gap:11px;margin-top:18px;padding:16px;color:#315f4c;background:#e8f3ed;border-radius:16px}.long-term-care-notice svg{flex:none;margin-top:2px}.long-term-care-notice p{margin:0;line-height:1.65}.long-term-care-notice strong{display:block;margin-bottom:3px}.long-term-care-actions{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 32px 22px;border-top:1px solid #eee1da}.care-action{min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:14px;font-weight:800;text-decoration:none}.care-action--phone{color:#3b6654;background:#e5f1eb}.care-action--official{color:white;background:#b84f16}
 .booking-list-dialog,.cancel-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-skeleton{display:grid;gap:12px}.booking-skeleton>*{border-radius:17px}.booking-list{padding:0 24px}.booking-list__item{min-height:112px;padding:16px 8px}.booking-date{width:58px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a44820;background:#fff0e9;border-radius:16px}.booking-date strong{font-size:1.35rem}.booking-date small{font-size:.75rem}.booking-list__title{margin-bottom:5px;font-size:1.08rem;font-weight:800}.booking-list__side{align-items:flex-end;gap:8px}.booking-list__side :deep(.q-badge){padding:7px 10px;font-weight:700}.status-success{color:#2f6652;background:#dff1e8}.status-waiting{color:#765020;background:#fff0cd}.status-warning{color:#8e3e31;background:#f8dfdb}.status-muted{color:#695b56;background:#eae5e2}.booking-empty{padding:36px;text-align:center;color:#8b756d}.booking-empty h3{margin:10px 0 4px;color:var(--ink)}.booking-empty p{margin:0}.cancel-dialog__body{display:grid;gap:16px;padding:12px 32px 26px}.cancel-dialog :deep(.q-field__control){border-radius:16px}.refund-note{display:flex;align-items:flex-start;gap:10px;padding:15px;color:#315f4c;background:#e5f3ec;border-radius:16px}.refund-note.warning{color:#8d3f32;background:#fce7e2}.cancel-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 32px 24px;border-top:1px solid #eee1da}.cancel-confirm,.completion-confirm{min-height:44px;padding:0 18px;color:white;background-color: #f7941d;border-radius:13px}.completion-dialog .journal-fixed{margin:0 24px}.completion-dialog .refund-note{margin:0 24px 8px}
-.booking-progress-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-progress-body{display:grid;gap:26px;padding:4px 32px 28px}.booking-current-status{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:18px;color:#315f4c;background:#e8f3ed;border-radius:18px}.booking-current-status>span{width:46px;height:46px;display:grid;place-items:center;color:white;background:#4f7264;border-radius:15px}.booking-current-status div{display:grid;gap:3px}.booking-current-status strong{font-size:1.08rem}.booking-current-status p{margin:0;color:#5d746a;line-height:1.55}.booking-current-status :deep(.q-badge){padding:7px 10px;font-weight:700}.booking-timeline h3,.booking-map h3{margin:0 0 18px;font-size:1.15rem}.booking-timeline__item{position:relative;display:flex;gap:15px;min-height:75px}.booking-timeline__item:not(:last-child)::before{content:'';position:absolute;top:21px;bottom:-1px;left:10px;width:2px;background:#e8cfc5}.booking-timeline__marker{position:relative;z-index:1;flex:0 0 22px;width:22px;height:22px;display:grid;place-items:center;color:white;background:#4f8a6c;border-radius:50%}.booking-timeline__item.current .booking-timeline__marker{background:#c55418;box-shadow:0 0 0 5px #ffebe2}.booking-timeline__item.danger .booking-timeline__marker{background:#a94835}.booking-timeline__item>div{display:grid;align-content:start;gap:4px;padding-bottom:18px}.booking-timeline time{color:#8b756d;font-size:.82rem}.booking-timeline__item strong{font-size:1rem}.booking-timeline__item small{width:max-content;padding:3px 9px;color:#a5441e;background:#fff0e9;border-radius:999px;font-weight:800}.booking-map>p{display:flex;align-items:flex-start;gap:7px;margin:-8px 0 0;color:#725c54;line-height:1.55}.booking-map>p svg{flex:none;margin-top:3px}.booking-progress-dialog .map-panel{margin-top:14px}
+.booking-progress-dialog{width:min(700px,calc(100vw - 32px));max-width:min(700px,calc(100vw - 32px))!important;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:26px}.booking-progress-dialog>.detail-dialog__heading{flex:none;padding-bottom:20px}.booking-progress-tabs{flex:none;color:#806a62}.booking-progress-tabs :deep(.q-tab){min-height:52px;font-weight:700}.booking-progress-tabs :deep(.q-tab--active){color:var(--persimmon)}.booking-progress-tabs :deep(.q-tab__indicator){background:var(--persimmon)}.booking-progress-tabs :deep(.q-badge){margin-left:5px;color:white;background:#b84f16}.booking-progress-panels{min-height:350px;max-height:56dvh;overflow-y:auto;background:#fffdfb}.booking-progress-panels :deep(.q-tab-panel){padding:24px 30px}.booking-current-status{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:18px;color:#315f4c;background:#e8f3ed;border:1px solid #d4e8de;border-radius:18px}.booking-current-status>span{width:46px;height:46px;display:grid;place-items:center;color:white;background:#4f7264;border-radius:15px}.booking-current-status div{display:grid;gap:3px}.booking-current-status strong{font-size:1.08rem}.booking-current-status p{margin:0;color:#5d746a;line-height:1.55}.booking-current-status :deep(.q-badge){padding:7px 10px;font-weight:700}.progress-expansion{overflow:hidden;margin-top:16px;border:1px solid #eadbd4;border-radius:16px}.progress-expansion :deep(.q-item){min-height:68px}.progress-expansion :deep(.q-item__label){font-weight:700}.progress-expansion :deep(.q-item__label--caption){margin-top:3px;color:#806a62;font-weight:400}.progress-expansion :deep(.q-timeline){padding:4px 0}.current-progress-label{display:inline-flex;padding:3px 9px;color:#a5441e;background:#fff0e9;border-radius:999px;font-size:.78rem;font-weight:800}.service-address{display:flex;align-items:flex-start;gap:13px;padding:18px;background:#fff6f1;border:1px solid #eadbd4;border-radius:17px}.service-address>span{width:44px;height:44px;display:grid;place-items:center;flex:none;color:#a54820;background:#ffe6da;border-radius:14px}.service-address>div{display:grid;gap:4px}.service-address small{color:#806a62}.service-address strong{font-size:1.02rem;line-height:1.55}.booking-progress-dialog .map-panel{margin:0;border-radius:0}.booking-progress-dialog .map-panel iframe{height:270px}.booking-progress-dialog>.q-card__actions{flex:none;padding:10px 20px 16px}
 .care-notifications__heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}.care-notifications__heading h3{margin:0;font-size:1.15rem}.care-notifications__heading p{margin:4px 0 0;color:#806a62}.care-notifications__heading :deep(.q-badge){padding:6px 10px;color:#77431e;background:#ffe5c2}.care-notification-list{overflow:hidden;border-color:#eadbd4;border-radius:17px}.care-notification-list :deep(.q-item){min-height:82px;padding:12px 15px}.care-notification-list :deep(.q-item.unread){background:#fff7ed}.care-notification-list :deep(.q-item__label){font-weight:700}.care-notification-list :deep(.q-item__label--caption){margin-top:3px;color:#806a62;font-weight:400;line-height:1.45}.care-notification-list :deep(.q-item__section--side){display:flex;align-items:center;flex-direction:row;gap:7px}.care-notification-list :deep(.q-item__section--side .q-badge){color:white;background:#b84f16}.care-notification-icon{width:40px;height:40px;display:grid;place-items:center;color:#a54820;background:#ffe8dc;border-radius:13px}
 .detail-dialog{width:min(880px,calc(100vw - 40px));max-width:min(880px,calc(100vw - 40px))!important;max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.detail-dialog__heading{display:flex;align-items:center;justify-content:space-between;padding:28px 32px 18px}.detail-dialog__heading small{color:var(--persimmon);font-weight:700;letter-spacing:.08em}.detail-dialog__heading h2{margin:5px 0 0;font-size:1.9rem}.detail-dialog__close{min-width:44px;min-height:44px;display:grid;place-items:center;color:var(--wood);background:#fff5f0;border:0;border-radius:14px;cursor:pointer}.detail-dialog__body{padding:10px 32px 24px}.profile-detail{display:grid;grid-template-columns:230px 1fr;gap:22px}.profile-photo{overflow:hidden;min-height:230px;background:#f5ebe6;border-radius:22px}.profile-photo :deep(.q-img){height:100%;margin:0;border-radius:22px}.profile-photo__empty{height:100%;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8b7067}.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.detail-grid>div,.reminder-grid>div,.address-detail>div{display:flex;flex-direction:column;gap:5px;padding:15px;background:#fff6f1;border-radius:15px}.detail-grid span,.reminder-grid span,.address-detail span{color:#8a7067}.detail-grid strong,.reminder-grid strong,.address-detail strong{font-size:1rem;line-height:1.55}.detail-photo-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.detail-photo-strip :deep(.q-img){overflow:hidden;margin:0;border-radius:16px}.reminder-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.reminder-grid .wide{grid-column:1/-1}.address-detail{display:grid;grid-template-columns:1fr 1fr;gap:14px}.address-detail span{display:flex;align-items:center;gap:7px}.map-panel{overflow:hidden;margin-top:18px;background:#f4e8e1;border-radius:20px}.map-panel iframe{width:100%;height:310px;display:block;border:0}.map-panel a{min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;color:white;background:#6e5750;font-weight:700;text-decoration:none}.emergency-detail{display:grid;grid-template-columns:80px repeat(3,1fr);align-items:center;gap:12px;padding:20px;background:#fff5ef;border-radius:20px}.emergency-detail__icon{width:68px;height:68px;display:grid;place-items:center;color:#a8461d;background:#ffe3d8;border-radius:21px}.emergency-detail>div{display:flex;flex-direction:column;gap:5px}.emergency-detail small{color:#8d746b}.emergency-detail strong{font-size:1.08rem}.detail-note{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:15px;color:#3c6454;background:#e9f4ee;border-radius:15px}.line-dialog{width:min(460px,calc(100vw - 28px));padding:26px;text-align:center;color:var(--ink);background:#fffdfb;border-radius:28px}.line-dialog__mark{width:84px;height:84px;display:grid;place-items:center;margin:0 auto;color:white;background:#4f8a5b;border-radius:27px;box-shadow:0 14px 30px rgb(79 138 91 / 24%)}.line-dialog__copy small{color:#4f7659;font-weight:700;letter-spacing:.1em}.line-dialog__copy h2{margin:7px 0 16px;font-size:1.75rem;line-height:1.35}.line-dialog__copy p{margin:0;color:#816a62}.line-dialog__copy strong{display:block;margin:4px 0 18px;font-size:1.45rem}.line-dialog__copy a{min-height:50px;display:flex;align-items:center;justify-content:center;gap:8px;color:white;background:#3f7d4d;border-radius:15px;font-weight:700;text-decoration:none}
 .detail-dialog__close{color:var(--chestnut)}
@@ -1052,7 +1111,8 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 .journal-dialog{max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.journal-body{display:grid;gap:16px;padding:8px 32px 24px}.journal-fixed{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.journal-fixed>div{display:flex;flex-direction:column;gap:4px;padding:14px;background:#fff4ee;border-radius:15px}.journal-fixed>div:last-child{grid-column:1/-1}.journal-fixed span,.journal-rating>span{color:#8a7067;font-size:.85rem}.journal-fixed strong{line-height:1.45}.journal-rating{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;background:#fff7f2;border-radius:15px}.journal-stars{display:flex;gap:4px;color:#e06b24}.journal-stars button{display:grid;padding:3px;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:8px}.journal-stars button:focus-visible{outline:2px solid #d96b27;outline-offset:2px}.journal-locked{display:flex;align-items:flex-start;gap:10px;padding:14px;color:#35604f;background:#eaf4ef;border-radius:15px;line-height:1.55}
 @media(max-width:980px){.overview-grid{grid-template-columns:1fr}.feature-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.booking-filters,.journal-fixed{grid-template-columns:1fr}.journal-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important}.journal-body{padding-left:18px;padding-right:18px}.journal-rating{align-items:flex-start;flex-direction:column}}
-@media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.booking-progress-body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
+@media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-progress-panels{min-height:330px;max-height:54dvh}.booking-progress-panels :deep(.q-tab-panel){padding:18px 12px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-progress-tabs :deep(.q-tab){padding:0 7px;font-size:.88rem}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
+@media(max-width:700px){.long-term-care-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.long-term-care-body{padding-left:18px;padding-right:18px}.long-term-care-heading h2{font-size:1.5rem}.long-term-care-actions{grid-template-columns:1fr;padding:12px 18px 18px}}
 .manageable-bookings{display:grid;gap:12px}.manageable-booking{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 18px;background:#fff7f2;border:1px solid #eadbd3;border-radius:18px;cursor:pointer;transition:border-color .2s ease,background-color .2s ease}.manageable-booking:hover,.manageable-booking.selected{background:#fff0e9;border-color:#e98a6f}.manageable-booking>div:first-child{min-width:0;display:flex;flex-direction:column;gap:4px}.manageable-booking strong{font-size:1.05rem}.manageable-booking span,.manageable-booking small{color:#836d65}.manageable-booking small{font-size:.82rem}.manageable-booking__actions{display:flex;gap:10px;flex-shrink:0}.manageable-booking__actions :deep(.q-btn){min-height:44px;padding:0 16px;border-radius:13px}.cancel-task-button{color:#fff;background:#a94835}.change-heading{display:flex;flex-direction:column;gap:4px;margin-top:4px;padding:15px 17px;color:#684e45;background:#f3e7e1;border-radius:15px}.change-heading small{color:var(--persimmon);font-weight:700}.cancellation-heading{background:#fce9e5}.booking-empty.compact{padding:28px 16px}.booking-empty.compact h3{font-size:1.05rem}
 @media(max-width:600px){.manageable-booking{align-items:stretch;flex-direction:column}.manageable-booking__actions{display:grid;grid-template-columns:1fr 1fr}.manageable-booking__actions :deep(.q-btn){width:100%}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
