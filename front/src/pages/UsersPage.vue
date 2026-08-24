@@ -1230,14 +1230,20 @@ async function findNearbyServices(requestLocation = true) {
   try {
     const location = requestLocation || !currentPosition.value ? await startTracking() : currentPosition.value;
     stopTracking();
-    const { data } = await api.get<{ count:number; location:string[]; results:NearbyCenter[] }>('/ltc/nearby', { params: { lat:location.latitude, lng:location.longitude, radius:serviceRadius.value, limit:serviceLimit.value } });
+    const { data } = await api.get<{ count:number; location:string[]; results:NearbyCenter[] }>('/ltc/nearby', {
+      params: { lat:location.latitude, lng:location.longitude, radius:serviceRadius.value, limit:serviceLimit.value },
+      // 政府 CSV 約 11 MB，後端首次快取尚未建立時需要較長時間。
+      timeout: 75_000,
+    });
     nearbyCenters.value = data.results;
     serviceAreaCount.value = data.count;
     serviceAreaLocation.value = data.location;
     serviceAreaSearched.value = true;
   } catch (error:any) {
     nearbyCenters.value = [];
-    serviceAreaError.value = error?.response?.data?.message || error?.message || '請稍後再試。';
+    serviceAreaError.value = error?.code === 'ECONNABORTED'
+      ? '政府資料載入時間較長，請稍後再按一次定位。'
+      : error?.response?.data?.message || '目前無法取得政府長照資料，請稍後再試。';
   } finally { serviceAreaLoading.value = false; }
 }
 function showMoreCenters() { serviceLimit.value = 10; void findNearbyServices(false); }

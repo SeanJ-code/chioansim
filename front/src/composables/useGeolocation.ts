@@ -79,7 +79,7 @@ export function useGeolocation() {
           if (waitingFirstPosition) reject(new Error(error.value));
           waitingFirstPosition = false;
         },
-        { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 },
+        { enableHighAccuracy: true, maximumAge: 10_000, timeout: 60_000 },
       );
     });
   }
