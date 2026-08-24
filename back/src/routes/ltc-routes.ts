@@ -1,8 +1,14 @@
 import { Router } from 'express'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { gunzip } from 'node:zlib'
+import { promisify } from 'node:util'
 import { asyncHandler } from '../utils/http'
 
 const DATA_URL = process.env.LTC_DATA_URL || 'https://ltcpap.mohw.gov.tw/publish/abc.csv'
 const CACHE_MS = 24 * 60 * 60 * 1000
+const SNAPSHOT_PATH = path.resolve(__dirname, '../../data/ltc-abc.csv.gz')
+const unzip = promisify(gunzip)
 
 export type LtcCenter = {
   id: string
@@ -57,7 +63,7 @@ export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: n
   return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function toCenters(text: string): LtcCenter[] {
+export function toCenters(text: string): LtcCenter[] {
   const [headers = [], ...rows] = parseCsv(text.replace(/^\uFEFF/, ''))
   const column = (name: string) => headers.indexOf(name)
   return rows.flatMap((row) => {
@@ -101,6 +107,15 @@ async function downloadCenters(): Promise<LtcCenter[]> {
 
 async function getCenters(): Promise<LtcCenter[]> {
   if (cache && Date.now() - cache.loadedAt < CACHE_MS) return cache.centers
+  if (!cache) {
+    const centers = toCenters((await unzip(await readFile(SNAPSHOT_PATH))).toString('utf8'))
+    if (!centers.length) throw new Error('Bundled LTC snapshot was empty')
+    cache = { loadedAt: Date.now(), centers }
+    // Render 目前無法連到官方主機；先回傳快照，背景嘗試更新即可。
+    loading ||= downloadCenters().finally(() => { loading = null })
+    void loading.catch(() => undefined)
+    return centers
+  }
   loading ||= downloadCenters().finally(() => { loading = null })
   return loading
 }
