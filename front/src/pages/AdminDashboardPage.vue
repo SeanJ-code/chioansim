@@ -114,25 +114,15 @@
             <div><p class="section-kicker">QUALITY & SAFETY</p><h2>需要優先關心的品質警訊</h2><p>三次以上一星評價會自動出現在這裡；處置會保留管理紀錄。</p></div>
             <div class="quality-count"><TriangleAlert :size="26" /><strong>{{ dashboard.alerts.length }}</strong><span>件待處理</span></div>
           </section>
-          <div v-if="dashboard.alerts.length" class="alert-list">
-            <article v-for="alert in dashboard.alerts" :key="alert._id" class="alert-card">
-              <div class="alert-icon"><Star :size="34" fill="currentColor" /></div>
-              <div class="alert-body">
-                <div class="alert-title"><div><span>高優先品質提醒</span><h3>{{ caregiverAlertName(alert) }}</h3></div><q-badge rounded color="negative" label="3 次以上一星" /></div>
-                <p>{{ alert.description }}</p>
-                <div class="review-quotes">
-                  <blockquote v-for="review in alert.reviewIds.slice(0, 3)" :key="review._id">「{{ review.comment || '使用者未留下文字說明' }}」</blockquote>
-                </div>
-                <q-input v-model="alert.note" outlined autogrow label="管理員處置備註" class="note-input" />
-                <div class="alert-actions">
-                  <q-btn outline no-caps label="已發出警示" @click="handleAlert(alert, 'WARNED', 'ACKNOWLEDGED')" />
-                  <q-btn outline no-caps label="安排關懷約談" @click="handleAlert(alert, 'INTERVIEW_REQUIRED', 'ACKNOWLEDGED')" />
-                  <q-btn color="negative" outline no-caps label="暫停接案" @click="handleAlert(alert, 'SUSPEND_RECOMMENDED', 'ACKNOWLEDGED')" />
-                  <q-btn unelevated no-caps label="完成處理" class="resolve-button" @click="handleAlert(alert, 'CLOSED', 'RESOLVED')" />
-                </div>
-              </div>
-            </article>
-          </div>
+          <q-btn-toggle v-model="qualityStatus" no-caps unelevated toggle-color="deep-orange-8" color="brown-1" text-color="brown-8" :options="qualityStatusOptions" class="filter-toggle" />
+          <q-list v-if="filteredAlerts.length" separator class="quality-inbox">
+            <q-item v-for="alert in filteredAlerts" :key="alert._id" clickable v-ripple @click="openAlert(alert)">
+              <q-item-section avatar><q-avatar :class="`attention-${alert.severity?.toLowerCase() || 'medium'}`"><TriangleAlert :size="20" /></q-avatar></q-item-section>
+              <q-item-section><q-item-label class="text-weight-bold">{{ caregiverAlertName(alert) }}</q-item-label><q-item-label caption>{{ alert.title || alert.description }}</q-item-label></q-item-section>
+              <q-item-section side><q-badge outline :color="alert.severity === 'HIGH' ? 'negative' : 'orange-8'" :label="alert.severity || '待關注'" /><small>{{ formatDate(alert.createdAt) }}</small></q-item-section>
+              <q-item-section side><ChevronRight :size="20" /></q-item-section>
+            </q-item>
+          </q-list>
           <div v-else class="all-clear"><ShieldCheck :size="44" /><h3>目前沒有未處理的品質警訊</h3><p>系統仍會持續留意低星評價與安全事件。</p></div>
 
           <section class="recent-reviews">
@@ -155,16 +145,17 @@
               <q-btn unelevated no-caps label="新增成員" class="resolve-button" @click="openCreate" />
             </div>
           </section>
+          <q-btn-toggle v-model="memberRole" no-caps unelevated toggle-color="deep-orange-8" color="brown-1" text-color="brown-8" :options="memberRoleOptions" class="filter-toggle" />
           <div class="member-table" role="table" aria-label="平台成員列表">
             <div class="member-row table-label" role="row"><span>成員</span><span>身份</span><span>聯絡方式</span><span>狀態</span><span>管理</span></div>
-            <div v-for="user in filteredUsers" :key="user._id" class="member-row" role="row">
+            <div v-for="user in filteredUsers" :key="user._id" class="member-row" role="row" :class="{ clickable: user.role === 'NURSE' }" @click="user.role === 'NURSE' && openCaregiver(user)">
               <span class="member-name"><i>{{ user.name?.slice(0, 1) }}</i><b>{{ user.name }}</b><small>{{ user.account }}</small></span>
               <span><q-badge outline :label="roleLabel(user.role)" /></span>
               <span class="contact"><b>{{ user.phone || '未填電話' }}</b><small>{{ user.email || '未填信箱' }}</small></span>
               <span><q-badge :color="user.status === 'ACTIVE' ? 'positive' : 'grey-7'" :label="statusLabel(user.status)" /></span>
               <span class="row-actions">
-                <q-btn flat round aria-label="修改成員" @click="openEdit(user)"><Pencil :size="18" /></q-btn>
-                <q-btn flat round color="negative" aria-label="隱藏成員" @click="confirmHide(user)"><EyeOff :size="18" /></q-btn>
+                <q-btn flat round aria-label="修改成員" @click.stop="openEdit(user)"><Pencil :size="18" /></q-btn>
+                <q-btn flat round color="negative" aria-label="隱藏成員" @click.stop="confirmHide(user)"><EyeOff :size="18" /></q-btn>
               </span>
             </div>
           </div>
@@ -202,6 +193,7 @@
           <q-tabs v-model="bookingDetailTab" dense no-caps align="left" class="detail-tabs"><q-tab name="summary" label="任務概況" /><q-tab name="care" label="照護資訊" /><q-tab name="history" label="任務歷程" /></q-tabs>
           <q-tab-panels v-model="bookingDetailTab" animated class="detail-panels">
           <q-tab-panel name="summary">
+          <q-banner v-if="bookingAnomaly(selectedBooking)" rounded class="booking-progress__warning"><template #avatar><TriangleAlert :size="22" /></template><strong>需要注意</strong><div>{{ bookingAnomaly(selectedBooking) }}</div></q-banner>
           <q-img v-if="selectedBooking.recipientId?.carePhotoUrls?.[0]" :src="selectedBooking.recipientId.carePhotoUrls[0]" ratio="1.45" :alt="`${selectedBooking.recipientId.name}的照護近照`" />
           <div class="booking-detail-grid">
             <div><span>申請人</span><strong>{{ selectedBooking.requesterUserId?.name || '未提供' }}</strong></div>
@@ -251,6 +243,10 @@
         <q-card-actions align="right"><q-btn flat no-caps label="安心看完了" v-close-popup class="resolve-button" /></q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="qualityDialog"><q-card class="booking-detail-dialog" v-if="selectedAlert"><q-card-section class="booking-detail-heading"><div><p class="section-kicker">QUALITY ALERT</p><h2>{{ caregiverAlertName(selectedAlert) }}</h2></div><q-btn flat round v-close-popup aria-label="關閉品質警訊">×</q-btn></q-card-section><q-card-section class="booking-detail-body"><q-banner rounded class="booking-progress__warning">{{ selectedAlert.description }}</q-banner><div class="review-quotes"><blockquote v-for="review in selectedAlert.reviewIds || []" :key="review._id">「{{ review.comment || '未留下文字說明' }}」</blockquote></div><q-input v-model="selectedAlert.note" outlined autogrow label="管理員處置備註" class="note-input" /><div class="alert-actions"><q-btn outline no-caps label="已發出警示" @click="handleAlert(selectedAlert, 'WARNED', 'ACKNOWLEDGED')" /><q-btn outline no-caps label="安排關懷約談" @click="handleAlert(selectedAlert, 'INTERVIEW_REQUIRED', 'ACKNOWLEDGED')" /><q-btn color="negative" outline no-caps label="暫停接案" @click="handleAlert(selectedAlert, 'SUSPEND_RECOMMENDED', 'ACKNOWLEDGED')" /><q-btn unelevated no-caps label="完成處理" class="resolve-button" @click="handleAlert(selectedAlert, 'CLOSED', 'RESOLVED')" /></div></q-card-section></q-card></q-dialog>
+
+    <q-dialog v-model="caregiverDialog"><q-card class="booking-detail-dialog"><q-card-section class="booking-detail-heading"><div><p class="section-kicker">CAREGIVER PROFILE</p><h2>{{ caregiverOverview.caregiver?.userId?.name || '居服員資料' }}</h2></div><q-btn flat round v-close-popup aria-label="關閉居服員資料">×</q-btn></q-card-section><q-card-section class="booking-detail-body"><q-skeleton v-if="caregiverLoading" type="rect" height="240px" /><template v-else><q-tabs v-model="caregiverTab" dense no-caps align="left" class="detail-tabs"><q-tab name="basic" label="基本資料" /><q-tab name="credentials" :label="`資格與證照 ${caregiverOverview.credentials?.length || ''}`" /><q-tab name="leaves" label="請假紀錄" /><q-tab name="services" label="服務紀錄" /><q-tab name="quality" label="品質與管理" /></q-tabs><q-tab-panels v-model="caregiverTab" animated class="detail-panels"><q-tab-panel name="basic"><div class="booking-detail-grid"><div><span>電話</span><strong>{{ caregiverOverview.caregiver?.userId?.phone || '未填' }}</strong></div><div><span>評分</span><strong>{{ caregiverOverview.caregiver?.ratingAverage?.toFixed?.(1) || '0.0' }}</strong></div></div></q-tab-panel><q-tab-panel name="credentials"><q-list separator><q-item v-for="item in caregiverOverview.credentials" :key="item._id"><q-item-section><q-item-label>{{ item.name }}</q-item-label><q-item-label caption>{{ item.expiresAt ? `${formatDate(item.expiresAt)} 到期` : '無到期日' }}</q-item-label></q-item-section><q-item-section side><q-badge :color="item.verificationStatus === 'APPROVED' ? 'positive' : 'orange-8'" :label="item.verificationStatus" /></q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="leaves"><q-list separator><q-item v-for="item in caregiverOverview.leaves" :key="item._id"><q-item-section><q-item-label>{{ item.reason }}</q-item-label><q-item-label caption>{{ formatDate(item.startAt) }}</q-item-label></q-item-section><q-item-section side><q-badge :label="item.status" /></q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="services"><q-list separator><q-item v-for="item in caregiverOverview.bookings" :key="item._id"><q-item-section><q-item-label>{{ item.bookingNumber }}</q-item-label><q-item-label caption>{{ serviceNames(item) }}</q-item-label></q-item-section><q-item-section side>{{ bookingStatusLabel(item.status) }}</q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="quality"><q-expansion-item :label="`品質警訊 ${caregiverOverview.alerts?.length || 0}`"><q-list><q-item v-for="item in caregiverOverview.alerts" :key="item._id"><q-item-section>{{ item.title }}</q-item-section></q-item></q-list></q-expansion-item><q-expansion-item :label="`管理操作紀錄 ${caregiverOverview.auditLogs?.length || 0}`"><q-list separator><q-item v-for="log in caregiverOverview.auditLogs" :key="log._id"><q-item-section><q-item-label>{{ log.action }}</q-item-label><q-item-label caption>{{ log.adminUserId?.name || '系統管理員' }}・{{ formatDate(log.createdAt) }}</q-item-label></q-item-section></q-item></q-list></q-expansion-item></q-tab-panel></q-tab-panels></template></q-card-section></q-card></q-dialog>
 
     <q-dialog v-model="editDialog">
       <q-card class="edit-dialog">
@@ -316,6 +312,17 @@ const search = ref('');
 const bookingSearch = ref('');
 const bookingDate = ref('');
 const bookingStatus = ref('ALL');
+const attentionFilter = ref('');
+const memberRole = ref('ALL');
+const qualityStatus = ref('OPEN');
+const memberRoleOptions = [{ label: '全部', value: 'ALL' }, { label: '使用者', value: 'USER' }, { label: '受照護者', value: 'PATIENT' }, { label: '居服員', value: 'NURSE' }, { label: '管理員', value: 'ADMIN' }];
+const qualityStatusOptions = [{ label: '待處理', value: 'OPEN' }, { label: '已關注', value: 'ACKNOWLEDGED' }, { label: '已完成', value: 'RESOLVED' }];
+const qualityDialog = ref(false);
+const selectedAlert = ref<AlertItem | null>(null);
+const caregiverDialog = ref(false);
+const caregiverLoading = ref(false);
+const caregiverTab = ref('basic');
+const caregiverOverview = reactive<PlainObject>({ caregiver: null, credentials: [], leaves: [], bookings: [], alerts: [], auditLogs: [] });
 const loading = ref(false);
 const editDialog = ref(false);
 const bookingDialog = ref(false);
@@ -351,13 +358,18 @@ const journeySteps = computed(() => [
 ]);
 const filteredUsers = computed(() => {
   const keyword = search.value.trim().toLowerCase();
-  if (!keyword) return users.value;
-  return users.value.filter((user) => [user.name, user.account, user.role, user.phone, user.email].some((value) => String(value || '').toLowerCase().includes(keyword)));
+  return users.value
+    .filter((user) => memberRole.value === 'ALL' || user.role === memberRole.value)
+    .filter((user) => attentionFilter.value !== 'DOCUMENT_ATTENTION' || user.role === 'NURSE')
+    .filter((user) => !keyword || [user.name, user.account, user.role, user.phone, user.email].some((value) => String(value || '').toLowerCase().includes(keyword)));
 });
+const filteredAlerts = computed(() => dashboard.alerts.filter((alert) => alert.status === qualityStatus.value));
 const filteredBookings = computed(() => {
   const keyword = bookingSearch.value.trim().toLowerCase();
   return dashboard.recentBookings
     .filter((booking) => bookingStatus.value === 'ALL' || booking.status === bookingStatus.value)
+    .filter((booking) => attentionFilter.value !== 'PENDING_OVER_2H' || (booking.status === 'PENDING' && Date.now() - new Date(booking.createdAt).getTime() >= 7200000))
+    .filter((booking) => attentionFilter.value !== 'CONFIRMATION_OVER_24H' || (booking.status === 'AWAITING_USER_CONFIRMATION' && Date.now() - new Date(booking.completionRequestedAt).getTime() >= 86400000))
     .filter((booking) => !bookingDate.value || localDateKey(booking.scheduledStartAt) === bookingDate.value)
     .filter((booking) => !keyword || [booking.requesterUserId?.name, booking.requesterUserId?.account, booking.recipientId?.name, caregiverName(booking)].some((value) => String(value || '').toLowerCase().includes(keyword)))
     .slice()
@@ -367,9 +379,10 @@ const filteredBookings = computed(() => {
 async function loadDashboard() {
   loading.value = true;
   try {
-    const [{ data }, usersResponse] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/users')]);
+    const [{ data }, usersResponse, nursesResponse] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/users'), api.get('/admin/nurses')]);
     Object.assign(dashboard, emptyDashboard(), data);
-    users.value = usersResponse.data;
+    const profiles = new Map(nursesResponse.data.map((profile: PlainObject) => [profile.userId?._id, profile]));
+    users.value = usersResponse.data.map((user: PlainObject) => ({ ...user, caregiverProfile: profiles.get(user._id) }));
   } catch {
     $q.notify({ type: 'negative', message: '管理資料暫時無法讀取，請確認管理員權限與後端連線。' });
   } finally { loading.value = false; }
@@ -412,7 +425,10 @@ function formatCoordinate(location?: PlainObject) { return location?.address || 
 function locationMapUrl(location: PlainObject) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location.latitude},${location.longitude}`)}`; }
 function recipientMeasurement(recipient?: PlainObject) { return recipient ? `${recipient.heightCm || '未填'} 公分／${recipient.weightKg || '未填'} 公斤` : '未建立受照護者資料'; }
 function openBooking(booking: PlainObject) { selectedBooking.value = booking; bookingDetailTab.value = 'summary'; bookingDialog.value = true; }
-function openAttention(item: PlainObject) { tab.value = item.targetTab; if (item.targetStatus) bookingStatus.value = item.targetStatus; }
+function openAttention(item: PlainObject) { tab.value = item.targetTab; attentionFilter.value = item.filter || ''; if (item.targetStatus) bookingStatus.value = item.targetStatus; if (item.targetTab === 'members') memberRole.value = 'NURSE'; if (item.targetTab === 'quality') qualityStatus.value = 'OPEN'; }
+function openAlert(alert: AlertItem) { selectedAlert.value = alert; qualityDialog.value = true; }
+async function openCaregiver(user: PlainObject) { const id = user.caregiverProfile?._id; if (!id) { $q.notify({ type: 'warning', message: '這位居服員尚未建立完整專業資料。' }); return; } caregiverDialog.value = true; caregiverLoading.value = true; caregiverTab.value = attentionFilter.value === 'DOCUMENT_ATTENTION' ? 'credentials' : 'basic'; try { Object.assign(caregiverOverview, { caregiver: null, credentials: [], leaves: [], bookings: [], alerts: [], auditLogs: [] }, (await api.get(`/admin/nurses/${id}/overview`)).data); } catch { $q.notify({ type: 'negative', message: '居服員詳細資料暫時無法載入。' }); } finally { caregiverLoading.value = false; } }
+function bookingAnomaly(booking: PlainObject) { const now = Date.now(); const elapsed = (value?: string) => value ? now - new Date(value).getTime() : 0; if (booking.status === 'PENDING' && elapsed(booking.createdAt) >= 7200000) return `此任務等待居服員承接已 ${Math.floor(elapsed(booking.createdAt) / 3600000)} 小時 ${Math.floor(elapsed(booking.createdAt) % 3600000 / 60000)} 分鐘`; if (booking.status === 'AWAITING_USER_CONFIRMATION' && elapsed(booking.completionRequestedAt) >= 86400000) return '使用者等待確認完成已超過 24 小時'; if (booking.status === 'DEPARTED' && elapsed(booking.departedAt) >= 7200000) return '居服員出發較久仍未抵達，建議主動確認'; return ''; }
 
 async function handleAlert(alert: AlertItem, action: string, status: string) {
   await api.patch(`/admin/quality-alerts/${alert._id}`, { action, status, adminNote: alert.note });
@@ -468,6 +484,12 @@ onBeforeUnmount(liveSync.stop);
 .recent-reviews { margin-top: 20px; padding: 28px; background: #fffdfb; border-radius: 22px; }.review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-top: 20px; }.review-grid article { padding: 17px; background: #fff7f2; border-radius: 15px; }.small-stars { display: flex; gap: 2px; }.small-stars svg { width: 17px; color: #d9c9c3; }.review-grid p { min-height: 52px; line-height: 1.6; }.review-grid small { color: #88736b; }
 .member-tools { display: flex; align-items: center; gap: 10px; }.member-tools :deep(.q-field) { width: min(340px, 100%); }.booking-tools{display:grid;grid-template-columns:minmax(260px,1fr) 170px 190px;gap:10px;flex:1;max-width:760px}.booking-tools :deep(.q-field__control){min-height:48px;border-radius:14px}.member-table { overflow: hidden; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 22px; }.member-row { display: grid; grid-template-columns: 1.2fr .7fr 1.2fr .65fr .55fr; align-items: center; gap: 14px; min-height: 72px; padding: 12px 20px; border-bottom: 1px solid #eee4df; }.member-row:last-child { border: 0; }.table-label { min-height: 48px; color: #8a756e; background: #f8efea; font-size: .82rem; font-weight: 800; }.member-name { display: grid; grid-template-columns: 40px 1fr; align-items: center; }.member-name i { grid-row: span 2; width: 38px; height: 38px; display: grid; place-items: center; color: white; background: #80665d; border-radius: 13px; font-style: normal; }.member-name small, .contact small { color: #907a72; }.contact { display: grid; }.row-actions { display: flex; }.booking-list { display: grid; gap: 12px; }.booking-list article { display: grid; grid-template-columns: 50px 1fr auto auto; align-items: center; gap: 16px; padding: 19px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 18px; cursor:pointer;transition:.2s ease; }.booking-list article:hover,.booking-list article:focus-visible{border-color:#dc8d6f;box-shadow:0 10px 28px rgb(90 58 47 / 10%);outline:none;transform:translateY(-1px)}.booking-icon { width: 48px; height: 48px; display: grid; place-items: center; color: #b84f16; background: #ffeadf; border-radius: 15px; }.booking-list article > div:nth-child(2) { display: grid; }.booking-list span, .booking-list small { color: #826d65; }.booking-list time { color: #715b54; font-weight: 700; }.booking-empty{padding:32px;text-align:center;color:#826d65;background:#fffdfb;border:1px dashed #ddc9c0;border-radius:18px}.edit-dialog { width: min(520px, calc(100vw - 32px)); padding: 10px; color: #4b3934; background: #fffdfb; border-radius: 23px; }.booking-detail-dialog{width:min(940px,calc(100vw - 32px));max-width:min(940px,calc(100vw - 32px))!important;max-height:90vh;overflow:auto;color:#4b3934;background:#fffdfb;border-radius:26px}.booking-detail-heading{display:flex;align-items:center;justify-content:space-between;padding:26px 30px 14px}.booking-detail-heading h2{margin:4px 0 0;font-size:1.8rem}.booking-detail-body{padding:10px 30px 24px}.booking-detail-body :deep(.q-img){max-height:260px;margin-bottom:18px;border-radius:20px}.booking-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.booking-detail-grid>div{display:flex;flex-direction:column;gap:5px;padding:15px 17px;background:#fff4ee;border-radius:16px}.booking-detail-grid span,.booking-progress span{color:#8a7067;font-size:.86rem}.booking-detail-grid strong{font-size:1rem;line-height:1.5}.booking-detail-grid .wide{grid-column:1/-1}.booking-progress{margin-top:22px;padding:20px;border:1px solid #eadbd4;background:#fffaf7;border-radius:20px}.booking-progress>header{display:flex;align-items:center;justify-content:space-between;gap:16px}.booking-progress h3{margin:4px 0 0;font-size:1.1rem}.booking-progress :deep(.q-stepper){margin-top:14px;background:transparent;box-shadow:none}.booking-progress :deep(.q-stepper__content){display:none}.booking-progress__warning{margin:10px 0;color:#9c3f35;background:#fce5e1}.booking-progress-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,.72fr);gap:18px;padding-top:12px;border-top:1px solid #eadbd4}.booking-progress-grid>div>h3{margin-bottom:12px}.booking-progress :deep(.q-timeline__title){font-size:.98rem}.booking-progress :deep(.q-timeline__subtitle){color:#8a7067}.booking-location{align-self:start;display:grid;grid-template-columns:auto 1fr;gap:10px;padding:18px;color:#4a6b5d;background:#eef7f2;border-radius:17px}.booking-location div{display:grid;gap:4px}.booking-location a,.booking-location small{grid-column:1/-1;color:#4a6b5d}.booking-location a{font-weight:800;text-decoration:underline;text-underline-offset:3px}
 .detail-tabs { margin-bottom: 16px; color: #6e5750; border-bottom: 1px solid #eadbd4; }.detail-tabs :deep(.q-tab--active) { color: #b84f16; }.detail-panels { background: transparent; }.detail-panels :deep(.q-tab-panel) { padding: 8px 0; }
+.filter-toggle { max-width: 100%; margin: 0 0 18px; border: 1px solid #eadbd4; border-radius: 14px; overflow-x: auto; }
+.quality-inbox { overflow: hidden; margin-bottom: 28px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 20px; box-shadow: 0 10px 28px rgb(78 52 43 / 6%); }
+.quality-inbox .q-item { min-height: 76px; padding: 13px 20px; }
+.quality-inbox small { margin-top: 6px; color: #8a7067; }
+.member-row.clickable { cursor: pointer; transition: background-color .2s ease; }
+.member-row.clickable:hover, .member-row.clickable:focus-within { background: #fff4ee; }
 @media (max-width: 900px) { .pulse-grid, .insight-grid, .ranking-grid { grid-template-columns: repeat(2, 1fr); }.review-grid { grid-template-columns: 1fr 1fr; }.member-row { grid-template-columns: 1.1fr .7fr 1fr .5fr; }.member-row > :nth-child(3), .table-label > :nth-child(3) { display: none; } }
 @media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.hero-status { width: 100%; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
 </style>

@@ -73,6 +73,35 @@ adminRoutes.get(
   }),
 )
 
+// GET /admin/nurses/:id/overview：人員中心點開居服員時才載入完整管理資料。
+adminRoutes.get(
+  '/nurses/:id/overview',
+  asyncHandler(async (request, response) => {
+    const caregiver = await CaregiverProfile.findById(request.params.id).populate(
+      'userId',
+      'account name phone email role status',
+    )
+    if (!caregiver) {
+      response.status(404).json({ message: '找不到居服員' })
+      return
+    }
+    const [credentials, leaves, bookings, alerts, auditLogs] = await Promise.all([
+      CaregiverCredential.find({ caregiverId: caregiver._id }).sort({ expiresAt: 1, createdAt: -1 }),
+      CaregiverLeaveRequest.find({ caregiverId: caregiver._id, hidden: { $ne: true } }).sort({ startAt: -1 }),
+      Booking.find({ caregiverId: caregiver._id, hidden: { $ne: true } })
+        .populate('serviceTypeIds', 'name')
+        .sort({ scheduledStartAt: -1 })
+        .limit(30),
+      QualityAlert.find({ caregiverId: caregiver._id }).sort({ createdAt: -1 }),
+      AuditLog.find({ targetId: { $in: [String(caregiver._id), String(caregiver.get('userId')?._id)] } })
+        .populate('adminUserId', 'name account')
+        .sort({ createdAt: -1 })
+        .limit(30),
+    ])
+    response.json({ caregiver, credentials, leaves, bookings, alerts, auditLogs })
+  }),
+)
+
 // GET /admin/nurse-leaves：管理員查看全部請假，並可依狀態篩選待審案件。
 adminRoutes.get(
   '/nurse-leaves',
@@ -244,40 +273,6 @@ adminRoutes.get(
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     const inThirtyDays = new Date(now.getTime() + 30 * 86400000)
 
-    // 補齊既有歷史資料的三次一星警訊；未結案時不會重複建立。
-    const oneStarGroups = await Review.aggregate([
-      { $match: { targetRole: 'NURSE', rating: 1, visible: true, hidden: { $ne: true } } },
-      {
-        $group: {
-          _id: '$targetUserId',
-          count: { $sum: 1 },
-          reviewIds: { $push: '$_id' },
-        },
-      },
-      { $match: { count: { $gte: 3 } } },
-    ])
-    for (const group of oneStarGroups) {
-      const caregiver = await CaregiverProfile.findOne({ userId: group._id }).select('_id')
-      if (
-        caregiver &&
-        !(await QualityAlert.exists({
-          caregiverId: caregiver._id,
-          type: 'THREE_ONE_STAR_REVIEWS',
-          status: { $in: ['OPEN', 'ACKNOWLEDGED'] },
-        }))
-      ) {
-        await QualityAlert.create({
-          caregiverId: caregiver._id,
-          caregiverUserId: group._id,
-          type: 'THREE_ONE_STAR_REVIEWS',
-          severity: 'HIGH',
-          title: '居服員累積三次以上一星評價',
-          description: `目前共有 ${group.count} 次一星評價，請管理員檢視留言並主動關懷雙方。`,
-          reviewIds: group.reviewIds,
-        })
-      }
-    }
-
     const activeServiceStatuses = ['DEPARTED', 'ARRIVED', 'WAITING_DECISION', 'IN_SERVICE']
     const [
       roles,
@@ -445,14 +440,20 @@ adminRoutes.get(
     const bookingCounts: Record<string, number> = Object.fromEntries(
       monthlyBookings.map((item) => [String(item._id), Number(item.count)]),
     )
-    const monthlyTotal = Object.values(bookingCounts).reduce((sum, count) => sum + Number(count), 0)
     const completedCount = Number(bookingCounts.COMPLETED || 0)
     const cancelledCount = Number(bookingCounts.CANCELLED || 0) + Number(bookingCounts.ABANDONED || 0)
+    const finishedCount = completedCount + cancelledCount
+    const monthlyCompletedIds = await Booking.distinct('_id', {
+      status: 'COMPLETED', scheduledStartAt: { $gte: monthStart }, hidden: { $ne: true },
+    })
+    const monthlyReviewed = monthlyCompletedIds.length
+      ? (await Review.distinct('bookingId', { bookingId: { $in: monthlyCompletedIds }, visible: true, hidden: { $ne: true } })).length
+      : 0
     const attention = [
-      { type: 'BOOKING_PENDING', priority: 'HIGH', count: pendingTooLong, title: '預約等待居服員確認超過 2 小時', description: '建議優先確認居服員安排', targetTab: 'services', targetStatus: 'PENDING' },
-      { type: 'USER_CONFIRMATION', priority: 'MEDIUM', count: awaitingConfirmation, title: '使用者等待確認完成超過 24 小時', description: '可主動關懷服務是否順利完成', targetTab: 'services', targetStatus: 'AWAITING_USER_CONFIRMATION' },
+      { type: 'BOOKING_PENDING', filter: 'PENDING_OVER_2H', priority: 'HIGH', count: pendingTooLong, title: '預約等待居服員確認超過 2 小時', description: '建議優先確認居服員安排', targetTab: 'services', targetStatus: 'PENDING' },
+      { type: 'USER_CONFIRMATION', filter: 'CONFIRMATION_OVER_24H', priority: 'MEDIUM', count: awaitingConfirmation, title: '使用者等待確認完成超過 24 小時', description: '可主動關懷服務是否順利完成', targetTab: 'services', targetStatus: 'AWAITING_USER_CONFIRMATION' },
       { type: 'QUALITY_ALERT', priority: 'HIGH', count: alerts.length + openEmergencies, title: '品質與安全事件待處理', description: '包含低星評價與開啟中的安全通報', targetTab: 'quality' },
-      { type: 'CREDENTIAL', priority: 'LOW', count: pendingCredentials + expiringCredentials, title: '居服員文件待審或即將到期', description: `${pendingCredentials} 件待審、${expiringCredentials} 件 30 日內到期`, targetTab: 'members' },
+      { type: 'CREDENTIAL', filter: 'DOCUMENT_ATTENTION', priority: 'LOW', count: pendingCredentials + expiringCredentials, title: '居服員文件待審或即將到期', description: `${pendingCredentials} 件待審、${expiringCredentials} 件 30 日內到期`, targetTab: 'members' },
     ].filter((item) => item.count > 0)
     response.json({
       generatedAt: new Date(),
@@ -475,9 +476,10 @@ adminRoutes.get(
       caregiverFrequency,
       journey: { registered, requested, booked, completed, reviewed },
       performance: {
-        completionRate: monthlyTotal ? Math.round((completedCount / monthlyTotal) * 100) : 0,
-        cancellationRate: monthlyTotal ? Math.round((cancelledCount / monthlyTotal) * 100) : 0,
-        reviewRate: Number(completed) ? Math.round((Number(reviewed) / Number(completed)) * 100) : 0,
+        completionRate: finishedCount ? Math.round((completedCount / finishedCount) * 100) : 0,
+        cancellationRate: finishedCount ? Math.round((cancelledCount / finishedCount) * 100) : 0,
+        reviewRate: completedCount ? Math.round((monthlyReviewed / completedCount) * 100) : 0,
+        inProgressCount: Object.entries(bookingCounts).filter(([status]) => !['COMPLETED', 'CANCELLED', 'ABANDONED'].includes(status)).reduce((sum, [, count]) => sum + count, 0),
         ratingAverage: reviewSummary[0]?.average || 0,
       },
       attention,
