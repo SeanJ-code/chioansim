@@ -10,6 +10,7 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "typecheck": "vue-tsc --noEmit",
+    "check:recent-caregivers": "node --experimental-strip-types src/composables/recent-caregivers.check.ts",
     "postinstall": "quasar prepare --silent"
   },
   "dependencies": {

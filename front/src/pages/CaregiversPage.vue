@@ -25,6 +25,10 @@
     </section>
 
     <main class="caregiver-content">
+      <section v-if="isRecentMode" class="recent-heading" aria-labelledby="recent-title">
+        <div><span>RECENTLY VIEWED</span><h2 id="recent-title">最近瀏覽的居服員</h2><p>依本次登入期間的查看時間排列，重新登入後會自動清除。</p></div>
+        <button v-if="recentCaregiverList.length" type="button" @click="clearRecentHistory">清除瀏覽紀錄</button>
+      </section>
       <section class="filter-panel" aria-label="篩選居服員">
         <q-input
           v-model="keyword"
@@ -72,10 +76,12 @@
       </section>
 
       <section v-else-if="filteredCaregivers.length === 0" class="state-card">
-        <UserRoundSearch :size="38" aria-hidden="true" />
-        <h2>暫時沒有符合的夥伴</h2>
-        <p>換個關鍵字或交通方式看看，也許很快就能遇見合適的人選。</p>
-        <q-btn flat no-caps class="text-button" label="清除篩選" @click="clearFilters" />
+        <History v-if="isRecentMode" :size="38" aria-hidden="true" />
+        <UserRoundSearch v-else :size="38" aria-hidden="true" />
+        <h2>{{ isRecentMode ? '還沒有最近瀏覽紀錄' : '暫時沒有符合的夥伴' }}</h2>
+        <p>{{ isRecentMode ? '點開居服員的服務介紹後，就會依最近查看時間顯示在這裡。' : '換個關鍵字或交通方式看看，也許很快就能遇見合適的人選。' }}</p>
+        <q-btn v-if="isRecentMode" unelevated no-caps class="primary-button" label="瀏覽所有居服員" to="/caregivers" />
+        <q-btn v-else flat no-caps class="text-button" label="清除篩選" @click="clearFilters" />
       </section>
 
       <section v-else class="caregiver-grid" aria-label="已認證居服員名單">
@@ -246,6 +252,7 @@ import {
   ChevronDown,
   HeartHandshake,
   Heart,
+  History,
   MapPin,
   RefreshCw,
   Search,
@@ -259,6 +266,7 @@ import {
 import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRoute, useRouter } from 'vue-router';
+import { addRecentCaregiver, clearRecentCaregivers, loadRecentCaregivers, type RecentCaregiverRecord } from '@/composables/recent-caregivers';
 
 type Transportation = 'CAR' | 'MOTORCYCLE' | 'TRANSIT' | string;
 
@@ -293,6 +301,7 @@ const favorites = ref<Caregiver[]>([]);
 const favoritesOpen = ref(false);
 const favoritesLoading = ref(false);
 const favoriteUpdating = ref('');
+const recentRecords = ref<RecentCaregiverRecord[]>(loadRecentCaregivers(authStore.user?.id));
 const bookingOpen = ref(false);
 const bookingSubmitting = ref(false);
 const slotLoading = ref(false);
@@ -326,9 +335,14 @@ const transportOptions = computed(() => [
   })),
 ]);
 
+const isRecentMode = computed(() => route.query.recent === '1');
+const recentCaregiverList = computed(() => recentRecords.value
+  .map((record) => caregivers.value.find((caregiver) => caregiver._id === record.caregiverId))
+  .filter((caregiver): caregiver is Caregiver => Boolean(caregiver)));
+
 const filteredCaregivers = computed(() => {
   const term = keyword.value.trim().toLocaleLowerCase('zh-TW');
-  return caregivers.value.filter((caregiver) => {
+  return (isRecentMode.value ? recentCaregiverList.value : caregivers.value).filter((caregiver) => {
     const searchable = [
       caregiverName(caregiver),
       caregiver.introduction || '',
@@ -428,8 +442,14 @@ function useFallbackPhoto(event: Event) {
 }
 
 function openDetails(caregiver: Caregiver) {
+  if (authStore.user) recentRecords.value = addRecentCaregiver(authStore.user.id, caregiver._id);
   selectedCaregiver.value = caregiver;
   detailsOpen.value = true;
+}
+
+function clearRecentHistory() {
+  clearRecentCaregivers(authStore.user?.id);
+  recentRecords.value = [];
 }
 
 async function openBooking(caregiver: Caregiver) {
@@ -521,6 +541,7 @@ async function loadCaregivers() {
 
 onMounted(async () => {
   await loadCaregivers();
+  recentRecords.value = loadRecentCaregivers(authStore.user?.id);
   if (route.query.favorites === '1' && authStore.user) await openFavorites();
 });
 </script>
@@ -569,6 +590,11 @@ onMounted(async () => {
 .caregiver-hero__mark img { width: 100%; height: 100%; object-fit: contain; }
 
 .caregiver-content { margin-top: 30px; }
+.recent-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding: 24px 28px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 13%); border-radius: 20px; }
+.recent-heading span { color: var(--persimmon); font-size: .78rem; font-weight: 800; letter-spacing: .12em; }
+.recent-heading h2 { margin: 4px 0; color: var(--ink); font-size: 1.65rem; }
+.recent-heading p { margin: 0; line-height: 1.6; }
+.recent-heading button { min-height: 44px; flex: none; padding: 0 16px; color: #8d4537; background: #fff0eb; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
 .filter-panel { display: grid; grid-template-columns: minmax(0, 1fr) 240px 150px; align-items: center; gap: 14px; padding: 18px; background: var(--paper); border: 1px solid rgb(110 87 80 / 13%); border-radius: 20px; box-shadow: 0 12px 36px rgb(90 62 53 / 7%); }
 .filter-panel__result { display: flex; align-items: center; gap: 7px; padding-inline: 8px; color: var(--chestnut); font-weight: 700; white-space: nowrap; }
 .warm-field :deep(.q-field__control) { min-height: 54px; color: var(--chestnut); border-radius: 14px; }
@@ -692,6 +718,7 @@ button:focus-visible, :deep(.q-field--focused), :deep(.q-btn:focus-visible) { ou
   .caregiver-hero__mark { display: none; }
   .caregiver-hero h1 { font-size: 2.15rem; }
   .filter-panel { grid-template-columns: 1fr; padding: 14px; }
+  .recent-heading { align-items: flex-start; flex-direction: column; padding: 20px; }
   .filter-panel__result { grid-column: auto; }
   .caregiver-grid { grid-template-columns: 1fr; gap: 18px; }
   .caregiver-card__photo { aspect-ratio: 1 / .68; }

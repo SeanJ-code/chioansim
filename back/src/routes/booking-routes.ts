@@ -283,6 +283,7 @@ bookingRoutes.post(
     )
     if (!updated) { response.status(409).json({ message: '任務狀態已變更，請重新整理' }); return }
     await CaregiverProfile.findByIdAndUpdate(profile?._id, { currentLocation: location })
+    await Notification.create({ recipientUserId: updated.get('requesterUserId'), type: 'BOOKING', title: '居服員已出發', message: '居服員正在前往您的服務地點。', bookingId: updated._id })
     response.json(updated)
   }),
 )
@@ -354,6 +355,7 @@ bookingRoutes.post(
       { new: true },
     )
     if (!booking) { response.status(409).json({ message: '只有前往中的任務可以回報抵達' }); return }
+    await Notification.create({ recipientUserId: booking.get('requesterUserId'), type: 'BOOKING', title: '居服員已抵達', message: '居服員已抵達服務地點並完成打卡。', bookingId: booking._id })
     response.json(booking)
   }),
 )
@@ -464,6 +466,7 @@ bookingRoutes.post(
     )
     if (!booking) { response.status(409).json({ message: '只有已抵達的任務可以開始服務' }); return }
     await CaregiverProfile.findByIdAndUpdate(profile?._id, { $unset: { currentLocation: 1 } })
+    await Notification.create({ recipientUserId: booking.get('requesterUserId'), type: 'BOOKING', title: '照護服務已開始', message: '居服員已開始執行本次照護服務。', bookingId: booking._id })
     response.json(booking)
   }),
 )

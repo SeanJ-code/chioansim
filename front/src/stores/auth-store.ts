@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '@/boot/axios';
+import { clearRecentCaregivers } from '@/composables/recent-caregivers';
 
 export type UserRole = 'USER' | 'PATIENT' | 'NURSE' | 'ADMIN';
 
@@ -68,14 +69,17 @@ export const useAuthStore = defineStore('auth', {
     },
     async login(account: string, password: string) {
       const { data } = await api.post<AuthResponse>('/auth/login', { account, password });
+      clearRecentCaregivers(data.user.id);
       this.saveSession(data);
     },
     async register(payload: RegisterPayload | FormData) {
       const { data } = await api.post<AuthResponse>('/auth/register', payload);
+      clearRecentCaregivers(data.user.id);
       this.saveSession(data);
     },
     async registerNurse(payload: FormData) {
       const { data } = await api.post<AuthResponse & { message: string }>('/auth/register-nurse', payload);
+      clearRecentCaregivers(data.user.id);
       this.saveSession(data);
       return data;
     },
@@ -94,6 +98,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async logout() {
+      clearRecentCaregivers(this.user?.id);
       try {
         await api.delete('/auth/logout');
       } finally {
