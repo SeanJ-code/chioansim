@@ -10,6 +10,7 @@
     "check:booking-policy": "ts-node src/utils/booking-policy.check.ts",
     "check:ltc": "ts-node src/routes/ltc-routes.check.ts",
     "seed:admin-test": "ts-node src/scripts/admin-test-seed.ts",
+    "seed:demo": "DEMO_SEED=1 ts-node src/scripts/admin-test-seed.ts",
     "check:admin-test": "ts-node src/scripts/admin-test-check.ts",
     "test:e2e": "playwright test"
   },
