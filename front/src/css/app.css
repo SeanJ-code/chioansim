@@ -14,6 +14,11 @@
 :root {
   --font-family-brand: 'jf open 粉圓', 'Source Han Sans TC', 'Noto Sans TC',
     'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --motion-fast: 180ms;
+  --motion-normal: 280ms;
+  --motion-slow: 650ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-emphasized: cubic-bezier(.16, 1, .3, 1);
 }
 
 /* 全站 RWD 尺寸計算統一 */

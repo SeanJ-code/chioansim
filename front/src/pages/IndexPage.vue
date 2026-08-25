@@ -1,7 +1,7 @@
 <template>
   <q-page class="home-page">
     <main>
-      <section class="hero-shell" aria-label="照安心重點服務">
+      <section ref="heroShell" class="hero-shell" aria-label="照安心重點服務">
         <q-carousel
           v-model="heroSlide"
           animated
@@ -21,10 +21,10 @@
           >
             <div class="hero-overlay" aria-hidden="true"></div>
             <div class="hero-content">
-              <span class="hero-kicker"><MapPinned :size="20" /> 花蓮在地照護</span>
-              <h1>{{ slide.title }}</h1>
-              <p>{{ slide.description }}</p>
-              <router-link class="primary-action" :to="slide.to">
+              <span class="hero-kicker" data-hero-item><MapPinned :size="20" /> 花蓮在地照護</span>
+              <h1 data-hero-item>{{ slide.title }}</h1>
+              <p data-hero-item>{{ slide.description }}</p>
+              <router-link class="primary-action" :to="slide.to" data-hero-item>
                 {{ slide.action }} <ArrowRight :size="22" />
               </router-link>
             </div>
@@ -49,7 +49,7 @@
         </div>
       </section>
 
-      <section class="quick-section" aria-labelledby="quick-title">
+      <section class="quick-section" aria-labelledby="quick-title" data-reveal>
         <div class="section-heading compact-heading">
           <div>
             <span class="section-kicker">常用服務</span>
@@ -58,7 +58,7 @@
           <p>選一張卡片，就能開始。</p>
         </div>
 
-<div class="quick-grid">
+<div class="quick-grid" data-stagger>
   <template v-for="item in quickActions" :key="item.title">
 
     <!-- 頁面內捲動 -->
@@ -102,7 +102,8 @@
 </div>
       </section>
 
-      <section class="care-section" aria-labelledby="care-title">
+      <section class="care-section editorial-section" aria-labelledby="care-title" data-reveal>
+        <span class="section-number" aria-hidden="true">01</span>
         <div class="section-heading">
           <div>
             <span class="section-kicker">安心夥伴</span>
@@ -119,7 +120,7 @@
           <div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div>
           <button type="button" @click="loadCaregivers">重新整理</button>
         </div>
-        <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員">
+        <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger>
           <router-link
             v-for="caregiver in caregivers.slice(0, 6)"
             :key="caregiver._id"
@@ -145,7 +146,8 @@
         </div>
       </section>
 
-      <section id="subsidy" class="estimate-section" aria-labelledby="estimate-title">
+      <section id="subsidy" class="estimate-section editorial-section" aria-labelledby="estimate-title" data-reveal>
+        <span class="section-number section-number--light" aria-hidden="true">02</span>
         <div class="estimate-intro">
           <span class="section-kicker light">簡單試算</span>
           <h2 id="estimate-title">長照費用，先一起算算看</h2>
@@ -156,11 +158,12 @@
         <div class="estimate-card"><CareCostCalculator compact /></div>
       </section>
 
-      <section class="steps-section" aria-labelledby="steps-title">
+      <section class="steps-section editorial-section" aria-labelledby="steps-title" data-reveal>
+        <span class="section-number" aria-hidden="true">03</span>
         <div class="section-heading centered-heading">
           <div><span class="section-kicker">三個步驟</span><h2 id="steps-title">找到幫手，其實很簡單</h2></div>
         </div>
-        <ol class="steps-grid">
+        <ol class="steps-grid" data-stagger>
           <li v-for="step in steps" :key="step.number">
             <span class="step-number">{{ step.number }}</span>
             <component :is="step.icon" :size="34" />
@@ -170,7 +173,7 @@
         </ol>
       </section>
 
-      <section class="line-banner" aria-label="LINE 專人協助">
+      <section class="line-banner" aria-label="LINE 專人協助" data-reveal>
         <div class="line-banner__icon"><MessageCircleHeart :size="40" /></div>
         <div><span>不習慣操作網站也沒關係</span><h2>LINE 專人陪您一步一步完成</h2></div>
         <button type="button" disabled>LINE 服務準備中</button>
@@ -180,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { markRaw, onMounted, ref } from 'vue';
+import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   ArrowRight,
   BadgeCheck,
@@ -202,6 +205,7 @@ import {
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
+import { gsap } from '@/composables/useGsap';
 
 interface Caregiver {
   _id: string;
@@ -216,6 +220,8 @@ const heroSlide = ref('home');
 const caregivers = ref<Caregiver[]>([]);
 const caregiverLoading = ref(true);
 const caregiverError = ref(false);
+const heroShell = ref<HTMLElement>();
+let motionContext: gsap.Context | undefined;
 
 const heroSlides = [
   { name: 'home', image: '/images/home/hualien-care-walk.png', title: '讓照護安排，像家人一樣安心', description: '花蓮在地媒合，找到適合家人的照護夥伴。', action: '找居服員', to: '/caregivers' },
@@ -315,7 +321,76 @@ async function loadCaregivers() {
   }
 }
 
-onMounted(loadCaregivers);
+function setupMotion() {
+  if (reduceMotion || !heroShell.value) return;
+
+  motionContext = gsap.context(() => {
+    animateActiveHero();
+
+    gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((section) => {
+      gsap.from(section, {
+        y: 42,
+        opacity: 0,
+        duration: 0.75,
+        ease: 'power3.out',
+        clearProps: 'transform,opacity',
+        scrollTrigger: { trigger: section, start: 'top 84%', once: true },
+      });
+    });
+
+    gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach((group) => {
+      gsap.from(Array.from(group.children), {
+        y: 28,
+        opacity: 0,
+        duration: 0.58,
+        stagger: 0.1,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+        scrollTrigger: { trigger: group, start: 'top 86%', once: true },
+      });
+    });
+
+    gsap.matchMedia().add('(min-width: 901px)', () => {
+      const image = heroShell.value?.querySelector<HTMLElement>('.q-carousel__slide--active');
+      if (!image) return;
+      const onPointerMove = (event: PointerEvent) => {
+        const x = (event.clientX / window.innerWidth - 0.5) * 12;
+        const y = (event.clientY / window.innerHeight - 0.5) * 10;
+        gsap.to(image, { backgroundPosition: `calc(50% + ${x}px) calc(50% + ${y}px)`, duration: 0.7, ease: 'power2.out' });
+      };
+      heroShell.value?.addEventListener('pointermove', onPointerMove);
+      return () => heroShell.value?.removeEventListener('pointermove', onPointerMove);
+    });
+  }, heroShell.value.closest('main') || heroShell.value);
+}
+
+function animateActiveHero() {
+  const activeSlide = heroShell.value?.querySelector('.q-carousel__slide--active');
+  if (!activeSlide) return;
+  gsap.from(activeSlide.querySelectorAll('[data-hero-item]'), {
+    y: 34,
+    opacity: 0,
+    duration: 0.62,
+    stagger: 0.1,
+    ease: 'power3.out',
+    clearProps: 'transform,opacity',
+  });
+}
+
+watch(heroSlide, async () => {
+  await nextTick();
+  if (!reduceMotion) animateActiveHero();
+});
+
+onMounted(async () => {
+  await loadCaregivers();
+  await nextTick();
+  setupMotion();
+});
+onBeforeUnmount(() => {
+  motionContext?.revert();
+  gsap.killTweensOf('[data-hero-item]');
+});
 </script>
 
 <style scoped>
@@ -342,8 +417,11 @@ main { padding: 28px 24px 72px; }
 .hero-kicker, .section-kicker { display: inline-flex; align-items: center; gap: 8px; color: #ffd8cd; font-weight: 700; letter-spacing: .12em; }
 .hero-content h1 { margin: 20px 0 18px; font-size: clamp(2.35rem, 5vw, 4.4rem); line-height: 1.2; letter-spacing: .035em; text-wrap: balance; }
 .hero-content p { margin: 0 0 30px; color: #fff7f2; font-size: clamp(1.05rem, 2vw, 1.35rem); line-height: 1.75; }
-.primary-action, .estimate-action { min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 24px; color: white; background: var(--persimmon); border-radius: 16px; box-shadow: 0 12px 26px rgb(157 62 13 / 28%); font-size: 1.08rem; font-weight: 700; text-decoration: none; transition: transform 180ms ease, background 180ms ease; }
+.primary-action, .estimate-action { min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 24px; color: white; background: var(--persimmon); border-radius: 16px; box-shadow: 0 12px 26px rgb(157 62 13 / 28%); font-size: 1.08rem; font-weight: 700; text-decoration: none; transition: transform var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
 .primary-action:hover, .estimate-action:hover { background: #aa4211; transform: translateY(-2px); }
+.primary-action:hover svg, .text-action:hover svg, .caregiver-card:hover .caregiver-card__more svg { transform: translateX(4px); }
+.primary-action:active, .estimate-action:active, .quick-card:active { transform: scale(.98); }
+.primary-action svg, .text-action svg, .caregiver-card__more svg { transition: transform var(--motion-fast) var(--ease-standard); }
 
 .hero-arrow { position: absolute; z-index: 3; top: 50%; width: 50px; height: 50px; display: grid; place-items: center; padding: 0; color: white; background: rgb(72 48 40 / 62%); border: 1px solid rgb(255 255 255 / 48%); border-radius: 50%; cursor: pointer; transform: translateY(-50%); }
 .hero-arrow--previous { left: 18px; }
@@ -354,6 +432,10 @@ main { padding: 28px 24px 72px; }
 .hero-dots button.active::after { width: 26px; background: white; }
 
 .quick-section, .care-section, .steps-section { padding-top: 68px; }
+.editorial-section { position: relative; }
+.section-number { position: absolute; z-index: 0; top: 28px; right: 0; color: rgb(110 87 80 / 9%); font-size: clamp(5rem, 13vw, 10rem); font-weight: 700; line-height: 1; pointer-events: none; }
+.section-number--light { top: 18px; right: 26px; color: rgb(255 255 255 / 10%); }
+.editorial-section > :not(.section-number) { position: relative; z-index: 1; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .section-heading h2 { margin: 8px 0 0; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; }
 .section-heading p { margin: 0; color: #7c655e; font-size: 1.06rem; }
@@ -373,7 +455,8 @@ main { padding: 28px 24px 72px; }
 .quick-card__arrow { margin-left: auto; color: var(--persimmon); }
 
 .caregiver-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 20px; overflow-x: auto; padding: 4px 4px 20px; scroll-snap-type: x mandatory; scrollbar-color: #d8b9ab transparent; }
-.caregiver-card { scroll-snap-align: start; overflow: hidden; color: var(--ink); background: var(--paper); border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; box-shadow: 0 12px 30px rgb(78 52 43 / 8%); text-decoration: none; }
+.caregiver-card { scroll-snap-align: start; overflow: hidden; color: var(--ink); background: var(--paper); border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; box-shadow: 0 12px 30px rgb(78 52 43 / 8%); text-decoration: none; transition: transform var(--motion-normal) var(--ease-standard), box-shadow var(--motion-normal) var(--ease-standard); }
+.caregiver-card:hover { transform: translateY(-6px); box-shadow: 0 20px 42px rgb(78 52 43 / 13%); }
 .caregiver-card__photo { position: relative; height: 220px; overflow: hidden; background: #f4e5de; }
 .caregiver-card__photo img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 300ms ease; }
 .caregiver-card:hover img { transform: scale(1.035); }
@@ -431,6 +514,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid #f3a089; outline-offs
   .steps-grid { grid-template-columns: 1fr; }
   .line-banner { align-items: flex-start; flex-wrap: wrap; }
   .line-banner button { width: 100%; margin-left: 0; }
+  .section-number { top: 42px; font-size: 6rem; }
 }
 
 @media (max-width: 599px) {
@@ -440,6 +524,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid #f3a089; outline-offs
     padding: 16px 12px 48px;
     overflow-x: hidden;
   }
+
+  .hero-arrow { display: none; }
+  .compact-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
 
   .estimate-section {
     width: 100%;

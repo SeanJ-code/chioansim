@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf" class="site-layout">
-    <q-header class="site-header">
+    <q-header class="site-header" :class="{ 'site-header--scrolled': headerScrolled }">
       <q-toolbar class="site-navbar">
         <q-btn
           flat
@@ -66,12 +66,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import EssentialLink, { type EssentialLinkProps } from '@/components/EssentialLink.vue';
 import { LogIn, LogOut, ShieldCheck } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth-store';
 import 'boxicons/css/boxicons.min.css';
+import { ScrollTrigger } from '@/composables/useGsap';
 
 const publicLinks: EssentialLinkProps[] = [
   { label: '首頁', caption: '系統與環境狀態', icon: 'bx bx-home', link: '/' },
@@ -120,6 +121,8 @@ const brandLabel = computed(() => isAdmin.value ? '前往管理控制台' : isNu
 
 const leftDrawerOpen = ref(false);
 const loggingOut = ref(false);
+const headerScrolled = ref(false);
+let headerTrigger: ScrollTrigger | undefined;
 const authStore = useAuthStore();
 const router = useRouter();
 
@@ -138,7 +141,15 @@ async function handleLogout() {
   }
 }
 
-onMounted(() => authStore.restoreSession());
+onMounted(() => {
+  authStore.restoreSession();
+  headerTrigger = ScrollTrigger.create({
+    start: 24,
+    end: 'max',
+    onUpdate: (self) => { headerScrolled.value = self.scroll() > 24; },
+  });
+});
+onBeforeUnmount(() => headerTrigger?.kill());
 </script>
 
 <style scoped>
@@ -158,14 +169,19 @@ onMounted(() => authStore.restoreSession());
   border-bottom: 1px solid rgb(110 87 80 / 12%);
   box-shadow: 0 8px 28px rgb(78 52 43 / 8%);
   backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background var(--motion-normal) var(--ease-standard), box-shadow var(--motion-normal) var(--ease-standard);
 }
+.site-header--scrolled { background: rgb(255 253 251 / 88%); box-shadow: 0 10px 32px rgb(78 52 43 / 12%); }
 
 .site-navbar {
   width: min(1180px, calc(100% - 32px));
   min-height: 76px;
   margin: 0 auto;
   gap: 24px;
+  transition: min-height var(--motion-normal) var(--ease-standard);
 }
+.site-header--scrolled .site-navbar { min-height: 66px; }
 
 .navbar-brand {
   display: inline-flex;
