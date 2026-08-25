@@ -21,7 +21,7 @@
           >
             <div class="hero-overlay" aria-hidden="true"></div>
             <div class="hero-content">
-              <span class="hero-kicker" data-hero-item><MapPinned :size="20" /> 花蓮在地照護</span>
+              <span class="hero-kicker" data-hero-item><MapPinned :size="20" /> 居家照護服務平台</span>
               <h1 data-hero-item>{{ slide.title }}</h1>
               <p data-hero-item>{{ slide.description }}</p>
               <router-link class="primary-action" :to="slide.to" data-hero-item>
@@ -47,6 +47,13 @@
             @click="heroSlide = slide.name"
           ></button>
         </div>
+      </section>
+
+      <section class="philosophy-section editorial-section" aria-labelledby="philosophy-title" data-reveal>
+        <span class="section-kicker">照安心的照護理念</span>
+        <h2 id="philosophy-title">照護，不只是完成一件事情</h2>
+        <p>每一段照護關係，都從理解開始。聽見長輩真正的需要、尊重生活習慣與選擇，再找到適合的支持方式，才能讓服務融入日常，而不是增加彼此壓力。</p>
+        <p>照安心希望讓家屬、受照顧者與居服員，都能在更清楚的資訊與溝通中建立信任。</p>
       </section>
 
       <section class="quick-section" aria-labelledby="quick-title" data-reveal>
@@ -107,9 +114,10 @@
         <div class="section-heading">
           <div>
             <span class="section-kicker">安心夥伴</span>
-            <h2 id="care-title">認識可接案的居服員</h2>
+            <h2 id="care-title">找到適合相處，也適合照護的人</h2>
+            <p>透過服務資訊、經驗與個人介紹，找到更符合家庭需求的居服員。</p>
           </div>
-          <router-link class="text-action" to="/caregivers">查看全部 <ArrowRight :size="19" /></router-link>
+          <router-link class="text-action" to="/caregivers">查看居服員 <ArrowRight :size="19" /></router-link>
         </div>
 
         <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員">
@@ -161,7 +169,7 @@
       <section class="steps-section editorial-section" aria-labelledby="steps-title" data-reveal>
         <span class="section-number" aria-hidden="true">03</span>
         <div class="section-heading centered-heading">
-          <div><span class="section-kicker">三個步驟</span><h2 id="steps-title">找到幫手，其實很簡單</h2></div>
+          <div><span class="section-kicker">三個步驟</span><h2 id="steps-title">把照護安排，變得簡單一些</h2></div>
         </div>
         <ol class="steps-grid" data-stagger>
           <li v-for="step in steps" :key="step.number">
@@ -224,9 +232,9 @@ const heroShell = ref<HTMLElement>();
 let motionContext: gsap.Context | undefined;
 
 const heroSlides = [
-  { name: 'home', image: '/images/home/hualien-care-walk.png', title: '讓照護安排，像家人一樣安心', description: '花蓮在地媒合，找到適合家人的照護夥伴。', action: '找居服員', to: '/caregivers' },
-  { name: 'meal', image: '/images/home/warm-home-meal.png', title: '需要幫忙時，我們就在身邊', description: '日常陪伴、備餐與生活照顧，都能放心說出需求。', action: '開始預約', to: '/login' },
-  { name: 'connect', image: '/images/home/family-care-connect.png', title: '家人不在身邊，也能隨時放心', description: '照護進度清楚可見，家屬與受照護者都更安心。', action: '了解服務', to: '/users' },
+  { name: 'home', image: '/images/home/hualien-care-walk.png', title: '找到適合的照護，讓陪伴多一點安心。', description: '從了解需求、尋找居服員到安排服務，照安心陪你把照護需要一步一步整理清楚。', action: '尋找居服員', to: '/caregivers' },
+  { name: 'meal', image: '/images/home/warm-home-meal.png', title: '每個家庭，都有不同的照護需要', description: '從日常生活協助、陪伴到外出需求，先了解實際情況，再尋找合適的照護服務。', action: '開始預約', to: '/login' },
+  { name: 'connect', image: '/images/home/family-care-connect.png', title: '有人需要被照顧，也有人需要一個放心的方法。', description: '讓需求、服務與資訊更清楚，也讓提供服務的人更了解每一次陪伴的需要。', action: '了解照護服務', to: '/users' },
 ];
 
 const quickActions = [
@@ -245,7 +253,7 @@ const quickActions = [
     scrollTo: 'subsidy',
   },
   {
-    title: '看看居服員',
+    title: '查看居服員',
     description: '認識已通過審核的夥伴',
     icon: markRaw(UserRoundSearch),
     tone: 'wood',
@@ -254,9 +262,9 @@ const quickActions = [
 ];
 
 const steps = [
-  { number: '1', icon: markRaw(ClipboardCheck), title: '說出需要', description: '選服務、日期和地點' },
-  { number: '2', icon: markRaw(SearchCheck), title: '安心媒合', description: '查看合適的居服員' },
-  { number: '3', icon: markRaw(HeartHandshake), title: '到府陪伴', description: '確認資訊，開始服務' },
+  { number: '1', icon: markRaw(ClipboardCheck), title: '說明照護需求', description: '選擇需要的服務、日期和地點' },
+  { number: '2', icon: markRaw(SearchCheck), title: '尋找合適居服員', description: '查看服務資訊、經驗與個人介紹' },
+  { number: '3', icon: markRaw(HeartHandshake), title: '確認預約安排', description: '確認服務資訊，開始照護服務' },
 ];
 
 function caregiverName(caregiver: Caregiver) {
@@ -407,7 +415,7 @@ onBeforeUnmount(() => {
 }
 
 main { padding: 28px 24px 72px; }
-.hero-shell, .quick-section, .care-section, .estimate-section, .steps-section, .line-banner { width: min(1180px, 100%); margin-inline: auto; }
+.hero-shell, .philosophy-section, .quick-section, .care-section, .estimate-section, .steps-section, .line-banner { width: min(1180px, 100%); margin-inline: auto; }
 
 .hero-shell { position: relative; overflow: hidden; border-radius: 32px; box-shadow: 0 22px 55px rgb(78 52 43 / 14%); }
 .hero-carousel { height: clamp(480px, 57vw, 650px); background: var(--chestnut); }
@@ -431,6 +439,9 @@ main { padding: 28px 24px 72px; }
 .hero-dots button::after { content: ''; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; background: rgb(255 255 255 / 62%); border: 2px solid white; border-radius: 999px; transform: translate(-50%, -50%); transition: width 180ms ease, background 180ms ease; }
 .hero-dots button.active::after { width: 26px; background: white; }
 
+.philosophy-section { max-width: 860px; padding-top: 68px; text-align: center; }
+.philosophy-section h2 { margin: 10px 0 20px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; }
+.philosophy-section p { max-width: 760px; margin: 0 auto 10px; color: #6e5750; font-size: 1.08rem; line-height: 1.8; }
 .quick-section, .care-section, .steps-section { padding-top: 68px; }
 .editorial-section { position: relative; }
 .section-number { position: absolute; z-index: 0; top: 28px; right: 0; color: rgb(110 87 80 / 9%); font-size: clamp(5rem, 13vw, 10rem); font-weight: 700; line-height: 1; pointer-events: none; }
@@ -439,6 +450,7 @@ main { padding: 28px 24px 72px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .section-heading h2 { margin: 8px 0 0; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; }
 .section-heading p { margin: 0; color: #7c655e; font-size: 1.06rem; }
+.section-heading > div > p { max-width: 680px; margin-top: 12px; line-height: 1.65; }
 .section-kicker { color: var(--persimmon); font-size: .9rem; }
 .text-action { min-height: 48px; display: inline-flex; align-items: center; gap: 7px; padding: 0 6px; color: var(--persimmon); font-size: 1.05rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
 
