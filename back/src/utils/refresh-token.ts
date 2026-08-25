@@ -10,7 +10,7 @@ export const refreshCookieOptions: CookieOptions = {
   sameSite: 'lax',
   secure: process.env.NODE_ENV === 'production',
   path: '/',
-  maxAge: 1000 * 60 * 60 * 24 * 7,
+  maxAge: 1000 * 60 * 60 * 24 * 30,
 }
 
 export function hashRefreshToken(token: string): string {
@@ -23,4 +23,3 @@ export async function issueRefreshToken(response: Response, userId: string): Pro
   await RefreshToken.create({ userId, tokenHash: hashRefreshToken(token) })
   response.cookie(refreshCookieName, token, refreshCookieOptions)
 }
-

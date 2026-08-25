@@ -72,7 +72,7 @@ export async function requireActiveAccount(
 // 登入成功後簽發 JWT；只放必要的 userId、role，不可放密碼或敏感病歷。
 export function signToken(userId: string, role: Role): string {
   return jwt.sign({ userId, role }, getJwtSecret(), {
-    // Access Token 僅保留 15 分鐘；到期後用 HttpOnly Cookie 中的 RT 更新。
-    expiresIn: '15m',
+    // Access Token 保留 1 小時；到期後用 HttpOnly Cookie 中的 RT 更新。
+    expiresIn: '1h',
   })
 }
