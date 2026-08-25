@@ -64,7 +64,9 @@ test.beforeAll(async ({ request }) => {
 })
 
 test.afterAll(async () => {
-  if (mongoose.connection.readyState) await mongoose.connection.dropDatabase()
+  if (mongoose.connection.readyState && mongoose.connection.name === 'chioansim_e2e') {
+    await mongoose.connection.dropDatabase()
+  }
   await mongoose.disconnect()
 })
 
