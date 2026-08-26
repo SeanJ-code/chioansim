@@ -10,6 +10,7 @@ import { Booking, Review, User } from '../models'
 import { Complaint } from '../models/complaint'
 import { CaregiverLeaveRequest, CaregiverWorkJournal } from '../models/caregiver-work'
 import * as yup from 'yup'
+import { taipeiDateKey, taipeiDateTimeToUtc, taipeiWeekday } from '../utils/datetime'
 
 export const nurseRoutes = Router()
 
@@ -273,8 +274,9 @@ nurseRoutes.post(
       response.status(404).json({ message: '找不到 Nurse 資料' })
       return
     }
-    const date = new Date(request.body.date)
-    if ([0, 6].includes(date.getDay())) {
+    const dateText = String(request.body.date || '')
+    const date = new Date(`${dateText}T00:00:00.000Z`)
+    if ([0, 6].includes(taipeiWeekday(dateText))) {
       response.status(400).json({ message: '週六、週日原本就不開放預約，不需要另外安排休假' })
       return
     }
@@ -313,7 +315,7 @@ nurseRoutes.patch(
     response.json(
       await Availability.findOneAndUpdate(
         { _id: request.params.availabilityId, caregiverId: profile?._id },
-        request.body,
+        { ...request.body, ...(request.body.date ? { date: new Date(`${String(request.body.date)}T00:00:00.000Z`) } : {}) },
         { new: true, runValidators: true },
       ),
     )
@@ -397,8 +399,9 @@ nurseRoutes.get('/:id/availability', asyncHandler(async (request, response) => {
     response.status(404).json({ message: '這位居服員目前未開放預約' })
     return
   }
-  const start = new Date(); start.setHours(0, 0, 0, 0)
-  const end = new Date(start); end.setDate(end.getDate() + 14)
+  const firstKey = taipeiDateKey(new Date())
+  const start = new Date(`${firstKey}T00:00:00.000Z`)
+  const end = new Date(start.getTime() + 14 * 86_400_000)
   const exceptions = await Availability.find({
     caregiverId: request.params.id,
     date: { $gte: start, $lt: end },
@@ -414,16 +417,18 @@ nurseRoutes.get('/:id/availability', asyncHandler(async (request, response) => {
   const overlaps = (from: Date, to: Date) => bookings.some((item) =>
     item.scheduledStartAt < to && (item.scheduledEndAt || item.scheduledStartAt) > from)
   const slots = []
-  for (let day = new Date(start); day < end; day.setDate(day.getDate() + 1)) {
+  for (let offset = 0; offset < 14; offset += 1) {
+    const day = new Date(start.getTime() + offset * 86_400_000)
     const key = day.toISOString().slice(0, 10)
-    if ([0, 6].includes(day.getDay()) || blockedDays.has(key)) continue
+    if ([0, 6].includes(taipeiWeekday(key)) || blockedDays.has(key)) continue
     for (let hour = 9; hour < 17; hour += 2) {
-      const from = new Date(day); from.setHours(hour, 0, 0, 0)
-      const to = new Date(day); to.setHours(Math.min(hour + 2, 17), 0, 0, 0)
+      const startTime = `${String(hour).padStart(2, '0')}:00`
+      const endTime = `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`
+      const from = taipeiDateTimeToUtc(key, startTime)
+      const to = taipeiDateTimeToUtc(key, endTime)
       if (!overlaps(from, to)) slots.push({
-        _id: `${request.params.id}|${key}|${String(hour).padStart(2, '0')}:00|${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`,
-        date: new Date(day), startTime: `${String(hour).padStart(2, '0')}:00`,
-        endTime: `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`, status: 'AVAILABLE',
+        _id: `${request.params.id}|${key}|${startTime}|${endTime}`,
+        date: day, startTime, endTime, status: 'AVAILABLE',
       })
     }
   }

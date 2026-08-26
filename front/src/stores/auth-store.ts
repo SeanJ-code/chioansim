@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { api } from '@/boot/axios';
 import { clearRecentCaregivers } from '@/composables/recent-caregivers';
+import { setRealtimeAccessToken } from '@/stores/live-sync-store';
 
 export type UserRole = 'USER' | 'PATIENT' | 'NURSE' | 'ADMIN';
 
@@ -59,6 +60,7 @@ export const useAuthStore = defineStore('auth', {
       sessionStorage.removeItem('chioansim-access-token');
       localStorage.removeItem('chioansim-user');
       delete api.defaults.headers.common.Authorization;
+      setRealtimeAccessToken();
     },
     saveSession(result: AuthResponse) {
       this.accessToken = result.accessToken;
@@ -66,6 +68,7 @@ export const useAuthStore = defineStore('auth', {
       sessionStorage.setItem('chioansim-access-token', result.accessToken);
       localStorage.setItem('chioansim-user', JSON.stringify(result.user));
       api.defaults.headers.common.Authorization = `Bearer ${result.accessToken}`;
+      setRealtimeAccessToken(result.accessToken);
     },
     async login(account: string, password: string) {
       const { data } = await api.post<AuthResponse>('/auth/login', { account, password });

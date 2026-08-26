@@ -288,6 +288,7 @@ import {
 import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
+import { taipeiDateKey, taipeiDateTime } from '@/utils/datetime';
 
 type PlainObject = Record<string, any>;
 type AlertItem = PlainObject & { note?: string };
@@ -396,9 +397,9 @@ function roleLabel(role: string) { return ({ USER: '使用者／家屬', PATIENT
 function statusLabel(status: string) { return ({ ACTIVE: '正常', SUSPENDED: '暫停', PENDING: '等待處理' } as PlainObject)[status] || status; }
 function serviceNames(booking: PlainObject) { return booking.serviceTypeIds?.map((item: PlainObject) => item.name).join('、') || '一般照護服務'; }
 function caregiverName(booking: PlainObject) { return booking.caregiverId?.userId?.name || '等待居服員'; }
-function formatDate(value: string) { return new Date(value).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-function localDateKey(value: string) { const date = new Date(value); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); }
-function formatFullDate(value: string) { return new Date(value).toLocaleString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }); }
+function formatDate(value: string) { return taipeiDateTime(value, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function localDateKey(value: string) { return taipeiDateKey(value); }
+function formatFullDate(value: string) { return taipeiDateTime(value, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }); }
 function bookingStatusLabel(status: string) { return ({ PENDING: '等待居服員確認', ACCEPTED: '確認任務', DEPARTED: '前往中', ARRIVED: '已抵達', WAITING_DECISION: '等待判定', IN_SERVICE: '服務中', AWAITING_USER_CONFIRMATION: '等待使用者確認完成', COMPLETED: '已完成', CANCELLED: '取消任務', ABANDONED: '已棄單' } as PlainObject)[status] || status; }
 function bookingStatusColor(status: string) { return ['WAITING_DECISION', 'ABANDONED'].includes(status) ? 'negative' : ['ACCEPTED', 'COMPLETED'].includes(status) ? 'positive' : ['DEPARTED', 'ARRIVED', 'IN_SERVICE', 'AWAITING_USER_CONFIRMATION'].includes(status) ? 'orange-8' : 'brown-6'; }
 function bookingProgressStep(booking: PlainObject) {

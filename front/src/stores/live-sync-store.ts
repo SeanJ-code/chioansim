@@ -9,6 +9,13 @@ let timer: ReturnType<typeof setInterval> | undefined;
 let refresh: (() => Promise<void>) | undefined;
 let socket: Socket | undefined;
 
+export function setRealtimeAccessToken(token?: string) {
+  if (!socket) return;
+  if (!token) { socket.disconnect(); return; }
+  socket.auth = { token };
+  socket.disconnect().connect();
+}
+
 export const useLiveSyncStore = defineStore('live-sync', () => {
   const syncing = ref(false);
   const lastSyncedAt = ref<number | null>(null);
@@ -45,7 +52,6 @@ export const useLiveSyncStore = defineStore('live-sync', () => {
     const token = sessionStorage.getItem('chioansim-access-token');
     if (token) {
       socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
-      socket.on('connect_error', () => socket?.disconnect());
       for (const event of ['booking:changed', 'alert:changed', 'location:changed']) {
         socket.on(event, () => void refreshNow());
       }

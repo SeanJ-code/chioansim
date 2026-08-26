@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "check:booking-policy": "ts-node src/utils/booking-policy.check.ts",
+    "check:datetime": "ts-node src/utils/datetime.check.ts",
+    "check:realtime": "ts-node src/realtime.check.ts",
     "check:ltc": "ts-node src/routes/ltc-routes.check.ts",
     "seed:admin-test": "ts-node src/scripts/admin-test-seed.ts",
     "seed:demo": "DEMO_SEED=1 ts-node src/scripts/admin-test-seed.ts",

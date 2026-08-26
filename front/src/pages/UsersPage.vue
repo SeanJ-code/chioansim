@@ -677,6 +677,7 @@ import {
 } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
+import { taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import { useGeolocation } from '@/composables/useGeolocation';
@@ -967,14 +968,14 @@ async function loadBookings() {
 async function loadNotifications() {
   try { notifications.value = (await api.get<NotificationItem[]>('/notifications')).data; } catch { notifications.value = []; }
 }
-function formatBookingDate(value:string) { return new Intl.DateTimeFormat('zh-TW',{month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value)); }
+function formatBookingDate(value:string) { return taipeiDateTime(value,{month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}); }
 function bookingStatusLabel(value:string) { return ({PENDING:'待居服員確認',ACCEPTED:'確認任務',DEPARTED:'路途中',ARRIVED:'已抵達',WAITING_DECISION:'等待安全確認',IN_SERVICE:'服務中',AWAITING_USER_CONFIRMATION:'等待您確認完成',COMPLETED:'已完成任務',CANCELLED:'取消任務',ABANDONED:'已棄單',LATE:'遲到',OVERDUE:'逾期中'} as Record<string,string>)[value] || value; }
 function bookingDisplayStatus(booking:Booking) { return ['LATE','OVERDUE'].includes(booking.attendanceStatus || '') ? booking.attendanceStatus! : booking.status; }
 function bookingCaregiverName(booking:Booking) { return booking.caregiverId?.userId?.name || '照安心居服員'; }
 function serviceNames(booking:Booking) { return booking.serviceTypeIds?.map((item) => item.name).join('、') || '照護服務'; }
-function formatBookingRange(booking:Booking) { return `${formatBookingDate(booking.scheduledStartAt)}${booking.scheduledEndAt ? `－${new Intl.DateTimeFormat('zh-TW',{hour:'2-digit',minute:'2-digit'}).format(new Date(booking.scheduledEndAt))}` : ''}`; }
-function bookingDay(booking:Booking) { return new Date(booking.scheduledStartAt).getDate(); }
-function bookingMonth(booking:Booking) { return new Date(booking.scheduledStartAt).getMonth() + 1; }
+function formatBookingRange(booking:Booking) { return `${formatBookingDate(booking.scheduledStartAt)}${booking.scheduledEndAt ? `－${taipeiDateTime(booking.scheduledEndAt,{hour:'2-digit',minute:'2-digit'})}` : ''}`; }
+function bookingDay(booking:Booking) { return taipeiDateParts(booking.scheduledStartAt).day; }
+function bookingMonth(booking:Booking) { return taipeiDateParts(booking.scheduledStartAt).month; }
 function bookingStatusTone(status:string) { return ['ACCEPTED','ARRIVED','IN_SERVICE'].includes(status) ? 'status-success' : ['PENDING','DEPARTED','WAITING_DECISION','AWAITING_USER_CONFIRMATION'].includes(status) ? 'status-waiting' : ['CANCELLED','ABANDONED','LATE','OVERDUE'].includes(status) ? 'status-warning' : 'status-muted'; }
 function bookingTimeline(booking:Booking) {
   return [

@@ -21,6 +21,8 @@ import {
 import { upload } from '../middlewares/upload'
 import type { Types } from 'mongoose'
 import { Notification } from '../models/notification'
+import { emitBookingRealtime } from '../realtime'
+import { taipeiDateTimeToUtc, taipeiWeekday } from '../utils/datetime'
 
 export const bookingRoutes = Router()
 // 預約含個資、定位與健康紀錄，所以本檔全部 API 都必須登入。
@@ -124,15 +126,17 @@ bookingRoutes.post(
         return
       }
     }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
     const [caregiverId, dateText, startTime, endTime] = String(availabilityId).split('|')
-    const date = new Date(`${dateText}T00:00:00`)
-    if (!caregiverId || !dateText || !startTime || !endTime || date < today || [0, 6].includes(date.getDay())) {
+    if (!caregiverId || !dateText || !startTime || !endTime) {
       response.status(409).json({ message: '這個時段剛被預約或已不開放，請重新選擇' })
       return
     }
-    const blocked = await Availability.exists({ caregiverId, date, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
+    const date = new Date(`${dateText}T00:00:00.000Z`)
+    if ([0, 6].includes(taipeiWeekday(dateText))) {
+      response.status(409).json({ message: '這個時段剛被預約或已不開放，請重新選擇' })
+      return
+    }
+    const blocked = await Availability.exists({ caregiverId, date: { $gte: date, $lt: new Date(date.getTime() + 86_400_000) }, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
     if (blocked) { response.status(409).json({ message: '這位居服員當日休假或暫停服務' }); return }
     let createdRequestId: Types.ObjectId | undefined
     try {
@@ -142,10 +146,8 @@ bookingRoutes.post(
       if (!approvedCaregiver) throw new Error('這位居服員目前未開放預約')
       const types = await ServiceType.find({ _id: { $in: serviceTypeIds }, active: true, hidden: { $ne: true } })
       if (types.length !== serviceTypeIds.length) throw new Error('服務項目不存在或已停用')
-      const [startHour, startMinute] = startTime.split(':').map(Number)
-      const [endHour, endMinute] = endTime.split(':').map(Number)
-      const scheduledStartAt = new Date(date); scheduledStartAt.setHours(startHour || 0, startMinute || 0, 0, 0)
-      const scheduledEndAt = new Date(date); scheduledEndAt.setHours(endHour || 0, endMinute || 0, 0, 0)
+      const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime)
+      const scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
       if (scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt) throw new Error('這個服務時段已過期或時間不正確')
       const overlaps = await Booking.exists({
         caregiverId, hidden: { $ne: true },
@@ -166,6 +168,7 @@ bookingRoutes.post(
         caregiverId, serviceTypeIds, scheduledStartAt, scheduledEndAt,
         serviceAddress, status: 'PENDING',
       })
+      await emitBookingRealtime(booking.id)
       response.status(201).json(booking)
     } catch (error) {
       if (createdRequestId) await ServiceRequest.findByIdAndDelete(createdRequestId)
@@ -633,11 +636,11 @@ bookingRoutes.patch(
     if (!booking || !(await canView(request, booking))) return void response.status(403).json({ message: '無權變更此預約' })
     if (!['PENDING', 'ACCEPTED'].includes(String(booking.get('status')))) return void response.status(409).json({ message: '只有待確認或已確認的任務可以變更時間' })
     const dateText = String(request.body.date || ''), startTime = String(request.body.startTime || ''), endTime = String(request.body.endTime || '')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return void response.status(400).json({ message: '請提供正確的服務日期與時間' })
-    const scheduledStartAt = new Date(`${dateText}T${startTime}:00`), scheduledEndAt = new Date(`${dateText}T${endTime}:00`)
-    if ([0, 6].includes(scheduledStartAt.getDay()) || scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt || startTime < '09:00' || endTime > '17:00') return void response.status(400).json({ message: '請選擇未來週一至週五 09:00–17:00 的有效時段' })
+    const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime), scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
+    if ([0, 6].includes(taipeiWeekday(dateText)) || scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt || startTime < '09:00' || endTime > '17:00') return void response.status(400).json({ message: '請選擇未來週一至週五 09:00–17:00 的有效時段' })
     const caregiverId = booking.get('caregiverId')
-    const blocked = await Availability.exists({ caregiverId, date: { $gte: new Date(`${dateText}T00:00:00`), $lt: new Date(`${dateText}T23:59:59.999`) }, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
+    const dayStart = new Date(`${dateText}T00:00:00.000Z`)
+    const blocked = await Availability.exists({ caregiverId, date: { $gte: dayStart, $lt: new Date(dayStart.getTime() + 86_400_000) }, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
     const overlaps = await Booking.exists({ _id: { $ne: booking._id }, caregiverId, status: { $nin: ['CANCELLED', 'ABANDONED'] }, scheduledStartAt: { $lt: scheduledEndAt }, scheduledEndAt: { $gt: scheduledStartAt } })
     if (blocked || overlaps) return void response.status(409).json({ message: blocked ? '居服員這一天休假或暫停服務' : '居服員在此時段已有其他任務' })
     booking.set({ scheduledStartAt, scheduledEndAt, status: 'PENDING', acceptedAt: undefined })
