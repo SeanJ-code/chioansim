@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { emitBookingRealtime } from '../realtime'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import express from 'express'
@@ -41,15 +40,6 @@ app.use(express.json({ limit: '1mb' }))
 // 將 Cookie 解析到 request.cookies，Refresh Token 更新與登出會用到。
 app.use(cookieParser())
 
-// Booking 成功異動後只通知資料庫確認過的案件關係人；完整資料仍走既有授權 API。
-app.use((request, response, next) => {
-  response.on('finish', () => {
-    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || response.statusCode >= 400) return
-    const match = request.originalUrl.match(/\/bookings\/([a-f\d]{24})(?:\/|\?|$)/i)
-    if (match?.[1]) void emitBookingRealtime(match[1], /\/location(?:\/|\?|$)/.test(request.originalUrl) ? 'location:changed' : 'booking:changed').catch(console.error)
-  })
-  next()
-})
 // 將本機 uploads 資料夾公開為 /uploads/... 網址。
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
 

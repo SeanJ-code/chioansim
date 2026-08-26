@@ -86,7 +86,10 @@ export function errorHandler(
     Number(error.statusCode) >= 400 &&
     Number(error.statusCode) < 500
   ) {
-    response.status(Number(error.statusCode)).json({ message: error.message })
+    response.status(Number(error.statusCode)).json({
+      message: error.message,
+      ...('code' in error && typeof error.code === 'string' ? { code: error.code } : {}),
+    })
     return
   }
 

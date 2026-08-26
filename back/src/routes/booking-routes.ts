@@ -3,9 +3,7 @@ import { authenticate, authorize } from '../middlewares/auth'
 import type { AuthRequest } from '../types/auth'
 import { asyncHandler } from '../utils/http'
 import {
-  isCancellationRefundEligible,
   LOCATION_SHARING_STATUSES,
-  nextBookingCompletionStatus,
 } from '../utils/booking-policy'
 import {
   Booking,
@@ -15,15 +13,27 @@ import {
   InjuryReport,
   ServiceRequest,
   ServiceType,
-  ServiceRecord,
   UserRecipientRelation,
 } from '../models'
 import { upload } from '../middlewares/upload'
 import type { Types } from 'mongoose'
-import { Notification } from '../models/notification'
-import { emitBookingRealtime } from '../realtime'
 import { taipeiDateTimeToUtc, taipeiWeekday } from '../utils/datetime'
 import { bookingCreateSchema, bookingRescheduleSchema } from '../utils/booking-validation'
+import {
+  abandonBooking,
+  acceptBooking,
+  arriveBooking,
+  cancelBooking,
+  confirmCompletion,
+  departBooking,
+  flagInjuryDecision,
+  publishBookingChange,
+  requestCompletion,
+  rescheduleBooking,
+  resolveInjuryDecision,
+  startService,
+  stopLocationSharing,
+} from '../services/booking-workflow.service'
 
 const NON_BLOCKING_BOOKING_STATUSES = ['CANCELLED', 'ABANDONED', 'COMPLETED']
 
@@ -167,7 +177,7 @@ bookingRoutes.post(
         caregiverId, serviceTypeIds, scheduledStartAt, scheduledEndAt,
         serviceAddress, status: 'PENDING',
       })
-      await emitBookingRealtime(booking.id)
+      await publishBookingChange(booking.id)
       response.status(201).json(booking)
     } catch (error) {
       if (createdRequestId) await ServiceRequest.findByIdAndDelete(createdRequestId)
@@ -201,24 +211,7 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id, status: 'PENDING', hidden: { $ne: true } },
-      { status: 'ACCEPTED', acceptedAt: new Date() },
-      { new: true, runValidators: true },
-    )
-    if (!booking) {
-      response.status(409).json({ message: '這筆任務已被處理或不屬於目前登入的居服員' })
-      return
-    }
-    await Notification.create({
-      recipientUserId: booking.get('requesterUserId'),
-      type: 'BOOKING',
-      title: '居服員已確認任務',
-      message: '您的安心照護預約已由居服員確認。',
-      bookingId: booking._id,
-    })
-    response.json(booking)
+    response.json(await acceptBooking(String(request.params.id), request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -227,12 +220,17 @@ bookingRoutes.patch(
   '/:id',
   authorize('ADMIN'),
   asyncHandler(async (request, response) => {
-    response.json(
-      await Booking.findByIdAndUpdate(request.params.id, request.body, {
-        new: true,
-        runValidators: true,
-      }),
-    )
+    const allowed = ['estimatedDistanceKm', 'estimatedDurationMin', 'estimatedArrivalAt']
+    const rejected = Object.keys(request.body || {}).filter((key) => !allowed.includes(key))
+    if (rejected.length) {
+      response.status(422).json({ code: 'BUSINESS_RULE_VIOLATION', message: `此路徑不可修改工作流程欄位：${rejected.join('、')}` })
+      return
+    }
+    const update = Object.fromEntries(allowed.filter((key) => key in request.body).map((key) => [key, request.body[key]]))
+    const booking = await Booking.findByIdAndUpdate(request.params.id, update, { new: true, runValidators: true })
+    if (!booking) { response.status(404).json({ code: 'NOT_FOUND', message: '找不到預約' }); return }
+    await publishBookingChange(String(booking._id))
+    response.json(booking)
   }),
 )
 
@@ -251,6 +249,7 @@ bookingRoutes.delete(
       hiddenAt: new Date(),
       hiddenByUserId: request.auth?.userId,
     })
+    await publishBookingChange(String(booking._id))
     response.status(204).send()
   }),
 )
@@ -261,32 +260,17 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOne({ _id: request.params.id, caregiverId: profile?._id })
+    const booking = await Booking.findById(request.params.id)
     if (!booking) { response.status(404).json({ message: '找不到工作任務' }); return }
-    if (booking.get('status') !== 'ACCEPTED') {
-      response.status(409).json({ message: '只有已確認的任務才能開始前往與分享位置' })
-      return
-    }
     const sharingExpiresAt = new Date(new Date(booking.get('scheduledEndAt') || Date.now()).getTime() + 2 * 60 * 60 * 1000)
     const location = gpsLocation(request.body.location || {}, sharingExpiresAt)
     const update = {
-      status: 'DEPARTED',
-      departedAt: new Date(),
       estimatedArrivalAt: request.body.estimatedArrivalAt,
       estimatedDurationMin: request.body.estimatedDurationMin,
       estimatedDistanceKm: request.body.estimatedDistanceKm,
       latestLocation: location,
     }
-    const updated = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id, status: 'ACCEPTED' },
-      update,
-      { new: true },
-    )
-    if (!updated) { response.status(409).json({ message: '任務狀態已變更，請重新整理' }); return }
-    await CaregiverProfile.findByIdAndUpdate(profile?._id, { currentLocation: location })
-    await Notification.create({ recipientUserId: updated.get('requesterUserId'), type: 'BOOKING', title: '居服員已出發', message: '居服員正在前往您的服務地點。', bookingId: updated._id })
-    response.json(updated)
+    response.json(await departBooking(String(request.params.id), request.auth!, update, request.get('x-request-id')))
   }),
 )
 
@@ -316,6 +300,7 @@ bookingRoutes.patch(
     }
     // 通過任務狀態檢查後，才保存居服員的全域最新位置。
     await CaregiverProfile.findByIdAndUpdate(profile?._id, { currentLocation: location })
+    await publishBookingChange(String(updated._id), 'location:changed')
     response.json(updated)
   }),
 )
@@ -326,15 +311,7 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    await CaregiverProfile.findByIdAndUpdate(profile?._id, { $unset: { currentLocation: 1 } })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id },
-      { $unset: { latestLocation: 1 }, locationSharingStoppedAt: new Date() },
-      { new: true },
-    )
-    if (!booking) { response.status(404).json({ message: '找不到工作任務' }); return }
-    response.json(booking)
+    response.json(await stopLocationSharing(String(request.params.id), request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -344,21 +321,10 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id, status: 'DEPARTED' },
-      {
-        status: 'ARRIVED',
-        arrivedAt: new Date(),
-        latestLocation: request.body.location
-          ? gpsLocation(request.body.location, new Date(Date.now() + 2 * 60 * 60 * 1000))
-          : undefined,
-      },
-      { new: true },
-    )
-    if (!booking) { response.status(409).json({ message: '只有前往中的任務可以回報抵達' }); return }
-    await Notification.create({ recipientUserId: booking.get('requesterUserId'), type: 'BOOKING', title: '居服員已抵達', message: '居服員已抵達服務地點並完成打卡。', bookingId: booking._id })
-    response.json(booking)
+    const location = request.body.location
+      ? gpsLocation(request.body.location, new Date(Date.now() + 2 * 60 * 60 * 1000))
+      : undefined
+    response.json(await arriveBooking(String(request.params.id), request.auth!, location, request.get('x-request-id')))
   }),
 )
 
@@ -390,9 +356,13 @@ bookingRoutes.post(
     })
     // 有異常就暫停在 WAITING_DECISION，不能直接開始服務。
     if (report.get('hasInjury') || report.get('hasNegativeScene')) {
-      booking.set('status', 'WAITING_DECISION')
-      await booking.save()
-    }
+      try {
+        await flagInjuryDecision(String(booking._id), request.auth!, request.get('x-request-id'))
+      } catch (error) {
+        await InjuryReport.findByIdAndDelete(report._id)
+        throw error
+      }
+    } else await publishBookingChange(String(booking._id))
     response.status(201).json(report)
   }),
 )
@@ -414,40 +384,15 @@ bookingRoutes.get(
 // PATCH .../decision：只有下單 USER 或 ADMIN 能判斷繼續或取消。
 bookingRoutes.patch(
   '/:id/injuries/:reportId/decision',
-  authorize('USER', 'PATIENT', 'NURSE', 'ADMIN'),
+  authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const booking = await Booking.findById(request.params.id)
-    if (
-      !booking ||
-      (request.auth?.role !== 'ADMIN' &&
-        booking.get('requesterUserId').toString() !== request.auth?.userId)
-    ) {
-      response.status(403).json({ message: '只有下單者或管理員可以決定是否繼續' })
-      return
-    }
     const decision = request.body.decision
     if (!['CONTINUE', 'CANCEL'].includes(decision)) {
       response.status(400).json({ message: 'decision 必須為 CONTINUE 或 CANCEL' })
       return
     }
-    const report = await InjuryReport.findOneAndUpdate(
-      { _id: request.params.reportId, bookingId: booking._id },
-      { decision, decidedByUserId: request.auth?.userId, decidedAt: new Date() },
-      { new: true },
-    )
-    // CONTINUE 回到 ARRIVED，仍需由 NURSE 明確呼叫 /start；CANCEL 則終止案件。
-    booking.set(
-      decision === 'CONTINUE'
-        ? { status: 'ARRIVED' }
-        : {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-            cancellationReason: '外傷／負面場景判定取消',
-          },
-    )
-    await booking.save()
-    response.json({ report, booking })
+    response.json(await resolveInjuryDecision(String(request.params.id), String(request.params.reportId), decision, request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -457,19 +402,7 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id, status: 'ARRIVED' },
-      {
-        $set: { status: 'IN_SERVICE', serviceStartedAt: new Date() },
-        $unset: { latestLocation: 1 },
-      },
-      { new: true },
-    )
-    if (!booking) { response.status(409).json({ message: '只有已抵達的任務可以開始服務' }); return }
-    await CaregiverProfile.findByIdAndUpdate(profile?._id, { $unset: { currentLocation: 1 } })
-    await Notification.create({ recipientUserId: booking.get('requesterUserId'), type: 'BOOKING', title: '照護服務已開始', message: '居服員已開始執行本次照護服務。', bookingId: booking._id })
-    response.json(booking)
+    response.json(await startService(String(request.params.id), request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -479,24 +412,7 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id, hidden: { $ne: true }, status: 'IN_SERVICE' },
-      { status: 'AWAITING_USER_CONFIRMATION', completionRequestedAt: new Date(), $unset: { latestLocation: 1 } },
-      { new: true },
-    )
-    if (!booking) {
-      response.status(409).json({ message: '此任務目前無法提出完成，請重新整理確認狀態' })
-      return
-    }
-    await Notification.create({
-      recipientUserId: booking.get('requesterUserId'),
-      type: 'BOOKING',
-      title: '請確認本次照護服務',
-      message: '居服員已提出完成，請核對後確認本次服務。',
-      bookingId: booking._id,
-    })
-    await CaregiverProfile.findByIdAndUpdate(profile?._id, { $unset: { currentLocation: 1 } })
+    const booking = await requestCompletion(String(request.params.id), request.auth!, request.get('x-request-id'))
     response.json({ booking })
   }),
 )
@@ -507,50 +423,7 @@ bookingRoutes.post(
   authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const current = await Booking.findById(request.params.id)
-    if (!current || !(await canView(request, current))) {
-      response.status(403).json({ message: '無權確認此預約' })
-      return
-    }
-    if (!nextBookingCompletionStatus(String(current.get('status')), 'USER')) {
-      response.status(409).json({ message: '居服員尚未提出完成，或此任務已經結案' })
-      return
-    }
-    const completedAt = new Date()
-    const booking = await Booking.findOneAndUpdate(
-      { _id: current._id, status: 'AWAITING_USER_CONFIRMATION' },
-      { status: 'COMPLETED', attendanceStatus: 'COMPLETED', completedAt, $unset: { latestLocation: 1 } },
-      { new: true },
-    )
-    if (!booking) {
-      response.status(409).json({ message: '任務狀態已更新，請重新整理後再確認' })
-      return
-    }
-    await ServiceRequest.findByIdAndUpdate(booking.get('serviceRequestId'), { status: 'COMPLETED' })
-    const caregiver = await CaregiverProfile.findById(booking.get('caregiverId'))
-    if (caregiver) {
-      await Notification.create({
-        recipientUserId: caregiver.get('userId'),
-        type: 'BOOKING',
-        title: '使用者已確認完成',
-        message: '本次照護服務已由雙方確認並正式結案。',
-        bookingId: booking._id,
-      })
-    }
-    const record = await ServiceRecord.findOneAndUpdate(
-      { bookingId: booking._id },
-      {
-        bookingId: booking._id,
-        recipientId: booking.get('recipientId'),
-        caregiverId: booking.get('caregiverId'),
-        completedItems: booking.get('serviceTypeIds') || [],
-        notes: '使用者已確認本次服務完成。',
-        startedAt: booking.get('serviceStartedAt'),
-        completedAt,
-      },
-      { upsert: true, new: true },
-    )
-    response.json({ booking, record })
+    response.json(await confirmCompletion(String(request.params.id), request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -560,68 +433,22 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    const booking = await Booking.findOneAndUpdate(
-      { _id: request.params.id, caregiverId: profile?._id },
-      { status: 'ABANDONED', cancelledAt: new Date(), cancellationReason: request.body.reason, $unset: { latestLocation: 1 } },
-      { new: true },
-    )
-    // $inc 是 MongoDB 原子累加，不需先讀取舊數字再寫回。
-    if (booking)
-      await CaregiverProfile.findByIdAndUpdate(profile?._id, { $inc: { abandonmentCount: 1 } })
-    response.json(booking)
+    response.json(await abandonBooking(String(request.params.id), request.body.reason, request.auth!, request.get('x-request-id')))
   }),
 )
 
 // POST /bookings/:id/cancel：案件參與者或 ADMIN 可提供原因取消預約。
 bookingRoutes.post(
   '/:id/cancel',
-  authorize('USER', 'PATIENT', 'NURSE', 'ADMIN'),
+  authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const booking = await Booking.findById(request.params.id)
-    if (!booking || !(await canView(request, booking))) {
-      response.status(403).json({ message: '無權取消此預約' })
-      return
-    }
-    if (['IN_SERVICE', 'AWAITING_USER_CONFIRMATION', 'COMPLETED', 'CANCELLED', 'ABANDONED'].includes(String(booking.get('status')))) {
-      response.status(409).json({ message: '進行中、已完成或已取消的服務不能再次取消' })
-      return
-    }
     const reason = String(request.body.reason || '').trim()
     if (!reason) {
       response.status(400).json({ message: '請先選擇取消原因' })
       return
     }
-    const refundEligible = isCancellationRefundEligible(
-      String(booking.get('status')),
-      new Date(booking.get('scheduledStartAt')),
-    )
-    booking.set({
-      status: 'CANCELLED',
-      cancelledAt: new Date(),
-      cancellationReason: reason,
-      cancellationRefundEligible: refundEligible,
-    })
-    await booking.save()
-    await CaregiverProfile.findByIdAndUpdate(booking.get('caregiverId'), { $unset: { currentLocation: 1 } })
-    await ServiceRequest.findByIdAndUpdate(booking.get('serviceRequestId'), { status: 'CANCELLED' })
-    const caregiver = await CaregiverProfile.findById(booking.get('caregiverId'))
-    const recipients = [booking.get('requesterUserId'), caregiver?.get('userId')]
-      .filter(Boolean)
-      .filter((id) => String(id) !== request.auth?.userId)
-    if (recipients.length) {
-      await Notification.insertMany(
-        recipients.map((recipientUserId) => ({
-          recipientUserId,
-          type: 'BOOKING',
-          title: '照護預約已取消',
-          message: `取消原因：${reason}`,
-          bookingId: booking._id,
-        })),
-      )
-    }
-    response.json({ booking, refundEligible })
+    response.json(await cancelBooking(String(request.params.id), reason, request.auth!, request.get('x-request-id')))
   }),
 )
 
@@ -631,22 +458,10 @@ bookingRoutes.patch(
   authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const booking = await Booking.findById(request.params.id)
-    if (!booking || !(await canView(request, booking))) return void response.status(403).json({ message: '無權變更此預約' })
-    if (!['PENDING', 'ACCEPTED'].includes(String(booking.get('status')))) return void response.status(409).json({ message: '只有待確認或已確認的任務可以變更時間' })
     const { date: dateText, startTime, endTime } = await bookingRescheduleSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
     const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime), scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
     if ([0, 6].includes(taipeiWeekday(dateText)) || scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt || startTime < '09:00' || endTime > '17:00') return void response.status(400).json({ message: '請選擇未來週一至週五 09:00–17:00 的有效時段' })
-    const caregiverId = booking.get('caregiverId')
     const dayStart = new Date(`${dateText}T00:00:00.000Z`)
-    const blocked = await Availability.exists({ caregiverId, date: { $gte: dayStart, $lt: new Date(dayStart.getTime() + 86_400_000) }, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
-    const overlaps = await Booking.exists({ _id: { $ne: booking._id }, caregiverId, status: { $nin: NON_BLOCKING_BOOKING_STATUSES }, scheduledStartAt: { $lt: scheduledEndAt }, scheduledEndAt: { $gt: scheduledStartAt } })
-    if (blocked || overlaps) return void response.status(409).json({ message: blocked ? '居服員這一天休假或暫停服務' : '居服員在此時段已有其他任務' })
-    booking.set({ scheduledStartAt, scheduledEndAt, status: 'PENDING', acceptedAt: undefined })
-    await booking.save()
-    await ServiceRequest.findByIdAndUpdate(booking.get('serviceRequestId'), { preferredDate: scheduledStartAt, preferredStartTime: startTime, estimatedDuration: (scheduledEndAt.getTime() - scheduledStartAt.getTime()) / 60000, status: 'MATCHED' })
-    const caregiver = await CaregiverProfile.findById(caregiverId)
-    if (caregiver?.get('userId')) await Notification.create({ recipientUserId: caregiver.get('userId'), type: 'BOOKING', title: '照護預約時間已變更', message: '使用者已變更服務時間，請重新確認任務。', bookingId: booking._id })
-    response.json(booking)
+    response.json(await rescheduleBooking(String(request.params.id), request.auth!, { scheduledStartAt, scheduledEndAt, startTime, dayStart }, request.get('x-request-id')))
   }),
 )
