@@ -97,6 +97,7 @@ test.afterAll(async () => {
 })
 
 test('註冊後核心閉環：預約、接單、GPS、完成、低星警訊', async ({ request }) => {
+  const completedBookingIds: string[] = []
   for (let index = 1; index <= 3; index += 1) {
     const date = nextWeekday(index + 2)
     const dateText = date.toISOString().slice(0, 10)
@@ -109,6 +110,7 @@ test('註冊後核心閉環：預約、接單、GPS、完成、低星警訊', as
     })
     expect(created.status()).toBe(201)
     const bookingId = (await created.json())._id
+    completedBookingIds.push(bookingId)
 
     expect((await request.post(`/bookings/${bookingId}/accept`, { headers: headers(nurseToken) })).ok()).toBeTruthy()
     const refusedLocation = await request.post(`/bookings/${bookingId}/depart`, {
@@ -139,6 +141,16 @@ test('註冊後核心閉環：預約、接單、GPS、完成、低星警訊', as
   }
   expect(await QualityAlert.exists({ caregiverId, type: 'THREE_ONE_STAR_REVIEWS' })).toBeTruthy()
   expect(await Notification.countDocuments({ type: 'BOOKING', status: 'SENT' })).toBe(18)
+
+  const bookingId = completedBookingIds[0]!
+  expect((await request.post('/feedback/journals', { headers: headers(outsiderToken), multipart: { bookingId, rating: '5', content: '不屬於我的預約' } })).status()).toBe(403)
+  const firstSave = await request.post('/feedback/journals', { headers: headers(userToken), multipart: { bookingId, rating: '4', content: '今天精神很好，服務內容都有完成。', careTags: JSON.stringify(['食慾良好', '情緒穩定']) } })
+  expect(firstSave.status()).toBe(200)
+  const secondSave = await request.post('/feedback/journals', { headers: headers(userToken), multipart: { bookingId, rating: '5', content: '更新後仍然只有同一份日誌。' } })
+  expect(secondSave.status()).toBe(200)
+  expect((await secondSave.json())._id).toBe((await firstSave.json())._id)
+  const journals = await (await request.get('/feedback/journals', { headers: headers(userToken) })).json()
+  expect(journals.items.find((item: { booking: { _id: string } }) => item.booking._id === bookingId)?.booking.totalAmount).toBe(100)
 })
 
 test('Workflow 權限、競爭更新與 Audit', async ({ request }) => {
@@ -149,6 +161,8 @@ test('Workflow 權限、競爭更新與 Audit', async ({ request }) => {
   })
   expect(created.status()).toBe(201)
   const bookingId = (await created.json())._id
+
+  expect((await request.post('/feedback/journals', { headers: headers(userToken), multipart: { bookingId, rating: '5', content: '尚未完成，不應建立。' } })).status()).toBe(409)
 
   expect((await request.post(`/bookings/${bookingId}/accept`, { headers: headers(outsiderNurseToken) })).status()).toBe(403)
   expect((await request.post(`/bookings/${bookingId}/cancel`, { headers: headers(outsiderToken), data: { reason: '無權取消測試' } })).status()).toBe(403)

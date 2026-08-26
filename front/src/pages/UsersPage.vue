@@ -424,27 +424,59 @@
     </q-dialog>
 
     <q-dialog v-model="journalDialog" persistent>
-      <q-card class="journal-dialog">
-        <q-card-section class="detail-dialog__heading"><div><small>歷史照護日誌</small><h2>留下這次安心照護紀錄</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉照護日誌" @click="journalDialog=false"><X :size="24" /></button></q-card-section>
-        <q-card-section class="journal-body">
-          <q-select v-model="journalBookingId" :options="journalBookingOptions" outlined emit-value map-options label="選擇已完成的服務（必填）" />
-          <div v-if="!journalBookingOptions.length" class="journal-locked"><ShieldCheck :size="22" /><span>服務完成後，才會開放日誌與評價，避免尚未服務就誤留紀錄。</span></div>
-          <div v-if="selectedJournalBooking" class="journal-fixed">
-            <div><span>申請服務項目</span><strong>{{ serviceNames(selectedJournalBooking) }}</strong></div>
-            <div><span>受照顧者</span><strong>{{ selectedJournalBooking.recipientId?.name || '申請人本人' }}</strong></div>
-            <div><span>預約時段</span><strong>{{ formatBookingRange(selectedJournalBooking) }}</strong></div>
-            <div><span>服務地點</span><strong>{{ selectedJournalBooking.serviceAddress?.text || '未提供' }}</strong></div>
-            <div><span>執行居服員</span><strong>{{ bookingCaregiverName(selectedJournalBooking) }}</strong></div>
-          </div>
-          <q-input v-model="journalContent" outlined type="textarea" autogrow maxlength="1000" counter label="日誌內容（必填）" />
-          <div class="journal-status">
-            <span>當次照護狀況（單選）</span>
-            <q-option-group v-model="journalStatus" :options="journalTagOptions" type="radio" inline color="deep-orange" />
-          </div>
-          <q-file v-model="journalPhotos" outlined multiple append max-files="5" max-file-size="5242880" accept=".jpg,.jpeg,.png,.webp" label="服務照片（最多 5 張、單張 5 MB）"><template #prepend><FileDown :size="20" /></template></q-file>
-          <div class="journal-rating"><span>這次服務滿意度（必填）</span><div class="journal-stars" role="radiogroup" aria-label="這次服務滿意度"><button v-for="score in 5" :key="score" type="button" role="radio" :aria-checked="journalRating === score" :aria-label="`${score} 顆星`" @click="journalRating=score"><Star :size="30" :fill="score <= journalRating ? 'currentColor' : 'none'" /></button></div></div>
+      <q-card ref="journalCard" class="journal-dialog">
+        <q-card-section class="detail-dialog__heading journal-heading"><div><small>安心照護紀錄</small><h2>歷史照護日誌</h2><p>留下這次服務後，家人想一起記得的事。</p></div><button class="detail-dialog__close" type="button" aria-label="關閉照護日誌" @click="requestCloseJournal"><X :size="24" /></button></q-card-section>
+        <q-tabs v-model="journalTab" no-caps align="left" class="journal-tabs" active-color="deep-orange-9" indicator-color="deep-orange-7">
+          <q-tab name="pending" :label="`待填寫 ${journalBookingOptions.length}`" />
+          <q-tab name="history" :label="`歷史紀錄 ${journalHistory.length}`" />
+        </q-tabs>
+        <q-separator />
+        <q-card-section class="journal-body" aria-live="polite">
+          <div v-if="journalLoading" class="journal-loading"><q-skeleton type="QInput" /><q-skeleton type="rect" height="180px" /><q-skeleton type="QInput" /></div>
+          <div v-else-if="journalError" class="journal-state journal-state--error"><CircleX :size="34" /><h3>紀錄暫時載入失敗</h3><p>{{ journalError }}</p><q-btn flat no-caps label="重新載入" @click="loadJournalData" /></div>
+          <div v-else-if="journalSaved" class="journal-state journal-success"><CircleCheckBig :size="48" /><h3>紀錄完成</h3><p>已替你保存這次安心照護紀錄。</p><q-btn unelevated no-caps label="查看歷史紀錄" @click="showJournalHistory" /></div>
+          <template v-else-if="journalTab === 'pending'">
+            <div v-if="!journalBookingOptions.length" class="journal-state journal-locked"><ShieldCheck :size="38" /><h3>目前還沒有可以填寫的照護紀錄</h3><p>服務完成並由雙方確認後，這裡會開放日誌與滿意度評價。</p></div>
+            <template v-else>
+              <q-select v-model="journalBookingId" :options="journalBookingOptions" outlined emit-value map-options label="選擇已完成的服務（必填）">
+                <template #option="scope"><q-item v-bind="scope.itemProps"><q-item-section><q-item-label>{{ scope.opt.label }}</q-item-label><q-item-label caption>{{ scope.opt.caption }}</q-item-label><q-item-label caption>{{ scope.opt.time }}</q-item-label></q-item-section></q-item></template>
+              </q-select>
+              <template v-if="selectedJournalContext">
+                <section class="journal-section journal-service-card" aria-labelledby="journal-service-title">
+                  <div class="journal-section__title"><span>1</span><div><small>本次服務</small><h3 id="journal-service-title">{{ serviceNames(selectedJournalContext.booking) }}</h3></div></div>
+                  <div class="journal-fixed">
+                    <div><span>受照顧者</span><strong>{{ selectedJournalBooking?.recipientId?.name || '申請人本人' }}</strong></div>
+                    <div><span>執行居服員</span><strong>{{ bookingCaregiverName(selectedJournalContext.booking) }}</strong></div>
+                    <div><span>預約時段</span><strong>{{ formatBookingRange(selectedJournalContext.booking) }}</strong></div>
+                    <div v-if="selectedJournalBooking?.completedAt"><span>實際完成</span><strong>{{ formatJournalTime(selectedJournalBooking.completedAt) }}</strong></div>
+                    <div><span>服務地點</span><strong>{{ selectedJournalBooking?.serviceAddress?.text || '未提供' }}</strong></div>
+                    <div v-if="selectedJournalBooking?.bookingNumber"><span>預約編號</span><strong>{{ selectedJournalBooking.bookingNumber }}</strong></div>
+                  </div>
+                </section>
+                <section class="journal-section" aria-labelledby="journal-content-title">
+                  <div class="journal-section__title"><span>2</span><div><small>服務與費用</small><h3 id="journal-content-title">這次完成了什麼</h3></div></div>
+                  <div class="journal-service-groups"><div><strong>申請服務</strong><div><q-chip v-for="service in selectedJournalBooking?.serviceTypeIds" :key="service._id || service.name" dense>{{ service.name }}</q-chip></div></div><div v-if="selectedJournalContext.serviceRecord?.completedItems?.length"><strong>實際完成</strong><div><q-chip v-for="item in selectedJournalContext.serviceRecord.completedItems" :key="item" dense color="green-1" text-color="green-9">{{ item }}</q-chip></div></div></div>
+                  <div class="journal-fee"><div><span>本次服務費</span><strong>{{ formatJournalAmount(selectedJournalBooking?.totalAmount) }}</strong></div><small v-if="selectedJournalBooking?.totalAmount == null">舊預約沒有成交金額快照，因此不以目前價格推算。</small><small v-else>此金額為預約成立時保存的成交快照。</small></div>
+                </section>
+                <section class="journal-section journal-form-section" aria-labelledby="journal-note-title">
+                  <div class="journal-section__title"><span>3</span><div><small>我的照護紀錄</small><h3 id="journal-note-title">留下想持續留意的事</h3></div></div>
+                  <q-input v-model="journalContent" outlined type="textarea" autogrow maxlength="1000" counter label="留下這次照護紀錄（必填）" placeholder="例如：今天爸爸精神不錯，午餐正常吃完；右膝似乎有些不舒服，下次再持續觀察。" />
+                </section>
+                <section class="journal-section journal-form-section"><div class="journal-section__title"><span>4</span><div><small>照護狀況</small><h3>今天有哪些需要留下的狀況？（可複選）</h3></div></div><q-option-group v-model="journalTags" :options="journalTagOptions" type="checkbox" inline color="deep-orange" class="journal-status" /></section>
+                <section class="journal-section journal-form-section"><div class="journal-section__title"><span>5</span><div><small>服務照片</small><h3>最多 5 張，單張 5 MB</h3></div></div><q-file v-model="journalPhotos" outlined multiple append :max-files="5" :max-file-size="5242880" accept="image/jpeg,image/png,image/webp" label="選擇 JPG、PNG 或 WebP 照片" @rejected="journalFilesRejected"><template #prepend><FileDown :size="20" /></template></q-file></section>
+                <section class="journal-section journal-form-section"><div class="journal-section__title"><span>6</span><div><small>服務滿意度</small><h3>這次服務滿意度（必填）</h3></div></div><div class="journal-rating"><div class="journal-stars" role="radiogroup" aria-label="這次服務滿意度"><button v-for="score in 5" :key="score" type="button" role="radio" :aria-checked="journalRating === score" :aria-label="`${score} 顆星`" @click="setJournalRating(score, $event)" @keydown.left.prevent="setJournalRating(Math.max(1, score - 1), $event)" @keydown.right.prevent="setJournalRating(Math.min(5, score + 1), $event)"><Star :size="30" :fill="score <= journalRating ? 'currentColor' : 'none'" /></button></div><strong>{{ journalRating ? `${journalRating} 顆星` : '尚未評分' }}</strong></div></section>
+              </template>
+            </template>
+          </template>
+          <div v-else-if="!journalHistory.length" class="journal-state journal-locked"><History :size="38" /><h3>還沒有歷史照護紀錄</h3><p>完成第一份日誌後，會依服務日期整理在這裡。</p></div>
+          <q-list v-else class="journal-history-list">
+            <q-expansion-item v-for="item in journalHistory" :key="item.review!._id" group="journal-history" expand-separator>
+              <template #header><q-item-section><q-item-label overline>{{ formatBookingDate(item.booking.scheduledStartAt) }}</q-item-label><q-item-label class="journal-history-title">{{ serviceNames(item.booking) }}</q-item-label><q-item-label caption>{{ item.booking.recipientId?.name || '申請人本人' }}・{{ bookingCaregiverName(item.booking) }}</q-item-label><div class="journal-history-stars" :aria-label="`${item.review!.rating} 顆星`"><Star v-for="score in 5" :key="score" :size="17" :fill="score <= item.review!.rating ? 'currentColor' : 'none'" /></div><q-item-label caption lines="2">{{ item.review!.journalContent }}</q-item-label></q-item-section></template>
+              <div class="journal-history-detail"><p>{{ item.review!.journalContent }}</p><div v-if="item.review!.careTags?.length"><q-chip v-for="tag in item.review!.careTags" :key="tag" dense>{{ tag }}</q-chip></div><div v-if="item.review!.journalPhotoUrls?.length" class="journal-photo-grid"><q-img v-for="photo in item.review!.journalPhotoUrls" :key="photo" :src="assetUrl(photo)" ratio="1.3" alt="照護日誌服務照片" /></div><small>本次費用：{{ formatJournalAmount(item.booking.totalAmount) }}</small></div>
+            </q-expansion-item>
+          </q-list>
         </q-card-section>
-        <q-card-actions class="cancel-actions"><q-btn flat no-caps label="先不要" @click="journalDialog=false" /><q-btn unelevated no-caps class="cancel-confirm journal-submit-button" label="完成日誌" :loading="journalSubmitting" @click.stop="submitJournal" /></q-card-actions>
+        <q-card-actions v-if="!journalLoading && !journalError && !journalSaved && journalTab === 'pending' && journalBookingOptions.length" class="cancel-actions"><q-btn flat no-caps label="先不要" @click="requestCloseJournal" /><q-btn unelevated no-caps class="cancel-confirm journal-submit-button" label="完成日誌" :loading="journalSubmitting" :disable="!canSubmitJournal" @click.stop="submitJournal" /></q-card-actions>
       </q-card>
     </q-dialog>
 
@@ -638,7 +670,7 @@
 
 <script setup lang="ts">
 import BoringAvatar from '@/components/BoringAvatar.vue'
-import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue';
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import {
@@ -681,6 +713,7 @@ import { taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import { useGeolocation } from '@/composables/useGeolocation';
+import { gsap } from '@/composables/useGsap';
 
 const authStore = useAuthStore();
 const liveSync = useLiveSyncStore();
@@ -730,9 +763,14 @@ const completionDialog = ref(false);
 const completionBooking = ref<Booking | null>(null);
 const completionSubmitting = ref(false);
 const journalDialog = ref(false);
+const journalCard = ref<{ $el:HTMLElement } | null>(null);
+const journalTab = ref<'pending'|'history'>('pending');
+const journalLoading = ref(false);
+const journalError = ref('');
+const journalSaved = ref(false);
 const journalBookingId = ref<string | null>(null);
 const journalContent = ref('');
-const journalStatus = ref('');
+const journalTags = ref<string[]>([]);
 const journalPhotos = ref<File[] | null>(null);
 const journalRating = ref(0);
 const journalSubmitting = ref(false);
@@ -760,6 +798,7 @@ const changeSlotOptions = ['09:00–11:00','11:00–13:00','13:00–15:00','15:0
 const selectedFeature = ref('');
 const recipients = ref<CareRecipient[]>([]);
 const bookings = ref<Booking[]>([]);
+const journalContexts = ref<JournalContext[]>([]);
 const notifications = ref<NotificationItem[]>([]);
 const selectedRecipient = ref<CareRecipient | null>(null);
 const overviewRecipientId = ref<string | null>(null);
@@ -808,7 +847,9 @@ interface CareRecipient {
   address?: { text?: string };
   emergencyContact?: { name?: string; phone?: string; relationship?: string };
 }
-interface Booking { _id:string; bookingNumber?:string; scheduledStartAt:string; scheduledEndAt?:string; status:string; attendanceStatus?:string; createdAt?:string; acceptedAt?:string; departedAt?:string; arrivedAt?:string; serviceStartedAt?:string; completionRequestedAt?:string; completedAt?:string; cancelledAt?:string; serviceAddress?:{ text?:string }; recipientId?:{ _id?:string; name?:string }; caregiverId?:{ _id?:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ _id?:string; name?:string } }; serviceTypeIds?:Array<{ _id?:string; name:string }> }
+interface Booking { _id:string; bookingNumber?:string; scheduledStartAt:string; scheduledEndAt?:string; status:string; attendanceStatus?:string; totalAmount?:number; createdAt?:string; acceptedAt?:string; departedAt?:string; arrivedAt?:string; serviceStartedAt?:string; completionRequestedAt?:string; completedAt?:string; cancelledAt?:string; serviceAddress?:{ text?:string }; recipientId?:{ _id?:string; name?:string }; caregiverId?:{ _id?:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ _id?:string; name?:string } }; serviceTypeIds?:Array<{ _id?:string; name:string }> }
+interface JournalReview { _id:string; rating:number; journalContent?:string; journalPhotoUrls?:string[]; careTags?:string[]; journalCreatedAt?:string }
+interface JournalContext { booking:Booking; review:JournalReview|null; serviceRecord:{ completedItems?:string[]; startedAt?:string; completedAt?:string }|null }
 interface NotificationItem { _id:string; bookingId?:string; type:'BOOKING'|'SAFETY'|'SYSTEM'; title:string; message:string; status:'SENT'|'FAILED'|'READ'; createdAt:string }
 interface ComboSlot { _id:string; date:string; startTime:string; endTime:string }
 interface ComboCaregiver { _id:string; profilePhotoUrl?:string; ratingAverage?:number; ratingCount?:number; userId?:{ name?:string } }
@@ -833,8 +874,17 @@ const manageableBookings = computed(() => bookings.value
   .sort((a, b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt)));
 const selectedCancelBooking = computed(() => bookings.value.find((item) => item._id === cancelBookingId.value) || null);
 const canRescheduleSelected = computed(() => ['PENDING','ACCEPTED'].includes(selectedCancelBooking.value?.status || ''));
-const journalBookingOptions = computed(() => bookings.value.filter((item) => item.status === 'COMPLETED').map((item) => ({ label:`${formatBookingDate(item.scheduledStartAt)}・${bookingCaregiverName(item)}`, value:item._id })));
-const selectedJournalBooking = computed(() => bookings.value.find((item) => item._id === journalBookingId.value) || null);
+const journalBookingOptions = computed(() => journalContexts.value.filter((item) => !item.review?.journalCreatedAt).map((item) => ({
+  label: `${formatJournalDay(item.booking.scheduledStartAt)} ${serviceNames(item.booking)}`,
+  caption: `${item.booking.recipientId?.name || '申請人本人'}・${bookingCaregiverName(item.booking)}`,
+  time: formatBookingRange(item.booking),
+  value: item.booking._id,
+})));
+const journalHistory = computed(() => journalContexts.value.filter((item) => item.review?.journalCreatedAt));
+const selectedJournalContext = computed(() => journalContexts.value.find((item) => item.booking._id === journalBookingId.value) || null);
+const selectedJournalBooking = computed(() => selectedJournalContext.value?.booking || null);
+const canSubmitJournal = computed(() => Boolean(journalBookingId.value && journalContent.value.trim() && journalRating.value >= 1 && journalRating.value <= 5 && !journalSubmitting.value));
+const journalDirty = computed(() => Boolean(journalContent.value.trim() || journalTags.value.length || journalPhotos.value?.length || journalRating.value));
 
 const features: MemberFeature[] = [
   {
@@ -969,6 +1019,9 @@ async function loadNotifications() {
   try { notifications.value = (await api.get<NotificationItem[]>('/notifications')).data; } catch { notifications.value = []; }
 }
 function formatBookingDate(value:string) { return taipeiDateTime(value,{month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}); }
+function formatJournalDay(value:string) { return taipeiDateTime(value,{month:'numeric',day:'numeric'}); }
+function formatJournalTime(value:string) { return taipeiDateTime(value,{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function formatJournalAmount(value:number|undefined) { return value == null ? '未提供成交金額' : new Intl.NumberFormat('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0}).format(value); }
 function bookingStatusLabel(value:string) { return ({PENDING:'待居服員確認',ACCEPTED:'確認任務',DEPARTED:'路途中',ARRIVED:'已抵達',WAITING_DECISION:'等待安全確認',IN_SERVICE:'服務中',AWAITING_USER_CONFIRMATION:'等待您確認完成',COMPLETED:'已完成任務',CANCELLED:'取消任務',ABANDONED:'已棄單',LATE:'遲到',OVERDUE:'逾期中'} as Record<string,string>)[value] || value; }
 function bookingDisplayStatus(booking:Booking) { return ['LATE','OVERDUE'].includes(booking.attendanceStatus || '') ? booking.attendanceStatus! : booking.status; }
 function bookingCaregiverName(booking:Booking) { return booking.caregiverId?.userId?.name || '照安心居服員'; }
@@ -1188,12 +1241,7 @@ function handleFeatureItem(name: string) {
     return;
   }
   if (name === '歷史照護日誌') {
-    journalBookingId.value = journalBookingOptions.value[0]?.value || null;
-    journalContent.value = '';
-    journalStatus.value = '';
-    journalPhotos.value = null;
-    journalRating.value = 0;
-    journalDialog.value = true;
+    void openJournal();
     return;
   }
   if (name === '服務滿意度評價') { void openRatingSummary(); return; }
@@ -1259,10 +1307,75 @@ async function openRatingSummary() {
   } finally { ratingLoading.value = false; }
 }
 
+function resetJournalForm() {
+  journalContent.value = '';
+  journalTags.value = [];
+  journalPhotos.value = null;
+  journalRating.value = selectedJournalContext.value?.review?.rating || 0;
+}
+
+async function loadJournalData() {
+  journalLoading.value = true;
+  journalError.value = '';
+  try {
+    journalContexts.value = (await api.get<{ items:JournalContext[] }>('/feedback/journals')).data.items;
+    journalBookingId.value = journalBookingOptions.value[0]?.value || null;
+    resetJournalForm();
+  } catch (error:any) {
+    journalError.value = error?.response?.data?.message || '請稍後再試，已輸入的內容不會被清除。';
+  } finally { journalLoading.value = false; }
+}
+
+async function animateJournalOpen() {
+  await nextTick();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const root = journalCard.value?.$el;
+  if (!root) return;
+  gsap.from(root.querySelector('.journal-heading'), { opacity:0, y:-8, duration:.3, ease:'power2.out' });
+  gsap.from(root.querySelectorAll('.journal-tabs, .journal-body > *'), { opacity:0, y:10, duration:.35, stagger:.05, ease:'power2.out' });
+}
+
+async function openJournal() {
+  journalTab.value = 'pending';
+  journalSaved.value = false;
+  journalDialog.value = true;
+  await Promise.all([loadJournalData(), animateJournalOpen()]);
+}
+
+function requestCloseJournal() {
+  if (!journalDirty.value || journalSaved.value) { journalDialog.value = false; return; }
+  $q.dialog({ title:'尚未完成日誌', message:'現在離開，這次輸入的內容不會保存。', cancel:{ label:'繼續編輯', flat:true }, ok:{ label:'離開' }, persistent:true })
+    .onOk(() => { journalDialog.value = false; });
+}
+
+function showJournalHistory() {
+  journalSaved.value = false;
+  journalTab.value = 'history';
+}
+
+function journalFilesRejected() {
+  $q.notify({ type:'warning', message:'照片需為 JPG、PNG 或 WebP，最多 5 張且單張不超過 5 MB' });
+}
+
+function setJournalRating(score:number, event:Event) {
+  journalRating.value = score;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  gsap.fromTo(event.currentTarget, { scale:.9 }, { scale:1, duration:.22, ease:'back.out(2)' });
+}
+
+watch(journalBookingId, async (bookingId, previousId) => {
+  if (!bookingId || bookingId === previousId) return;
+  resetJournalForm();
+  await nextTick();
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const serviceCard = journalCard.value?.$el.querySelector('.journal-service-card');
+    if (serviceCard) gsap.from(serviceCard, { opacity:0, y:8, duration:.25, ease:'power2.out' });
+  }
+});
+
 async function createJournal(complaintReason = '') {
   const booking = selectedJournalBooking.value;
-  const targetUserId = booking?.caregiverId?.userId?._id;
-  if (!booking || !targetUserId || !journalContent.value.trim() || !journalRating.value) {
+  if (!booking || !canSubmitJournal.value) {
     $q.notify({ type:'warning', message:'請選擇已完成服務，並填寫日誌與星級評價' });
     return;
   }
@@ -1270,16 +1383,19 @@ async function createJournal(complaintReason = '') {
   try {
     const body = new FormData();
     body.append('bookingId', booking._id);
-    body.append('targetUserId', targetUserId);
     body.append('rating', String(journalRating.value));
-    body.append('comment', journalContent.value.trim());
-    body.append('careTags', JSON.stringify(journalStatus.value ? [journalStatus.value] : []));
+    body.append('content', journalContent.value.trim());
+    body.append('careTags', JSON.stringify(journalTags.value));
     (journalPhotos.value || []).forEach((file) => body.append('photos', file));
-    await api.post('/feedback/reviews', body);
-    if (complaintReason) await api.post('/feedback/complaints', { bookingId:booking._id, targetUserId, category:'SERVICE_QUALITY', description:complaintReason, priority:'HIGH' });
+    await api.post('/feedback/journals', body);
+    const targetUserId = booking.caregiverId?.userId?._id;
+    if (complaintReason && targetUserId) await api.post('/feedback/complaints', { bookingId:booking._id, targetUserId, category:'SERVICE_QUALITY', description:complaintReason, priority:'HIGH' });
     liveSync.notifyChanged();
-    journalDialog.value = false;
-    $q.notify({ type:'positive', message:complaintReason ? '照護日誌與品質通報已送達' : '照護日誌已安心保存' });
+    await loadJournalData();
+    journalSaved.value = true;
+    await nextTick();
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) gsap.from('.journal-success > *', { opacity:0, y:10, scale:.96, duration:.32, stagger:.06, ease:'power2.out' });
+    if (complaintReason) $q.notify({ type:'positive', message:'照護日誌與品質通報已送達' });
   } catch (error:any) {
     $q.notify({ type:'negative', message:error?.response?.data?.message || '日誌送出失敗，請稍後再試' });
   } finally { journalSubmitting.value = false; }
@@ -1362,8 +1478,10 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 .rating-summary p{margin:4px 0 0;font-size:1.1rem;font-weight:800}
 .rating-summary small{max-width:390px;color:#806a62;line-height:1.65}
 .journal-status{display:grid;gap:10px;padding:14px 16px;background:#fff7f2;border-radius:15px}.journal-status>span{color:#8a7067;font-size:.85rem}.journal-status :deep(.q-option-group){display:flex;flex-wrap:wrap;gap:8px 16px}.journal-status :deep(.q-radio){min-height:44px;margin:0}.journal-submit-button{min-width:170px;font-weight:800;box-shadow:0 10px 22px rgb(197 84 24 / 18%)}
+.journal-heading{flex:none;padding-bottom:16px}.journal-heading p{margin:5px 0 0;color:#806a62}.journal-tabs{flex:none;padding:0 22px}.journal-tabs :deep(.q-tab){min-height:50px;padding:0 18px;font-weight:800}.journal-loading{display:grid;gap:14px}.journal-state{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:30px;text-align:center;color:#476657;background:#f1f7f3;border-radius:20px}.journal-state h3{margin:5px 0 0;color:var(--ink);font-size:1.25rem}.journal-state p{max-width:430px;margin:0;color:#6e756f;line-height:1.7}.journal-state :deep(.q-btn){min-height:44px;margin-top:8px;padding:0 18px;color:#fff;background:#b84f16;border-radius:13px}.journal-state--error{color:#9b4d3a;background:#fff1ed}.journal-success{color:#3f755e;background:#edf7f1}.journal-success>svg{padding:10px;background:#dcefe4;border-radius:18px}.journal-section{display:grid;gap:15px;padding:20px;background:#fff;border:1px solid #eadfd9;border-radius:20px;box-shadow:0 8px 24px rgb(78 52 43 / 5%)}.journal-section__title{display:flex;align-items:center;gap:12px}.journal-section__title>span{flex:0 0 36px;width:36px;height:36px;display:grid;place-items:center;color:#97431e;background:#ffe9de;border-radius:12px;font-weight:900}.journal-section__title small{color:#9b4b28;font-weight:800}.journal-section__title h3{margin:2px 0 0;font-size:1.08rem}.journal-service-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.journal-service-groups>div{padding:14px;background:#fff7f2;border-radius:15px}.journal-service-groups>div>div{display:flex;flex-wrap:wrap;margin-top:7px}.journal-service-groups :deep(.q-chip){color:#644d44;background:#f0e3dc}.journal-fee{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;color:#6d5147;background:#f7ede6;border-radius:16px}.journal-fee>div{display:grid;gap:3px}.journal-fee strong{font-size:1.35rem}.journal-fee small{max-width:330px;color:#806a62;line-height:1.5}.journal-form-section :deep(.q-field__control){background:#fffdfb}.journal-status{display:flex!important;flex-wrap:wrap;gap:8px 16px;padding:0;background:transparent}.journal-status :deep(.q-checkbox){min-height:44px;margin:0}.journal-rating{min-height:72px}.journal-rating>strong{color:#785f56}.journal-stars button{transition:transform .18s ease,background-color .18s ease}.journal-stars button:hover{transform:scale(1.08);background:#ffede3}.journal-stars button[aria-checked=true]{color:#c45218}.journal-history-list{overflow:hidden;border:1px solid #eadfd9;border-radius:19px}.journal-history-list :deep(.q-item){min-height:144px;padding:18px}.journal-history-title{font-size:1.08rem;font-weight:900}.journal-history-stars{display:flex;gap:3px;margin:7px 0 4px;color:#d86522}.journal-history-detail{display:grid;gap:12px;padding:6px 24px 22px;color:#644f47}.journal-history-detail>p{margin:0;white-space:pre-wrap;line-height:1.75}.journal-history-detail>div{display:flex;flex-wrap:wrap}.journal-photo-grid{display:grid!important;grid-template-columns:repeat(3,1fr);gap:8px}.journal-photo-grid :deep(.q-img){overflow:hidden;border-radius:13px}
 .rating-detail-list{width:100%;display:grid;gap:10px;margin-top:18px;text-align:left}.rating-detail-card{padding:15px 16px;background:#fff6f1;border:1px solid #eddfd8;border-radius:16px}.rating-detail-card__heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.rating-detail-card__heading>span{color:#b34d20;font-size:.82rem;font-weight:800}.rating-detail-card__heading>div{display:flex;color:#d96b27}.rating-detail-card>strong{display:block;margin-top:7px;color:var(--ink);font-size:1rem}.rating-detail-card>p{margin:5px 0 0;color:#6e5750;line-height:1.6}.rating-empty{width:100%;margin-top:16px;padding:14px;color:#806a62;background:#fff6f1;border-radius:14px}
-@media(max-width:700px){.journal-dialog>.cancel-actions{padding:12px 18px 18px}.journal-dialog>.cancel-actions :deep(.q-btn){flex:1}}
+@media(max-width:700px){.journal-dialog>.cancel-actions{padding:12px 18px 18px}.journal-dialog>.cancel-actions :deep(.q-btn){flex:1}.journal-tabs{padding:0 8px}.journal-tabs :deep(.q-tab){padding:0 10px}.journal-section{padding:16px 14px}.journal-service-groups{grid-template-columns:1fr}.journal-fee{align-items:flex-start;flex-direction:column}.journal-photo-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:420px){.journal-dialog{width:100vw;max-width:100vw!important;max-height:100dvh;border-radius:0}.journal-body{padding-left:12px;padding-right:12px}.journal-dialog>.cancel-actions{padding-left:12px;padding-right:12px}.journal-section__title>span{flex-basis:32px;width:32px;height:32px}.journal-rating{align-items:center}.journal-stars{width:100%;justify-content:space-between}.journal-stars button{min-width:44px}.journal-rating>strong{align-self:flex-start}}
 .care-combo-dialog{width:min(920px,calc(100vw - 32px));max-width:min(920px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.care-combo-heading p{margin:6px 0 0;color:#806a62}.care-combo-loading,.care-combo-body{display:grid;gap:16px;padding:6px 32px 24px}.care-combo-loading>*{border-radius:20px}.care-combo-card{padding:20px;background:#fff;border:1px solid #eadbd3;border-radius:22px;box-shadow:0 10px 28px rgb(78 52 43 / 7%)}.care-combo-profile{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px}.care-combo-avatar{color:#9b4b29;background:#fff0e9}.care-combo-profile>div{display:grid;gap:4px}.care-combo-profile strong{font-size:1.25rem}.care-combo-profile>.q-badge{padding:7px 11px;color:#35604f;background:#e6f2ec;font-weight:800}.care-combo-rating{display:flex;align-items:center;gap:5px;color:#c35a1d;font-weight:800}.care-combo-rating small{color:#806a62;font-weight:500}.care-combo-facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.care-combo-facts>div{display:grid;gap:4px;padding:13px 15px;background:#fff6f1;border-radius:14px}.care-combo-facts span,.care-combo-services>span,.care-combo-slots__title>span{color:#806a62;font-size:.85rem}.care-combo-services{margin-top:15px}.care-combo-services>div{display:flex;flex-wrap:wrap;margin-top:5px}.care-combo-services :deep(.q-chip){color:#664d44;background:#f3e7e1}.care-combo-slots{margin-top:14px;padding:15px;background:#f0f6f3;border-radius:17px}.care-combo-slots__title{display:flex;align-items:center;justify-content:space-between}.care-combo-slots__title :deep(.q-btn){min-height:44px;color:#416b59}.care-combo-slot-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.care-combo-slot-list button{min-height:48px;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px;color:#4f665d;background:#fff;border:1px solid #cbded4;border-radius:12px;cursor:pointer}.care-combo-slot-list button.selected{color:#fff;background:#4f7264;border-color:#4f7264}.care-combo-slots>p{margin:8px 0 0;color:#725c54}.care-combo-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:17px;padding-top:16px;border-top:1px solid #eee1da}.care-combo-actions :deep(.q-btn){min-height:44px;padding:0 15px;border-radius:12px}.care-combo-actions :deep(.q-btn:last-child){color:#fff;background:#c55418}.care-combo-actions :deep(.q-btn--disabled){background:#ddd2cd}
 @media(max-width:700px){.care-combo-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;border-radius:22px}.care-combo-body,.care-combo-loading{padding:4px 14px 18px}.care-combo-card{padding:16px}.care-combo-profile{grid-template-columns:auto 1fr}.care-combo-profile>.q-badge{grid-column:2;width:max-content}.care-combo-facts{grid-template-columns:1fr}.care-combo-slot-list{grid-template-columns:1fr 1fr}.care-combo-actions{display:grid;grid-template-columns:1fr 1fr}.care-combo-actions :deep(.q-btn:last-child){grid-column:1/-1}}
 @media(max-width:420px){.care-combo-slot-list,.care-combo-actions{grid-template-columns:1fr}.care-combo-actions :deep(.q-btn:last-child){grid-column:auto}.care-combo-heading p{display:none}}

@@ -3,9 +3,9 @@ import { Types } from 'mongoose'
 import { authenticate, authorize } from '../middlewares/auth'
 import type { AuthRequest } from '../types/auth'
 import { asyncHandler } from '../utils/http'
-import { Booking, CaregiverProfile, CareRecipient, EmergencyAlert, Review, User } from '../models'
+import { Booking, CaregiverProfile, CareRecipient, EmergencyAlert, Review, ServiceRecord, User } from '../models'
 import { Complaint } from '../models/complaint'
-import { upload } from '../middlewares/upload'
+import { journalUpload, upload, validateJournalImages } from '../middlewares/upload'
 import { recordAudit } from '../utils/audit'
 import { QualityAlert } from '../models/quality-alert'
 
@@ -64,6 +64,140 @@ async function updateNurseRating(targetUserId: string): Promise<void> {
     }
   }
 }
+
+async function journalBooking(request: AuthRequest, bookingId: string) {
+  const booking = await Booking.findById(bookingId)
+    .populate('recipientId')
+    .populate({ path: 'caregiverId', populate: { path: 'userId', select: 'name' } })
+    .populate('serviceTypeIds')
+  if (!booking) throw Object.assign(new Error('找不到預約'), { statusCode: 404 })
+  if (booking.get('requesterUserId').toString() !== request.auth?.userId) {
+    throw Object.assign(new Error('不能替別人的預約建立照護日誌'), { statusCode: 403 })
+  }
+  if (
+    booking.get('status') !== 'COMPLETED' ||
+    booking.get('attendanceStatus') !== 'COMPLETED' ||
+    !booking.get('completedAt') ||
+    !booking.get('caregiverId')
+  ) {
+    throw Object.assign(new Error('服務完成並由雙方確認後，才能建立照護日誌'), { statusCode: 409 })
+  }
+  return booking
+}
+
+function journalInput(request: AuthRequest) {
+  const content = String(request.body.content || '').trim()
+  const rating = Number(request.body.rating)
+  if (!content || content.length > 1000) {
+    throw Object.assign(new Error('請填寫 1 至 1000 字的照護紀錄'), { statusCode: 400 })
+  }
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw Object.assign(new Error('請留下 1 至 5 星的服務滿意度'), { statusCode: 400 })
+  }
+  let careTags: string[] = []
+  try {
+    const parsed = request.body.careTags ? JSON.parse(request.body.careTags) : []
+    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) throw new Error()
+    careTags = [...new Set(parsed.map((item) => item.trim()).filter(Boolean))].slice(0, 8)
+  } catch {
+    throw Object.assign(new Error('照護狀況格式不正確'), { statusCode: 400 })
+  }
+  return { content, rating, careTags }
+}
+
+// GET /feedback/journals：只整理目前 USER 自己已正式完成的服務與同一筆既有 Rating。
+feedbackRoutes.get(
+  '/journals',
+  authorize('USER'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const bookings = await Booking.find({
+      requesterUserId: request.auth!.userId,
+      status: 'COMPLETED',
+      attendanceStatus: 'COMPLETED',
+      completedAt: { $exists: true },
+      caregiverId: { $exists: true },
+      hidden: { $ne: true },
+    })
+      .populate('recipientId')
+      .populate({ path: 'caregiverId', populate: { path: 'userId', select: 'name' } })
+      .populate('serviceTypeIds')
+      .sort({ completedAt: -1 })
+    const bookingIds = bookings.map((booking) => booking._id)
+    const [reviews, records] = await Promise.all([
+      Review.find({ bookingId: { $in: bookingIds }, reviewerUserId: request.auth!.userId, targetRole: 'NURSE', hidden: { $ne: true } })
+        .select('bookingId rating journalContent journalPhotoUrls careTags journalCreatedAt createdAt updatedAt'),
+      ServiceRecord.find({ bookingId: { $in: bookingIds } }),
+    ])
+    const reviewByBooking = new Map(reviews.map((review) => [review.get('bookingId').toString(), review]))
+    const recordByBooking = new Map(records.map((record) => [record.get('bookingId').toString(), record]))
+    response.json({
+      items: bookings.map((booking) => ({
+        booking,
+        review: reviewByBooking.get(booking.id) || null,
+        serviceRecord: recordByBooking.get(booking.id) || null,
+      })),
+    })
+  }),
+)
+
+// POST /feedback/journals：以既有 Review 作唯一資料源；若已先評分，就補上私密日誌欄位。
+feedbackRoutes.post(
+  '/journals',
+  authorize('USER'),
+  journalUpload.array('photos', 5),
+  validateJournalImages,
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const booking = await journalBooking(request, String(request.body.bookingId || ''))
+    const { content, rating, careTags } = journalInput(request)
+    const targetUserId = booking.get('caregiverId')?.get('userId')?._id
+    if (!targetUserId) throw Object.assign(new Error('此預約沒有有效的執行居服員'), { statusCode: 409 })
+    const existing = await Review.findOne({ bookingId: booking._id, reviewerUserId: request.auth!.userId, targetUserId })
+    const files = request.files as Express.Multer.File[] | undefined
+    const review = await Review.findOneAndUpdate(
+      { bookingId: booking._id, reviewerUserId: request.auth!.userId, targetUserId },
+      {
+        $set: {
+          rating,
+          journalContent: content,
+          careTags,
+          journalPhotoUrls: files?.map((file) => `/uploads/${file.filename}`) || existing?.get('journalPhotoUrls') || [],
+          journalCreatedAt: existing?.get('journalCreatedAt') || new Date(),
+        },
+        $setOnInsert: { targetRole: 'NURSE', visible: true },
+      },
+      { upsert: true, new: true, runValidators: true },
+    )
+    await updateNurseRating(targetUserId.toString())
+    response.status(existing ? 200 : 201).json(review)
+  }),
+)
+
+// PATCH 仍重新驗證 Booking 狀態與歸屬，避免繞過 POST 的商業規則。
+feedbackRoutes.patch(
+  '/journals/:id',
+  authorize('USER'),
+  journalUpload.array('photos', 5),
+  validateJournalImages,
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const existing = await Review.findOne({ _id: request.params.id, reviewerUserId: request.auth!.userId, journalCreatedAt: { $exists: true } })
+    if (!existing) throw Object.assign(new Error('找不到照護日誌'), { statusCode: 404 })
+    await journalBooking(request, existing.get('bookingId').toString())
+    const { content, rating, careTags } = journalInput(request)
+    const files = request.files as Express.Multer.File[] | undefined
+    existing.set({
+      rating,
+      journalContent: content,
+      careTags,
+      ...(files?.length ? { journalPhotoUrls: files.map((file) => `/uploads/${file.filename}`) } : {}),
+    })
+    await existing.save()
+    await updateNurseRating(existing.get('targetUserId').toString())
+    response.json(existing)
+  }),
+)
 
 // POST /feedback/reviews：只有已完成案件的實際參與者可以互相評價。
 feedbackRoutes.post(
@@ -140,6 +274,7 @@ feedbackRoutes.get(
       : { visible: true, hidden: { $ne: true } }
     response.json(
       await Review.find(filter)
+        .select('-journalContent -journalPhotoUrls -careTags -photoUrls')
         .populate('reviewerUserId', 'name role')
         .populate('targetUserId', 'name role')
         .sort({ createdAt: -1 }),

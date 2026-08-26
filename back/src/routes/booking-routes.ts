@@ -175,7 +175,9 @@ bookingRoutes.post(
         bookingNumber: `BK${Date.now()}`, serviceRequestId: serviceRequest._id,
         requesterUserId: request.auth?.userId, recipientId: recipientId || undefined,
         caregiverId, serviceTypeIds, scheduledStartAt, scheduledEndAt,
-        serviceAddress, status: 'PENDING',
+        serviceAddress,
+        totalAmount: types.reduce((sum, service) => sum + Number(service.get('basePrice') || 0), 0),
+        status: 'PENDING',
       })
       await publishBookingChange(booking.id)
       response.status(201).json(booking)

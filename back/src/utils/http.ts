@@ -65,9 +65,9 @@ export function errorHandler(
   if (error instanceof MulterError) {
     const message =
       error.code === 'LIMIT_FILE_SIZE'
-        ? '上傳檔案不可超過 8 MB。'
-        : error.code === 'LIMIT_FILE_COUNT'
-          ? '單次最多上傳 6 個檔案。'
+        ? '上傳檔案超過大小限制。'
+      : error.code === 'LIMIT_FILE_COUNT'
+          ? '上傳檔案數量超過限制。'
           : '檔案上傳失敗，請檢查檔案數量與格式。'
     response.status(400).json({ message })
     return

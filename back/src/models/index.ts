@@ -216,6 +216,8 @@ const bookingSchema = new Schema(
     scheduledStartAt: { type: Date, required: true },
     scheduledEndAt: Date,
     serviceAddress: { text: String, latitude: Number, longitude: Number },
+    // 成交當下的服務總額快照；歷史畫面不可用日後調整的型錄價格重算。
+    totalAmount: { type: Number, min: 0 },
     estimatedDistanceKm: Number,
     estimatedDurationMin: Number,
     estimatedArrivalAt: Date,
@@ -310,6 +312,10 @@ const reviewSchema = new Schema(
     comment: String,
     photoUrls: [{ type: String }],
     careTags: [{ type: String }],
+    // 私密照護紀錄沿用同一筆 Review 的 booking/rating 關聯，不進公開評論內容。
+    journalContent: { type: String, trim: true, maxlength: 1000 },
+    journalPhotoUrls: [{ type: String }],
+    journalCreatedAt: Date,
     visible: { type: Boolean, default: true },
     adminDecision: String,
     hidden: { type: Boolean, default: false },
