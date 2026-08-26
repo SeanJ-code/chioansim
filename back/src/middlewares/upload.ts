@@ -51,7 +51,11 @@ export const journalUpload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024, files: 5 },
   fileFilter: (_request, file, callback) => {
-    callback(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype))
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      callback(new Error('只允許上傳 JPG、PNG 或 WebP 服務照片。'))
+      return
+    }
+    callback(null, true)
   },
 })
 

@@ -1,566 +1,64 @@
 <template>
-  <q-page class="home-page">
-    <main>
-      <section ref="heroShell" class="hero-shell" aria-label="照安心重點服務">
-        <q-carousel
-          v-model="heroSlide"
-          animated
-          infinite
-          swipeable
-          :autoplay="reduceMotion ? false : 7000"
-          transition-prev="fade"
-          transition-next="fade"
-          class="hero-carousel"
-        >
-          <q-carousel-slide
-            v-for="slide in heroSlides"
-            :key="slide.name"
-            :name="slide.name"
-            :img-src="slide.image"
-            class="hero-slide"
-          >
-            <div class="hero-overlay" aria-hidden="true"></div>
-            <div class="hero-content">
-              <span class="hero-kicker" data-hero-item><MapPinned :size="20" /> 居家照護服務平台</span>
-              <h1 data-hero-item>{{ slide.title }}</h1>
-              <p data-hero-item>{{ slide.description }}</p>
-              <router-link class="primary-action" :to="slide.to" data-hero-item>
-                {{ slide.action }} <ArrowRight :size="22" />
-              </router-link>
-            </div>
-          </q-carousel-slide>
-        </q-carousel>
-        <button class="hero-arrow hero-arrow--previous" type="button" aria-label="上一張重點服務" @click="changeHero(-1)">
-          <ChevronLeft :size="28" />
-        </button>
-        <button class="hero-arrow hero-arrow--next" type="button" aria-label="下一張重點服務" @click="changeHero(1)">
-          <ChevronRight :size="28" />
-        </button>
-        <div class="hero-dots" aria-label="選擇重點服務">
-          <button
-            v-for="slide in heroSlides"
-            :key="`${slide.name}-dot`"
-            type="button"
-            :class="{ active: heroSlide === slide.name }"
-            :aria-label="`顯示${slide.title}`"
-            :aria-current="heroSlide === slide.name ? 'true' : undefined"
-            @click="heroSlide = slide.name"
-          ></button>
-        </div>
-      </section>
+  <q-page class="home-page"><main>
+    <section ref="heroShell" class="hero" aria-labelledby="hero-title">
+      <div class="hero__copy" data-hero-copy>
+        <span class="kicker"><HeartHandshake :size="20" /> 照安心的照護理念</span>
+        <h1 id="hero-title">照顧，有人陪伴<br><em>家人，才能放心一點</em></h1>
+        <p>從尋找居服員、預約到服務完成，<br>每一步都替您整理好。</p>
+        <div class="hero__actions"><router-link class="primary" to="/caregivers">尋找居服員 <ArrowRight :size="21" /></router-link><button class="secondary" @click="scrollToSection('journey')">了解服務</button></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <span class="sun"></span><svg viewBox="0 0 620 500"><path d="M27 376C116 337 165 369 235 327C302 287 306 208 389 176C455 151 532 177 594 124" /></svg>
+        <div class="hand elder"><span class="sleeve"></span><span class="palm"></span><i v-for="n in 4" :key="`e${n}`" :class="`f f${n}`"></i></div>
+        <div class="hand caregiver"><span class="sleeve"></span><span class="palm"></span><i v-for="n in 4" :key="`c${n}`" :class="`f f${n}`"></i></div>
+        <small>伸出手，讓每一步都有依靠</small>
+      </div>
+    </section>
 
-      <section class="philosophy-section editorial-section" aria-labelledby="philosophy-title" data-reveal>
-        <span class="section-kicker">照安心的照護理念</span>
-        <h2 id="philosophy-title">照護，不只是完成一件事情</h2>
-        <p>每一段照護關係，都從理解開始。聽見長輩真正的需要、尊重生活習慣與選擇，再找到適合的支持方式，才能讓服務融入日常，而不是增加彼此壓力。</p>
-        <p>照安心希望讓家屬、受照顧者與居服員，都能在更清楚的資訊與溝通中建立信任。</p>
-      </section>
+    <section class="philosophy section" aria-labelledby="philosophy-title" data-reveal><span class="kicker">照安心的照護理念</span><h2 id="philosophy-title">照護，不只是完成一件事情</h2><p>每一段照護關係，都從理解開始。聽見長輩真正的需要、尊重生活習慣與選擇，再找到適合的支持方式，才能讓服務融入日常，而不是增加彼此壓力。</p><p>照安心希望讓家屬、受照顧者與居服員，都能在更清楚的資訊與溝通中建立信任。</p><svg viewBox="0 0 500 70" aria-hidden="true"><path d="M5 42c88-33 136 16 218-5 65-17 125-50 272-15" /></svg></section>
 
-      <section class="quick-section" aria-labelledby="quick-title" data-reveal>
-        <div class="section-heading compact-heading">
-          <div>
-            <span class="section-kicker">常用服務</span>
-            <h2 id="quick-title">今天需要什麼幫忙？</h2>
-          </div>
-          <p>選一張卡片，就能開始。</p>
-        </div>
+    <section class="quick section" aria-labelledby="quick-title" data-reveal><header><div><span class="kicker">常用服務</span><h2 id="quick-title">今天需要什麼幫忙？</h2></div><p>選一個入口，就能開始。</p></header><div class="quick-grid" data-stagger><template v-for="(item,index) in quickActions" :key="item.title"><button v-if="item.scrollTo" class="quick-card" @click="scrollToSection(item.scrollTo)"><span class="num">0{{ index+1 }}</span><component :is="item.icon" :size="32"/><span><strong>{{ item.title }}</strong><small>{{ item.description }}</small></span><ChevronRight/></button><router-link v-else :to="item.to!" class="quick-card"><span class="num">0{{ index+1 }}</span><component :is="item.icon" :size="32"/><span><strong>{{ item.title }}</strong><small>{{ item.description }}</small></span><ChevronRight/></router-link></template></div></section>
 
-<div class="quick-grid" data-stagger>
-  <template v-for="item in quickActions" :key="item.title">
+    <section id="journey" class="journey section" aria-labelledby="journey-title"><header data-reveal><span class="kicker">從伸出手，到安心完成</span><h2 id="journey-title">照護安排，<br>一步一步接得住</h2><p>往下滑，看看照安心如何陪您走完每一段流程。</p></header><ol><li v-for="(step,index) in steps" :key="step.number" class="journey-card"><div><b>{{ step.number }}</b><h3>{{ step.title }}</h3><p>{{ step.description }}</p></div><div class="journey-art" aria-hidden="true"><span :class="{ sage:index%2 }"></span><component :is="step.icon" :size="78" :stroke-width="1.35"/></div></li></ol></section>
 
-    <!-- 頁面內捲動 -->
-    <button
-      v-if="item.scrollTo"
-      type="button"
-      class="quick-card"
-      @click="scrollToSection(item.scrollTo)"
-    >
-      <span class="quick-card__icon" :class="item.tone">
-        <component :is="item.icon" :size="34" />
-      </span>
+    <section class="care section" aria-labelledby="care-title" data-reveal><header><div><span class="kicker">真實安心夥伴</span><h2 id="care-title">找到適合相處，也適合照護的人</h2><p>透過服務資訊、經驗與個人介紹，找到更符合家庭需求的居服員。</p></div><router-link class="text-link" to="/caregivers">查看居服員 <ArrowRight :size="19"/></router-link></header>
+      <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員"><q-skeleton v-for="n in 4" :key="n" type="rect" class="skeleton"/></div>
+      <div v-else-if="caregiverError" class="state" role="status"><WifiOff/><div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div><button @click="loadCaregivers">重新整理</button></div>
+      <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger><router-link v-for="c in caregivers.slice(0,6)" :key="c._id" to="/caregivers" class="caregiver-card"><div class="photo"><img :src="assetUrl(c.profilePhotoUrl)" :alt="`${caregiverName(c)}的居服員近照`" loading="lazy" @error="useFallbackPhoto"><span><BadgeCheck :size="17"/> 已認證</span></div><div class="body"><h3>{{ caregiverName(c) }}</h3><p><BriefcaseBusiness :size="17"/> {{ experienceLabel(c) }}</p><p><MapPin :size="17"/> {{ areaLabel(c) }}</p><b>看看詳細介紹 <ChevronRight :size="17"/></b></div></router-link></div>
+    </section>
 
-      <span class="quick-card__copy">
-        <strong>{{ item.title }}</strong>
-        <small>{{ item.description }}</small>
-      </span>
-
-      <ChevronRight class="quick-card__arrow" :size="26" />
-    </button>
-
-    <!-- Vue Router 換頁 -->
-    <router-link
-      v-else-if="item.to"
-      :to="item.to"
-      class="quick-card"
-    >
-      <span class="quick-card__icon" :class="item.tone">
-        <component :is="item.icon" :size="34" />
-      </span>
-
-      <span class="quick-card__copy">
-        <strong>{{ item.title }}</strong>
-        <small>{{ item.description }}</small>
-      </span>
-
-      <ChevronRight class="quick-card__arrow" :size="26" />
-    </router-link>
-
-  </template>
-</div>
-      </section>
-
-      <section class="care-section editorial-section" aria-labelledby="care-title" data-reveal>
-        <span class="section-number" aria-hidden="true">01</span>
-        <div class="section-heading">
-          <div>
-            <span class="section-kicker">安心夥伴</span>
-            <h2 id="care-title">找到適合相處，也適合照護的人</h2>
-            <p>透過服務資訊、經驗與個人介紹，找到更符合家庭需求的居服員。</p>
-          </div>
-          <router-link class="text-action" to="/caregivers">查看居服員 <ArrowRight :size="19" /></router-link>
-        </div>
-
-        <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員">
-          <q-skeleton v-for="item in 4" :key="item" type="rect" class="caregiver-skeleton" />
-        </div>
-        <div v-else-if="caregiverError" class="friendly-state" role="status">
-          <WifiOff :size="28" />
-          <div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div>
-          <button type="button" @click="loadCaregivers">重新整理</button>
-        </div>
-        <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger>
-          <router-link
-            v-for="caregiver in caregivers.slice(0, 6)"
-            :key="caregiver._id"
-            to="/caregivers"
-            class="caregiver-card"
-          >
-            <div class="caregiver-card__photo">
-              <img
-                :src="assetUrl(caregiver.profilePhotoUrl)"
-                :alt="`${caregiverName(caregiver)}的居服員近照`"
-                loading="lazy"
-                @error="useFallbackPhoto"
-              >
-              <span><BadgeCheck :size="17" /> 已認證</span>
-            </div>
-            <div class="caregiver-card__body">
-              <h3>{{ caregiverName(caregiver) }}</h3>
-              <p><BriefcaseBusiness :size="17" /> {{ experienceLabel(caregiver) }}</p>
-              <p><MapPin :size="17" /> {{ areaLabel(caregiver) }}</p>
-              <span class="caregiver-card__more">看看詳細介紹 <ChevronRight :size="17" /></span>
-            </div>
-          </router-link>
-        </div>
-      </section>
-
-      <section id="subsidy" class="estimate-section editorial-section" aria-labelledby="estimate-title" data-reveal>
-        <span class="section-number section-number--light" aria-hidden="true">02</span>
-        <div class="estimate-intro">
-          <span class="section-kicker light">簡單試算</span>
-          <h2 id="estimate-title">長照費用，先一起算算看</h2>
-          <p>不用看複雜表格，只要完成四個選擇。</p>
-          <div class="estimate-note"><ShieldCheck :size="22" /> 試算結果僅供專題展示，實際補助依主管機關核定。</div>
-        </div>
-
-        <div class="estimate-card"><CareCostCalculator compact /></div>
-      </section>
-
-      <section class="steps-section editorial-section" aria-labelledby="steps-title" data-reveal>
-        <span class="section-number" aria-hidden="true">03</span>
-        <div class="section-heading centered-heading">
-          <div><span class="section-kicker">三個步驟</span><h2 id="steps-title">把照護安排，變得簡單一些</h2></div>
-        </div>
-        <ol class="steps-grid" data-stagger>
-          <li v-for="step in steps" :key="step.number">
-            <span class="step-number">{{ step.number }}</span>
-            <component :is="step.icon" :size="34" />
-            <h3>{{ step.title }}</h3>
-            <p>{{ step.description }}</p>
-          </li>
-        </ol>
-      </section>
-
-      <section class="line-banner" aria-label="LINE 專人協助" data-reveal>
-        <div class="line-banner__icon"><MessageCircleHeart :size="40" /></div>
-        <div><span>不習慣操作網站也沒關係</span><h2>LINE 專人陪您一步一步完成</h2></div>
-        <button type="button" disabled>LINE 服務準備中</button>
-      </section>
-    </main>
-  </q-page>
+    <section id="subsidy" class="estimate section" aria-labelledby="estimate-title" data-reveal><div><span class="kicker">簡單試算</span><h2 id="estimate-title">長照費用，先一起算算看</h2><p>不用看複雜表格，只要完成四個選擇。</p><aside><ShieldCheck :size="22"/> 試算結果僅供專題展示，實際補助依主管機關核定。</aside></div><div class="calculator"><CareCostCalculator compact/></div></section>
+    <section class="line-banner" aria-label="LINE 專人協助" data-reveal><MessageCircleHeart :size="42"/><div><span>不習慣操作網站也沒關係</span><h2>LINE 專人陪您一步一步完成</h2></div><button disabled>LINE 服務準備中</button></section>
+  </main></q-page>
 </template>
 
 <script setup lang="ts">
-import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import {
-  ArrowRight,
-  BadgeCheck,
-  BriefcaseBusiness,
-  Calculator,
-  CalendarHeart,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  HeartHandshake,
-  MapPin,
-  MapPinned,
-  MessageCircleHeart,
-  SearchCheck,
-  ShieldCheck,
-  Sparkles,
-  UserRoundSearch,
-  WifiOff,
-} from '@lucide/vue';
-import { api } from '@/boot/axios';
-import CareCostCalculator from '@/components/CareCostCalculator.vue';
-import { gsap } from '@/composables/useGsap';
-
-interface Caregiver {
-  _id: string;
-  userId?: { name?: string } | string;
-  profilePhotoUrl?: string;
-  yearsExperience?: number;
-  serviceAreas?: string[];
-}
-
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const heroSlide = ref('home');
-const caregivers = ref<Caregiver[]>([]);
-const caregiverLoading = ref(true);
-const caregiverError = ref(false);
-const heroShell = ref<HTMLElement>();
-let motionContext: gsap.Context | undefined;
-
-const heroSlides = [
-  { name: 'home', image: '/images/home/hualien-care-walk.png', title: '找到適合的照護，讓陪伴多一點安心。', description: '從了解需求、尋找居服員到安排服務，照安心陪你把照護需要一步一步整理清楚。', action: '尋找居服員', to: '/caregivers' },
-  { name: 'meal', image: '/images/home/warm-home-meal.png', title: '每個家庭，都有不同的照護需要', description: '從日常生活協助、陪伴到外出需求，先了解實際情況，再尋找合適的照護服務。', action: '開始預約', to: '/login' },
-  { name: 'connect', image: '/images/home/family-care-connect.png', title: '有人需要被照顧，也有人需要一個放心的方法。', description: '讓需求、服務與資訊更清楚，也讓提供服務的人更了解每一次陪伴的需要。', action: '了解照護服務', to: '/users' },
-];
-
-const quickActions = [
-  {
-    title: '線上預約服務',
-    description: '替自己或家人找幫手',
-    icon: markRaw(CalendarHeart),
-    tone: 'coral',
-    to: '/login',
-  },
-  {
-    title: '長照補助算算看',
-    description: '四個選擇，簡單了解',
-    icon: markRaw(Calculator),
-    tone: 'sage',
-    scrollTo: 'subsidy',
-  },
-  {
-    title: '查看居服員',
-    description: '認識已通過審核的夥伴',
-    icon: markRaw(UserRoundSearch),
-    tone: 'wood',
-    to: '/caregivers',
-  },
-];
-
-const steps = [
-  { number: '1', icon: markRaw(ClipboardCheck), title: '說明照護需求', description: '選擇需要的服務、日期和地點' },
-  { number: '2', icon: markRaw(SearchCheck), title: '尋找合適居服員', description: '查看服務資訊、經驗與個人介紹' },
-  { number: '3', icon: markRaw(HeartHandshake), title: '確認預約安排', description: '確認服務資訊，開始照護服務' },
-];
-
-function caregiverName(caregiver: Caregiver) {
-  return typeof caregiver.userId === 'object' ? caregiver.userId.name || '照安心夥伴' : '照安心夥伴';
-}
-
-function changeHero(direction: number) {
-  const currentIndex = heroSlides.findIndex((slide) => slide.name === heroSlide.value);
-  const nextIndex = (currentIndex + direction + heroSlides.length) % heroSlides.length;
-  heroSlide.value = heroSlides[nextIndex]?.name || heroSlides[0]!.name;
-}
-function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start',
-  });
-}
-
-function experienceLabel(caregiver: Caregiver) {
-  return caregiver.yearsExperience ? `${caregiver.yearsExperience} 年服務經驗` : '新進照護夥伴';
-}
-
-function areaLabel(caregiver: Caregiver) {
-  return caregiver.serviceAreas?.slice(0, 2).join('、') || '服務地區洽談';
-}
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
-
-function assetUrl(path?: string) {
-  if (!path) return '/chioansimicon.svg';
-
-  if (/^https?:\/\//.test(path)) {
-    return path;
-  }
-
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-  if (normalizedPath.startsWith('/uploads/')) {
-    return `${backendBaseUrl}${normalizedPath}`;
-  }
-
-  return normalizedPath;
-}
-
-function useFallbackPhoto(event: Event) {
-  const image = event.currentTarget as HTMLImageElement;
-  image.src = '/chioansimicon.svg';
-  image.classList.add('is-fallback');
-}
-
-async function loadCaregivers() {
-  caregiverLoading.value = true;
-  caregiverError.value = false;
-  try {
-    const { data } = await api.get<Caregiver[]>('/nurses');
-    caregivers.value = data;
-  } catch {
-    caregiverError.value = true;
-  } finally {
-    caregiverLoading.value = false;
-  }
-}
-
-function setupMotion() {
-  if (reduceMotion || !heroShell.value) return;
-
-  motionContext = gsap.context(() => {
-    animateActiveHero();
-
-    gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((section) => {
-      gsap.from(section, {
-        y: 42,
-        opacity: 0,
-        duration: 0.75,
-        ease: 'power3.out',
-        clearProps: 'transform,opacity',
-        scrollTrigger: { trigger: section, start: 'top 84%', once: true },
-      });
-    });
-
-    gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach((group) => {
-      gsap.from(Array.from(group.children), {
-        y: 28,
-        opacity: 0,
-        duration: 0.58,
-        stagger: 0.1,
-        ease: 'power2.out',
-        clearProps: 'transform,opacity',
-        scrollTrigger: { trigger: group, start: 'top 86%', once: true },
-      });
-    });
-
-    gsap.matchMedia().add('(min-width: 901px)', () => {
-      const image = heroShell.value?.querySelector<HTMLElement>('.q-carousel__slide--active');
-      if (!image) return;
-      const onPointerMove = (event: PointerEvent) => {
-        const x = (event.clientX / window.innerWidth - 0.5) * 12;
-        const y = (event.clientY / window.innerHeight - 0.5) * 10;
-        gsap.to(image, { backgroundPosition: `calc(50% + ${x}px) calc(50% + ${y}px)`, duration: 0.7, ease: 'power2.out' });
-      };
-      heroShell.value?.addEventListener('pointermove', onPointerMove);
-      return () => heroShell.value?.removeEventListener('pointermove', onPointerMove);
-    });
-  }, heroShell.value.closest('main') || heroShell.value);
-}
-
-function animateActiveHero() {
-  const activeSlide = heroShell.value?.querySelector('.q-carousel__slide--active');
-  if (!activeSlide) return;
-  gsap.from(activeSlide.querySelectorAll('[data-hero-item]'), {
-    y: 34,
-    opacity: 0,
-    duration: 0.62,
-    stagger: 0.1,
-    ease: 'power3.out',
-    clearProps: 'transform,opacity',
-  });
-}
-
-watch(heroSlide, async () => {
-  await nextTick();
-  if (!reduceMotion) animateActiveHero();
-});
-
-onMounted(async () => {
-  await loadCaregivers();
-  await nextTick();
-  setupMotion();
-});
-onBeforeUnmount(() => {
-  motionContext?.revert();
-  gsap.killTweensOf('[data-hero-item]');
-});
+import { markRaw,nextTick,onBeforeUnmount,onMounted,ref,watch } from 'vue';
+import { ArrowRight,BadgeCheck,BriefcaseBusiness,Calculator,CalendarDays,CalendarHeart,CheckCheck,ChevronRight,HeartHandshake,House,MapPin,MessageCircleHeart,SearchCheck,ShieldCheck,Smartphone,UserRoundSearch,WifiOff } from '@lucide/vue';
+import { api } from '@/boot/axios'; import CareCostCalculator from '@/components/CareCostCalculator.vue'; import { gsap } from '@/composables/useGsap';
+interface Caregiver { _id:string; userId?:{name?:string}|string; profilePhotoUrl?:string; yearsExperience?:number; serviceAreas?:string[] }
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches, heroSlide=ref('home'), caregivers=ref<Caregiver[]>([]), caregiverLoading=ref(true), caregiverError=ref(false), heroShell=ref<HTMLElement>(); let motionContext:gsap.Context|undefined;
+const heroSlides=[{name:'home',to:'/caregivers'},{name:'meal',to:'/login'},{name:'connect',to:'/users'}];
+const quickActions=[{title:'線上預約服務',description:'替自己或家人找幫手',icon:markRaw(CalendarHeart),to:'/login'},{title:'長照補助算算看',description:'四個選擇，簡單了解',icon:markRaw(Calculator),scrollTo:'subsidy'},{title:'查看居服員',description:'認識已通過審核的夥伴',icon:markRaw(UserRoundSearch),to:'/caregivers'}];
+const steps=[{number:'01',icon:markRaw(SearchCheck),title:'找到合適的居服員',description:'查看服務資訊、經驗與個人介紹。'},{number:'02',icon:markRaw(CalendarDays),title:'建立照顧預約',description:'選擇受照顧者、服務內容、日期與時間。'},{number:'03',icon:markRaw(Smartphone),title:'居服員承接服務',description:'合適的居服員確認任務，服務安排正式成立。'},{number:'04',icon:markRaw(House),title:'出發並抵達',description:'掌握居服員出發、抵達與服務進度。'},{number:'05',icon:markRaw(CheckCheck),title:'服務完成',description:'完成服務並留下紀錄，家屬安心掌握。'}];
+function caregiverName(c:Caregiver){return typeof c.userId==='object'?c.userId.name||'照安心夥伴':'照安心夥伴'}
+function changeHero(direction:number){const i=heroSlides.findIndex(s=>s.name===heroSlide.value);heroSlide.value=heroSlides[(i+direction+heroSlides.length)%heroSlides.length]?.name||'home'}
+function scrollToSection(id:string){document.getElementById(id)?.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'})}
+function experienceLabel(c:Caregiver){return c.yearsExperience?`${c.yearsExperience} 年服務經驗`:'新進照護夥伴'} function areaLabel(c:Caregiver){return c.serviceAreas?.slice(0,2).join('、')||'服務地區洽談'}
+const apiBaseUrl=import.meta.env.VITE_API_BASE_URL||'http://localhost:3000/api',backendBaseUrl=apiBaseUrl.replace(/\/api\/?$/,'');
+function assetUrl(path?:string){if(!path)return'/chioansimicon.svg';if(/^https?:\/\//.test(path))return path;const p=path.startsWith('/')?path:`/${path}`;return p.startsWith('/uploads/')?`${backendBaseUrl}${p}`:p}
+function useFallbackPhoto(event:Event){const image=event.currentTarget as HTMLImageElement;image.src='/chioansimicon.svg';image.classList.add('is-fallback')}
+async function loadCaregivers(){caregiverLoading.value=true;caregiverError.value=false;try{const{data}=await api.get<Caregiver[]>('/nurses');caregivers.value=data}catch{caregiverError.value=true}finally{caregiverLoading.value=false}}
+function setupMotion(){if(reduceMotion||!heroShell.value)return;motionContext=gsap.context(()=>{gsap.timeline().from('[data-hero-copy] > *',{y:30,opacity:0,duration:.75,stagger:.09,ease:'power3.out'}).from('.caregiver',{x:-120,y:50,rotate:-4,opacity:0,duration:1.65,ease:'power3.out'},.25).from('.elder',{x:40,opacity:0,duration:1.55,ease:'power3.out'},.3).to('.hero-art',{y:-2,duration:3,repeat:-1,yoyo:true,ease:'sine.inOut'},1.8);gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(el=>gsap.from(el,{y:42,opacity:0,duration:.75,clearProps:'transform,opacity',scrollTrigger:{trigger:el,start:'top 84%',once:true}}));gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach(el=>gsap.from(Array.from(el.children),{y:28,opacity:0,duration:.58,stagger:.1,clearProps:'transform,opacity',scrollTrigger:{trigger:el,start:'top 86%',once:true}}));gsap.matchMedia().add('(min-width: 901px)',()=>{const cards=gsap.utils.toArray<HTMLElement>('.journey-card');cards.forEach((card,i)=>{gsap.from(card,{y:130,rotate:i%2?2:-2,scale:.96,scrollTrigger:{trigger:card,start:'top 82%',end:'top 28%',scrub:.7}});const next=cards[i+1];if(next)gsap.to(card,{scale:.97,y:-14,opacity:.84,scrollTrigger:{trigger:next,start:'top 72%',end:'top 22%',scrub:true}})})});gsap.matchMedia().add('(max-width: 900px)',()=>gsap.utils.toArray<HTMLElement>('.journey-card').forEach(card=>gsap.from(card,{y:36,opacity:0,duration:.65,clearProps:'transform,opacity',scrollTrigger:{trigger:card,start:'top 88%',once:true}})))},heroShell.value.closest('main')||heroShell.value)}
+watch(heroSlide,async()=>{await nextTick()});onMounted(async()=>{await loadCaregivers();await nextTick();setupMotion()});onBeforeUnmount(()=>motionContext?.revert());void changeHero;
 </script>
 
 <style scoped>
-.home-page {
-  --milk: #fff9f5;
-  --paper: #fffdfb;
-  --ink: #493833;
-  --chestnut: #6e5750;
-  --peach: #eb9079;
-  --persimmon: #c85618;
-  --sage: #4f7264;
-  color: var(--ink);
-  background: var(--milk);
-}
-
-main { padding: 28px 24px 72px; }
-.hero-shell, .philosophy-section, .quick-section, .care-section, .estimate-section, .steps-section, .line-banner { width: min(1180px, 100%); margin-inline: auto; }
-
-.hero-shell { position: relative; overflow: hidden; border-radius: 32px; box-shadow: 0 22px 55px rgb(78 52 43 / 14%); }
-.hero-carousel { height: clamp(480px, 57vw, 650px); background: var(--chestnut); }
-.hero-slide { position: relative; padding: clamp(32px, 6vw, 76px); background-position: center; }
-.hero-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgb(49 33 28 / 82%) 0%, rgb(70 46 38 / 62%) 39%, rgb(50 32 27 / 8%) 75%); }
-.hero-content { position: relative; z-index: 1; width: min(570px, 88%); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 100%; color: white; }
-.hero-kicker, .section-kicker { display: inline-flex; align-items: center; gap: 8px; color: #ffd8cd; font-weight: 700; letter-spacing: .12em; }
-.hero-content h1 { margin: 20px 0 18px; font-size: clamp(2.35rem, 5vw, 4.4rem); line-height: 1.2; letter-spacing: .035em; text-wrap: balance; }
-.hero-content p { margin: 0 0 30px; color: #fff7f2; font-size: clamp(1.05rem, 2vw, 1.35rem); line-height: 1.75; }
-.primary-action, .estimate-action { min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 24px; color: white; background: var(--persimmon); border-radius: 16px; box-shadow: 0 12px 26px rgb(157 62 13 / 28%); font-size: 1.08rem; font-weight: 700; text-decoration: none; transition: transform var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard); }
-.primary-action:hover, .estimate-action:hover { background: #aa4211; transform: translateY(-2px); }
-.primary-action:hover svg, .text-action:hover svg, .caregiver-card:hover .caregiver-card__more svg { transform: translateX(4px); }
-.primary-action:active, .estimate-action:active, .quick-card:active { transform: scale(.98); }
-.primary-action svg, .text-action svg, .caregiver-card__more svg { transition: transform var(--motion-fast) var(--ease-standard); }
-
-.hero-arrow { position: absolute; z-index: 3; top: 50%; width: 50px; height: 50px; display: grid; place-items: center; padding: 0; color: white; background: rgb(72 48 40 / 62%); border: 1px solid rgb(255 255 255 / 48%); border-radius: 50%; cursor: pointer; transform: translateY(-50%); }
-.hero-arrow--previous { left: 18px; }
-.hero-arrow--next { right: 18px; }
-.hero-dots { position: absolute; z-index: 3; left: 50%; bottom: 18px; display: flex; gap: 8px; transform: translateX(-50%); }
-.hero-dots button { width: 44px; height: 44px; position: relative; padding: 0; background: transparent; border: 0; cursor: pointer; }
-.hero-dots button::after { content: ''; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; background: rgb(255 255 255 / 62%); border: 2px solid white; border-radius: 999px; transform: translate(-50%, -50%); transition: width 180ms ease, background 180ms ease; }
-.hero-dots button.active::after { width: 26px; background: white; }
-
-.philosophy-section { max-width: 860px; padding-top: 68px; text-align: center; }
-.philosophy-section h2 { margin: 10px 0 20px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; }
-.philosophy-section p { max-width: 760px; margin: 0 auto 10px; color: #6e5750; font-size: 1.08rem; line-height: 1.8; }
-.quick-section, .care-section, .steps-section { padding-top: 68px; }
-.editorial-section { position: relative; }
-.section-number { position: absolute; z-index: 0; top: 28px; right: 0; color: rgb(110 87 80 / 9%); font-size: clamp(5rem, 13vw, 10rem); font-weight: 700; line-height: 1; pointer-events: none; }
-.section-number--light { top: 18px; right: 26px; color: rgb(255 255 255 / 10%); }
-.editorial-section > :not(.section-number) { position: relative; z-index: 1; }
-.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
-.section-heading h2 { margin: 8px 0 0; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; }
-.section-heading p { margin: 0; color: #7c655e; font-size: 1.06rem; }
-.section-heading > div > p { max-width: 680px; margin-top: 12px; line-height: 1.65; }
-.section-kicker { color: var(--persimmon); font-size: .9rem; }
-.text-action { min-height: 48px; display: inline-flex; align-items: center; gap: 7px; padding: 0 6px; color: var(--persimmon); font-size: 1.05rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
-
-.quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.quick-card { min-height: 126px; display: flex; align-items: center; gap: 18px; padding: 24px; color: var(--ink); background: var(--paper); border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; box-shadow: 0 14px 34px rgb(78 52 43 / 8%); text-decoration: none; transition: transform 180ms ease, box-shadow 180ms ease; }
-.quick-card:hover { transform: translateY(-4px); box-shadow: 0 20px 42px rgb(78 52 43 / 13%); }
-.quick-card__icon { flex: 0 0 62px; width: 62px; height: 62px; display: grid; place-items: center; border-radius: 20px; }
-.quick-card__icon.coral { color: #a63e20; background: #ffe5dc; }
-.quick-card__icon.sage { color: #36594b; background: #deeee7; }
-.quick-card__icon.wood { color: #6e4e3f; background: #eee1d8; }
-.quick-card__copy { display: flex; flex-direction: column; gap: 7px; }
-.quick-card__copy strong { font-size: 1.25rem; }
-.quick-card__copy small { color: #7c655e; font-size: .96rem; line-height: 1.5; }
-.quick-card__arrow { margin-left: auto; color: var(--persimmon); }
-
-.caregiver-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 20px; overflow-x: auto; padding: 4px 4px 20px; scroll-snap-type: x mandatory; scrollbar-color: #d8b9ab transparent; }
-.caregiver-card { scroll-snap-align: start; overflow: hidden; color: var(--ink); background: var(--paper); border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; box-shadow: 0 12px 30px rgb(78 52 43 / 8%); text-decoration: none; transition: transform var(--motion-normal) var(--ease-standard), box-shadow var(--motion-normal) var(--ease-standard); }
-.caregiver-card:hover { transform: translateY(-6px); box-shadow: 0 20px 42px rgb(78 52 43 / 13%); }
-.caregiver-card__photo { position: relative; height: 220px; overflow: hidden; background: #f4e5de; }
-.caregiver-card__photo img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 300ms ease; }
-.caregiver-card:hover img { transform: scale(1.035); }
-.caregiver-card__photo img.is-fallback { padding: 52px; object-fit: contain; }
-.caregiver-card__photo > span { position: absolute; left: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; color: #315746; background: #eef8f1; border-radius: 999px; font-size: .85rem; font-weight: 700; }
-.caregiver-card__body { padding: 20px; }
-.caregiver-card h3 { margin: 0 0 13px; font-size: 1.45rem; }
-.caregiver-card p { display: flex; align-items: center; gap: 7px; margin: 8px 0; color: #765f58; }
-.caregiver-card__more { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; color: var(--persimmon); font-weight: 700; }
-.caregiver-skeleton { height: 390px; border-radius: 24px; }
-.friendly-state { min-height: 140px; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 24px; color: var(--chestnut); background: #fff1eb; border-radius: 24px; }
-.friendly-state div { display: flex; flex-direction: column; gap: 3px; }
-.friendly-state button { min-height: 44px; padding: 0 18px; color: white; background: var(--persimmon); border: 0; border-radius: 14px; font: inherit; }
-
-.estimate-section { display: grid; grid-template-columns: .85fr 1.15fr; gap: clamp(28px, 6vw, 72px); align-items: center; margin-top: 80px; padding: clamp(34px, 6vw, 72px); color: white; background: var(--chestnut); border-radius: 32px; box-shadow: 0 24px 56px rgb(64 44 37 / 16%); scroll-margin-top: 92px; }
-.estimate-intro h2 { margin: 12px 0 18px; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.25; }
-.estimate-intro > p { color: #f7e8e2; font-size: 1.12rem; line-height: 1.7; }
-.section-kicker.light { color: #ffd4c8; }
-.estimate-note { display: flex; align-items: flex-start; gap: 10px; margin-top: 28px; padding: 16px; color: #f8eee9; background: rgb(255 255 255 / 10%); border-radius: 16px; line-height: 1.6; }
-.estimate-card { padding: clamp(24px, 4vw, 38px); color: var(--ink); background: var(--paper); border-radius: 26px; }
-.estimate-step { display: flex; align-items: center; gap: 14px; }
-.estimate-step > span { width: 38px; height: 38px; display: grid; place-items: center; color: white; background: var(--peach); border-radius: 50%; font-size: 1.1rem; font-weight: 700; }
-.estimate-step div { display: flex; flex-direction: column; gap: 3px; }
-.estimate-step strong { font-size: 1.2rem; }
-.estimate-step small { color: #806a63; }
-.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0; }
-.choice-grid button { min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--chestnut); background: #fffaf7; border: 1px solid #dfcec6; border-radius: 15px; font: inherit; font-size: 1rem; cursor: pointer; }
-.choice-grid button.selected { color: #963e16; background: #fff0e9; border-color: var(--peach); font-weight: 700; }
-.estimate-summary { display: flex; align-items: center; gap: 13px; padding: 17px; background: #f5eee9; border-radius: 16px; }
-.estimate-summary div { display: flex; flex-direction: column; gap: 3px; }
-.estimate-summary small { color: #806a63; }
-.estimate-action { width: 100%; margin-top: 18px; }
-
-.centered-heading { justify-content: center; text-align: center; }
-.steps-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 0; padding: 0; list-style: none; }
-.steps-grid li { position: relative; padding: 30px 26px; text-align: center; background: var(--paper); border: 1px solid rgb(110 87 80 / 12%); border-radius: 24px; }
-.steps-grid li > svg { color: var(--persimmon); }
-.step-number { position: absolute; top: 16px; left: 18px; color: #aa4a21; font-weight: 700; }
-.steps-grid h3 { margin: 13px 0 8px; font-size: 1.32rem; }
-.steps-grid p { margin: 0; color: #7c655e; font-size: 1rem; }
-
-.line-banner { display: flex; align-items: center; gap: 22px; margin-top: 68px; padding: 28px 34px; color: #fafffc; background: var(--sage); border-radius: 26px; }
-.line-banner__icon { flex: 0 0 68px; width: 68px; height: 68px; display: grid; place-items: center; background: rgb(255 255 255 / 14%); border-radius: 22px; }
-.line-banner span { color: #dcebe4; }
-.line-banner h2 { margin: 5px 0 0; font-size: clamp(1.35rem, 3vw, 2rem); }
-.line-banner button { min-height: 50px; margin-left: auto; padding: 0 22px; color: #335649; background: #edf8f1; border: 0; border-radius: 15px; font: inherit; font-weight: 700; }
-
-a:focus-visible, button:focus-visible { outline: 3px solid #f3a089; outline-offset: 3px; }
-
-@media (max-width: 900px) {
-  main { padding-inline: 16px; }
-  .quick-grid { grid-template-columns: 1fr; }
-  .quick-card { min-height: 108px; }
-  .estimate-section { grid-template-columns: 1fr; }
-  .steps-grid { grid-template-columns: 1fr; }
-  .line-banner { align-items: flex-start; flex-wrap: wrap; }
-  .line-banner button { width: 100%; margin-left: 0; }
-  .section-number { top: 42px; font-size: 6rem; }
-}
-
-@media (max-width: 599px) {
-  main {
-    width: 100%;
-    max-width: 100%;
-    padding: 16px 12px 48px;
-    overflow-x: hidden;
-  }
-
-  .hero-arrow { display: none; }
-  .compact-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
-
-  .estimate-section {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin-top: 58px;
-    padding: 28px 16px;
-    border-radius: 26px;
-    box-sizing: border-box;
-  }
-
-  .estimate-card {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding: 22px 14px;
-    border-radius: 22px;
-    box-sizing: border-box;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
-}
+.home-page{--milk:#fff9f5;--paper:#fffdfb;--ink:#493833;--chestnut:#6e5750;--peach:#eb9079;--persimmon:#c85618;--sage:#4f7264;color:var(--ink);background:var(--milk)}main{padding:28px 24px 80px}.hero,.section,.line-banner{width:min(1180px,100%);margin-inline:auto}.hero{min-height:650px;display:grid;grid-template-columns:42fr 58fr;align-items:center;gap:30px;overflow:hidden;padding:clamp(36px,6vw,76px);background:var(--paper);border:1px solid #6e57501a;border-radius:32px;box-shadow:0 22px 60px #4e342b1a}.hero__copy{z-index:2}.kicker{display:inline-flex;align-items:center;gap:8px;color:var(--persimmon);font-weight:700;letter-spacing:.1em}.hero h1{margin:22px 0 20px;font-size:clamp(2.65rem,5vw,4.8rem);line-height:1.16}.hero h1 em{color:var(--persimmon);font-style:normal}.hero__copy p{color:var(--chestnut);font-size:1.2rem;line-height:1.8}.hero__actions{display:flex;gap:12px;margin-top:30px}.primary,.secondary{min-height:54px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 23px;border-radius:15px;font:inherit;font-weight:700;text-decoration:none}.primary{color:#fff;background:var(--persimmon)}.secondary{color:var(--ink);background:transparent;border:1px solid #6e575059}.hero-art{position:relative;min-height:500px}.hero-art>svg{position:absolute;width:100%;height:100%;fill:none;stroke:#6e575047;stroke-width:2}.sun{position:absolute;width:360px;height:360px;right:5%;top:8%;background:#f9d9ca;border-radius:47% 53% 50% 46%}.hero-art small{position:absolute;right:5%;bottom:3%;color:var(--sage)}.hand{position:absolute;width:310px;height:125px;filter:drop-shadow(0 18px 18px #6e575024)}.palm{position:absolute;width:145px;height:88px;background:#efb28f;border:2px solid var(--ink);border-radius:46% 52% 44% 48%}.sleeve{position:absolute;width:150px;height:102px;border:2px solid var(--ink)}.f{position:absolute;width:106px;height:24px;background:#efb28f;border:2px solid var(--ink);border-radius:999px}.elder{right:-20px;top:115px;transform:rotate(8deg)}.elder .palm{right:95px;top:28px}.elder .sleeve{right:-50px;top:20px;background:var(--sage);border-radius:46% 0 0 46%}.elder .f{right:183px}.caregiver{left:-16px;bottom:95px;transform:rotate(-7deg)}.caregiver .palm{left:98px;top:24px;background:#e99a77}.caregiver .sleeve{left:-50px;top:17px;background:var(--peach);border-radius:0 46% 46% 0}.caregiver .f{left:187px;background:#e99a77}.f1{top:20px;transform:rotate(-7deg)}.f2{top:43px}.f3{top:66px;transform:rotate(6deg)}.f4{width:76px;top:88px;transform:rotate(23deg)}.caregiver .f1{transform:rotate(7deg)}.caregiver .f3{transform:rotate(-6deg)}.caregiver .f4{left:165px;transform:rotate(-23deg)}
+.section{padding-top:115px}.section h2{margin:12px 0 22px;font-size:clamp(2rem,4vw,3.35rem);line-height:1.25}.philosophy{max-width:850px;text-align:center}.philosophy p{color:var(--chestnut);font-size:1.08rem;line-height:1.85}.philosophy svg{width:60%;fill:none;stroke:var(--peach);stroke-width:3}header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:32px}header p{color:var(--chestnut)}.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.quick-card{position:relative;min-height:170px;display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:16px;padding:26px;color:var(--ink);background:var(--paper);border:1px solid #6e575026;border-radius:22px;box-shadow:0 14px 34px #4e342b12;text-align:left;text-decoration:none;transition:.18s;cursor:pointer}.quick-card:hover{transform:translateY(-4px)}.quick-card .num{position:absolute;top:18px;right:22px;color:#6e575040;font-size:1.5rem}.quick-card>span:not(.num){display:flex;flex-direction:column;gap:7px}.quick-card strong{font-size:1.2rem}.quick-card small{color:var(--chestnut)}
+.journey{display:grid;grid-template-columns:34% 1fr;gap:7vw;padding-top:130px;scroll-margin-top:80px}.journey>header{position:sticky;top:130px;display:block;align-self:start}.journey ol{margin:0;padding:0 0 20vh;list-style:none}.journey-card{position:sticky;top:110px;min-height:430px;display:grid;grid-template-columns:1fr .82fr;align-items:center;gap:30px;margin-bottom:25vh;padding:55px;background:var(--paper);border:1px solid #6e575029;border-radius:28px;box-shadow:0 24px 52px #4e342b1f}.journey-card:last-child{margin-bottom:0}.journey-card b{color:var(--persimmon);letter-spacing:.16em}.journey-card h3{font-size:2.5rem;line-height:1.2}.journey-card p{color:var(--chestnut);font-size:1.06rem;line-height:1.75}.journey-art{position:relative;min-height:230px;display:grid;place-items:center}.journey-art span{position:absolute;width:190px;height:190px;background:#f9ded3;border-radius:46% 54%}.journey-art span.sage{background:#dce9e2}.journey-art svg{z-index:1}
+.text-link{color:var(--persimmon);font-weight:700;text-decoration:none;white-space:nowrap}.caregiver-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:20px;overflow-x:auto;padding:4px 4px 20px;scroll-snap-type:x mandatory}.caregiver-card{scroll-snap-align:start;overflow:hidden;color:var(--ink);background:var(--paper);border:1px solid #6e57501f;border-radius:22px;box-shadow:0 12px 30px #4e342b14;text-decoration:none}.photo{position:relative;height:230px;overflow:hidden;background:#f4e5de}.photo img{width:100%;height:100%;object-fit:cover}.photo img.is-fallback{padding:52px;object-fit:contain}.photo span{position:absolute;left:14px;bottom:14px;display:flex;gap:5px;padding:7px 11px;color:#315746;background:#eef8f1;border-radius:999px}.body{padding:20px}.body h3{font-size:1.4rem}.body p,.body b{display:flex;align-items:center;gap:7px;color:var(--chestnut)}.body b{color:var(--persimmon)}.skeleton{height:400px;border-radius:22px}.state{display:flex;justify-content:center;gap:16px;padding:28px;background:#fff1eb;border-radius:22px}.state div{display:flex;flex-direction:column}.state button{min-height:44px;color:#fff;background:var(--persimmon);border:0;border-radius:14px}.estimate{display:grid;grid-template-columns:.85fr 1.15fr;gap:6vw;align-items:center;margin-top:120px;padding:clamp(34px,6vw,72px);color:#fff;background:var(--chestnut);border-radius:30px;scroll-margin-top:92px}.estimate .kicker{color:#ffd4c8}.estimate>div>p{color:#f7e8e2}.estimate aside{display:flex;gap:10px;padding:16px;background:#ffffff1a;border-radius:16px}.calculator{padding:38px;color:var(--ink);background:var(--paper);border-radius:24px}.line-banner{display:flex;align-items:center;gap:22px;margin-top:88px;padding:28px 34px;color:#fff;background:var(--sage);border-radius:24px}.line-banner h2{margin:5px 0}.line-banner button{margin-left:auto;min-height:50px;padding:0 22px;color:#335649;background:#edf8f1;border:0;border-radius:14px}a:focus-visible,button:focus-visible{outline:3px solid #f3a089;outline-offset:3px}
+@media(max-width:900px){main{padding-inline:16px}.hero{grid-template-columns:1fr;padding:50px 40px 25px}.hero-art{min-height:400px}.quick-grid{grid-template-columns:1fr}.quick-card{min-height:125px}.journey{display:block}.journey>header{position:static}.journey ol{padding:0}.journey-card{position:relative;top:auto;min-height:340px;margin-bottom:24px}.estimate{grid-template-columns:1fr}.line-banner{flex-wrap:wrap}.line-banner button{width:100%;margin:0}}
+@media(max-width:599px){main{padding:12px 12px 48px}.hero{min-height:auto;padding:38px 22px 20px;border-radius:24px}.hero h1{font-size:2.55rem}.hero__copy p br{display:none}.hero__actions{display:grid;grid-template-columns:1fr 1fr}.primary,.secondary{padding:0 10px}.hero-art{min-height:320px;transform:scale(.9)}.sun{width:250px;height:250px}.elder{right:-90px;top:45px;transform:scale(.82) rotate(8deg)}.caregiver{left:-75px;bottom:45px;transform:scale(.82) rotate(-7deg)}.section{padding-top:76px}header{align-items:flex-start;flex-direction:column}.journey{padding-top:84px}.journey-card{display:block;min-height:390px;padding:30px 26px}.journey-card h3{font-size:2rem}.journey-art{min-height:180px}.estimate{margin-top:76px;padding:28px 16px}.calculator{padding:22px 14px}.state{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>

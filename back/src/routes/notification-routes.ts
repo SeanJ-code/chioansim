@@ -20,11 +20,11 @@ notificationRoutes.get(
 )
 
 notificationRoutes.patch(
-  '/booking/read',
+  '/booking/:bookingId/read',
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     await Notification.updateMany(
-      { recipientUserId: request.auth?.userId, type: 'BOOKING', status: { $ne: 'READ' } },
+      { recipientUserId: request.auth?.userId, bookingId: request.params.bookingId, type: 'BOOKING', status: { $ne: 'READ' } },
       { status: 'READ', readAt: new Date() },
     )
     response.status(204).send()

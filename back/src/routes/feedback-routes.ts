@@ -126,17 +126,26 @@ feedbackRoutes.get(
     const bookingIds = bookings.map((booking) => booking._id)
     const [reviews, records] = await Promise.all([
       Review.find({ bookingId: { $in: bookingIds }, reviewerUserId: request.auth!.userId, targetRole: 'NURSE', hidden: { $ne: true } })
-        .select('bookingId rating journalContent journalPhotoUrls careTags journalCreatedAt createdAt updatedAt'),
+        .select('bookingId rating comment photoUrls journalContent journalPhotoUrls careTags journalCreatedAt createdAt updatedAt'),
       ServiceRecord.find({ bookingId: { $in: bookingIds } }),
     ])
     const reviewByBooking = new Map(reviews.map((review) => [review.get('bookingId').toString(), review]))
     const recordByBooking = new Map(records.map((record) => [record.get('bookingId').toString(), record]))
     response.json({
-      items: bookings.map((booking) => ({
-        booking,
-        review: reviewByBooking.get(booking.id) || null,
-        serviceRecord: recordByBooking.get(booking.id) || null,
-      })),
+      items: bookings.map((booking) => {
+        const review = reviewByBooking.get(booking.id)
+        return {
+          booking,
+          // 舊版「日誌」直接寫入 Review.comment；在此保留歷史閱讀相容性。
+          review: review ? {
+            ...review.toObject(),
+            journalContent: review.get('journalContent') || review.get('comment'),
+            journalPhotoUrls: review.get('journalPhotoUrls')?.length ? review.get('journalPhotoUrls') : review.get('photoUrls'),
+            journalCreatedAt: review.get('journalCreatedAt') || review.get('createdAt'),
+          } : null,
+          serviceRecord: recordByBooking.get(booking.id) || null,
+        }
+      }),
     })
   }),
 )
