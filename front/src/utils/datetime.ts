@@ -11,3 +11,11 @@ export const taipeiDateParts = (value: string | Date) => {
 
 export const taipeiDateKey = (value: string | Date) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+
+export const taipeiCalendarTime = (value: string | Date) => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(value));
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '00';
+  return `${get('hour')}:${get('minute')}`;
+};

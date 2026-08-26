@@ -7,7 +7,7 @@ export function isCancellationRefundEligible(
 }
 
 export function nextBookingCompletionStatus(status: string, actor: 'NURSE' | 'USER') {
-  if (actor === 'NURSE' && ['ACCEPTED', 'ARRIVED', 'IN_SERVICE'].includes(status))
+  if (actor === 'NURSE' && status === 'IN_SERVICE')
     return 'AWAITING_USER_CONFIRMATION' as const
   if (actor === 'USER' && status === 'AWAITING_USER_CONFIRMATION') return 'COMPLETED' as const
   return null

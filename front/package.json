@@ -16,6 +16,7 @@
   "dependencies": {
     "@lucide/vue": "^1.28.0",
     "@quasar/extras": "^2.0.0",
+    "@quasar/quasar-ui-qcalendar": "^5.3.0",
     "axios": "^1.19.0",
     "boring-avatars": "^2.0.4",
     "boxicons": "^2.1.4",
