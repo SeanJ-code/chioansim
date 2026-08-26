@@ -27,3 +27,6 @@ quasar.config.*.temporary.compiled*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ZIP 備份檔
+*.zip
