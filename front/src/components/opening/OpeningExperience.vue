@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { gsap } from '@/composables/useGsap';
-import handsSvg from '@/assets/opening/hands-path.svg?raw';
+import handsSvg from '@/assets/opening/handcss.svg?raw';
 
 const emit = defineEmits<{ finished: [] }>();
 const visible = ref(true), opening = ref<HTMLElement>(), artwork = ref<HTMLElement>(), brand = ref<HTMLElement>();
@@ -55,8 +55,8 @@ async function start() {
   });
   timeline = gsap.timeline({ defaults: { ease: 'power2.inOut' }, onComplete: finish })
     .fromTo(opening.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: .4 })
-    .to(paths, { strokeDashoffset: 0, duration: .22, stagger: .026, ease: 'power1.inOut' })
-    .fromTo(artwork.value, { clipPath: 'inset(0 0 100% 100%)' }, { clipPath: 'inset(0)', duration: 3.35, ease: 'power1.inOut' }, '<')
+    .to(paths, { strokeDashoffset: 0, duration: .18, stagger: .015, ease: 'power1.inOut' })
+    .fromTo(artwork.value, { clipPath: 'inset(0 0 100% 100%)' }, { clipPath: 'inset(0)', duration: 3.7, ease: 'power1.inOut' }, '<')
     .fromTo(brand.value, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .7, ease: 'power3.out' }, '-=.2')
     .to({}, { duration: .6 })
     .to(opening.value, { autoAlpha: 0, duration: .7 });
@@ -67,7 +67,7 @@ onBeforeUnmount(() => { timeline?.kill(); document.documentElement.classList.rem
 </script>
 
 <style scoped>
-.opening{position:fixed;inset:0;z-index:9999;overflow:hidden;width:100vw;height:100dvh;background:#fff9f5}.opening__artwork{position:absolute;z-index:20;left:50%;top:45%;width:min(100vw,1536px);aspect-ratio:3/2;transform:translate(-50%,-50%)}.opening__artwork :deep(svg){display:block;width:100%;height:100%;overflow:visible}.opening__artwork :deep(path){visibility:hidden}.opening__brand{position:absolute;z-index:30;left:clamp(28px,6vw,96px);bottom:clamp(28px,5vh,60px);max-width:540px;padding:18px 22px;visibility:hidden;opacity:0;color:#493833;background:rgb(255 249 245/.92);border-radius:18px;box-shadow:0 12px 36px rgb(73 56 51/.08)}.opening__brand small{display:block;margin-bottom:8px;color:#b84f16;font-size:.75rem;font-weight:700;letter-spacing:.22em}.opening__brand strong{display:block;font-size:clamp(1.8rem,3.4vw,3.1rem);line-height:1.22}.opening__brand strong span{display:block;color:#6e5750}.opening__brand p{margin:12px 0 0;color:#6e5750;font-size:clamp(.9rem,1.3vw,1.05rem);line-height:1.7}.opening__skip{position:absolute;z-index:40;top:max(18px,env(safe-area-inset-top));right:24px;min-width:56px;min-height:44px;padding:0 12px;color:#6e5750;background:rgb(255 249 245/.8);border:0;border-radius:12px;font:inherit;cursor:pointer}.opening__skip:hover{background:#fff9f5}.opening__skip:focus-visible{outline:3px solid #f3a089;outline-offset:3px}
+.opening{position:fixed;inset:0;z-index:9999;overflow:hidden;width:100vw;height:100dvh;background:#fff9f5}.opening__artwork{position:absolute;z-index:20;left:50%;top:45%;width:min(100vw,1536px);aspect-ratio:1536/976.44;transform:translate(-50%,-50%)}.opening__artwork :deep(svg){display:block;width:100%;height:100%;overflow:visible}.opening__artwork :deep(path){visibility:hidden;fill:none!important;stroke:#493833;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.opening__brand{position:absolute;z-index:30;left:clamp(28px,6vw,96px);bottom:clamp(28px,5vh,60px);max-width:540px;padding:18px 22px;visibility:hidden;opacity:0;color:#493833;background:rgb(255 249 245/.92);border-radius:18px;box-shadow:0 12px 36px rgb(73 56 51/.08)}.opening__brand small{display:block;margin-bottom:8px;color:#b84f16;font-size:.75rem;font-weight:700;letter-spacing:.22em}.opening__brand strong{display:block;font-size:clamp(1.8rem,3.4vw,3.1rem);line-height:1.22}.opening__brand strong span{display:block;color:#6e5750}.opening__brand p{margin:12px 0 0;color:#6e5750;font-size:clamp(.9rem,1.3vw,1.05rem);line-height:1.7}.opening__skip{position:absolute;z-index:40;top:max(18px,env(safe-area-inset-top));right:24px;min-width:56px;min-height:44px;padding:0 12px;color:#6e5750;background:rgb(255 249 245/.8);border:0;border-radius:12px;font:inherit;cursor:pointer}.opening__skip:hover{background:#fff9f5}.opening__skip:focus-visible{outline:3px solid #f3a089;outline-offset:3px}
 @media(max-width:768px){.opening__artwork{top:39%;width:150vw}.opening__brand{left:20px;right:20px;bottom:24px;max-width:none;padding:16px 18px}.opening__brand strong{font-size:1.75rem}.opening__brand p{margin-top:8px}}
 </style>
 
