@@ -56,6 +56,7 @@ async function start() {
   timeline = gsap.timeline({ defaults: { ease: 'power2.inOut' }, onComplete: finish })
     .fromTo(opening.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: .4 })
     .to(paths, { strokeDashoffset: 0, duration: .22, stagger: .026, ease: 'power1.inOut' })
+    .fromTo(artwork.value, { clipPath: 'inset(0 0 100% 100%)' }, { clipPath: 'inset(0)', duration: 3.35, ease: 'power1.inOut' }, '<')
     .fromTo(brand.value, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .7, ease: 'power3.out' }, '-=.2')
     .to({}, { duration: .6 })
     .to(opening.value, { autoAlpha: 0, duration: .7 });
