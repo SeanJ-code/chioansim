@@ -64,11 +64,11 @@
     </div>
 
     <div ref="brand" class="opening__brand">
-      <img src="/chioansimicon.svg" alt="">
-      <strong>照安心</strong>
-      <p>陪伴每一步，安心每一天</p>
+      <small>CHIOANSIM</small>
+      <strong>照顧，<span>從一雙手開始。</span></strong>
+      <p>讓需要幫助的人，找到值得信任的陪伴。</p>
     </div>
-    <div ref="revealCircle" class="opening__reveal" />
+    <button class="opening__skip" type="button" @click="finish">略過</button>
   </div>
 </template>
 
@@ -77,12 +77,13 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { gsap } from '@/composables/useGsap';
 
 const emit = defineEmits<{ finished: [] }>();
-const visible = ref(true), opening = ref<HTMLElement>(), artwork = ref<HTMLElement>(), brand = ref<HTMLElement>(), revealCircle = ref<HTMLElement>();
+const visible = ref(true), opening = ref<HTMLElement>(), artwork = ref<HTMLElement>(), brand = ref<HTMLElement>();
 let timeline: gsap.core.Timeline | undefined;
 const forceOpening = import.meta.env.DEV;
 const staticDebug = import.meta.env.DEV && new URLSearchParams(location.search).has('opening-static');
 
 function finish() {
+  timeline?.kill();
   sessionStorage.setItem('chioansim-opening-played', 'true');
   document.documentElement.classList.remove('opening-lock');
   visible.value = false;
@@ -92,7 +93,7 @@ function finish() {
 async function start() {
   if (!forceOpening && sessionStorage.getItem('chioansim-opening-played') === 'true') return finish();
   await nextTick();
-  if (!opening.value || !artwork.value || !brand.value || !revealCircle.value) return finish();
+  if (!opening.value || !artwork.value || !brand.value) return finish();
   document.documentElement.classList.add('opening-lock');
   const paths = artwork.value.querySelectorAll<SVGPathElement>('.draw-path');
   if (paths.length < 10) return finish();
@@ -108,25 +109,26 @@ async function start() {
     timeline = gsap.timeline({ onComplete: finish }).to(brand.value, { autoAlpha: 1, duration: .2 }).to(opening.value, { autoAlpha: 0, duration: .2 }, '+=.25');
     return;
   }
-  const youngArm = artwork.value.querySelectorAll('#young-arm .draw-path');
-  const youngHand = artwork.value.querySelectorAll('#young-hand .draw-path');
-  const contact = artwork.value.querySelectorAll('#contact-zone .draw-path');
-  const elderMain = artwork.value.querySelectorAll('#elder-hand-main .draw-path');
-  const elderWrist = artwork.value.querySelectorAll('#elder-wrist .draw-path');
-  const elderDetails = artwork.value.querySelectorAll('#elder-details .draw-path');
-  const circleScale = Math.hypot(innerWidth, innerHeight) / (Math.max(innerWidth, innerHeight) * .1) + 1;
-  timeline = gsap.timeline({ defaults: { ease: 'power2.out' }, onComplete: finish })
-    .fromTo(opening.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: .35 })
-    .to(youngArm, { strokeDashoffset: 0, duration: .42, stagger: .16, ease: 'power1.inOut' }, .2)
-    .to(youngHand, { strokeDashoffset: 0, duration: .34, stagger: .075, ease: 'power1.inOut' }, .64)
-    .to(contact, { strokeDashoffset: 0, duration: .3, stagger: .09, ease: 'power1.inOut' }, 1.18)
-    .to(elderMain, { strokeDashoffset: 0, duration: .34, stagger: .07, ease: 'power1.inOut' }, 1.42)
-    .to(elderWrist, { strokeDashoffset: 0, duration: .3, stagger: .065, ease: 'power1.inOut' }, 1.93)
-    .to(elderDetails, { strokeDashoffset: 0, duration: .22, stagger: .04 }, 2.02)
-    .fromTo(brand.value, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: .5 }, 2.72)
-    .fromTo(revealCircle.value, { scale: 0, autoAlpha: 1 }, { scale: circleScale, duration: .75, ease: 'power3.inOut' }, 3.3)
-    .to([artwork.value, brand.value], { autoAlpha: 0, duration: .25 }, 3.52)
-    .to(opening.value, { autoAlpha: 0, duration: .32 }, 3.88);
+  const details = [...artwork.value.querySelectorAll<SVGPathElement>('.elder-detail, .young-detail')];
+  const detailSet = new Set(details);
+  const main = [...paths].filter(path => !detailSet.has(path));
+  const topRightFirst = (a: SVGPathElement, b: SVGPathElement) => {
+    const aa = a.getBBox(), bb = b.getBBox();
+    return (bb.x + bb.width / 2 - (bb.y + bb.height / 2) * .8) - (aa.x + aa.width / 2 - (aa.y + aa.height / 2) * .8);
+  };
+  main.sort(topRightFirst);
+  details.sort(topRightFirst);
+  timeline = gsap.timeline({ defaults: { ease: 'power1.inOut' }, onComplete: finish })
+    .fromTo(opening.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: .45 });
+  main.forEach((path, index) => timeline!.to(path, {
+    strokeDashoffset: 0,
+    duration: gsap.utils.clamp(.1, .28, path.getTotalLength() / 1300),
+  }, index ? '>-0.035' : '>'));
+  timeline
+    .to(details, { strokeDashoffset: 0, duration: .2, stagger: .035 }, '>-0.08')
+    .fromTo(brand.value, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: .72, ease: 'power3.out' }, '>-0.08')
+    .to({}, { duration: .55 })
+    .to(opening.value, { autoAlpha: 0, duration: .65, ease: 'power2.inOut' });
 }
 
 onMounted(start);
@@ -134,9 +136,8 @@ onBeforeUnmount(() => { timeline?.kill(); document.documentElement.classList.rem
 </script>
 
 <style scoped>
-.opening{position:fixed;inset:0;z-index:9999;overflow:hidden;width:100vw;height:100dvh;background:radial-gradient(circle at 50% 48%,rgb(235 144 121/.1),transparent 38%),#fff9f5}.opening__artwork{position:absolute;z-index:20;left:50%;top:46%;width:min(90vw,1180px);transform:translate(-50%,-50%);opacity:1;visibility:visible}.opening-hands{display:block;width:100%;height:auto;overflow:visible;opacity:1;visibility:visible}.draw-path{fill:none;stroke:#6e5750;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;visibility:visible}.young-detail,.elder-detail{stroke-width:1.35;opacity:.68}.opening__brand{position:absolute;z-index:30;left:50%;bottom:clamp(48px,8vh,88px);display:grid;grid-template-columns:auto auto;align-items:center;gap:4px 10px;transform:translateX(-50%);visibility:hidden;opacity:0;color:#c85618;white-space:nowrap}.opening__brand img{width:42px;height:42px;grid-row:span 2}.opening__brand strong{font-size:clamp(1.65rem,3vw,2.4rem);letter-spacing:.08em}.opening__brand p{margin:0;color:#6e5750;font-size:clamp(.82rem,1.2vw,1rem);letter-spacing:.08em}.opening__reveal{position:absolute;z-index:40;left:50%;top:50%;width:10vmax;aspect-ratio:1;border-radius:50%;background:#eb9079;transform:translate(-50%,-50%) scale(0);visibility:hidden;opacity:0}
-@media(max-width:768px){.opening__artwork{width:130vw}.draw-path{stroke-width:1.8}.opening__brand{bottom:11vh}}
-@media(max-width:430px){.opening__artwork{top:44%;width:155vw}.opening__brand{grid-template-columns:auto 1fr}.opening__brand img{width:36px;height:36px}.opening__brand strong{font-size:1.65rem}}
+.opening{position:fixed;inset:0;z-index:9999;overflow:hidden;width:100vw;height:100dvh;background:radial-gradient(circle at 80% 10%,rgb(235 144 121/.13),transparent 32%),radial-gradient(circle at 20% 85%,rgb(169 190 143/.14),transparent 34%),#fff9f5}.opening__artwork{position:absolute;z-index:20;left:50%;top:44%;width:min(92vw,1200px);transform:translate(-50%,-50%);opacity:1;visibility:visible}.opening-hands{display:block;width:100%;height:auto;max-height:78vh;overflow:visible;opacity:1;visibility:visible}.draw-path{fill:none;stroke:#493833;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;visibility:visible}.young-detail,.elder-detail{stroke-width:1.35;opacity:.68}.opening__brand{position:absolute;z-index:30;left:clamp(32px,7vw,110px);bottom:clamp(38px,6vh,72px);max-width:480px;visibility:hidden;opacity:0;color:#493833}.opening__brand small{display:block;margin-bottom:8px;color:#c85618;font-size:.75rem;font-weight:700;letter-spacing:.22em}.opening__brand strong{display:block;font-size:clamp(1.9rem,4vw,3.5rem);line-height:1.2}.opening__brand strong span{display:block;color:#6e5750}.opening__brand p{margin:14px 0 0;color:#6e5750;font-size:clamp(.9rem,1.4vw,1.08rem);line-height:1.7}.opening__skip{position:absolute;z-index:40;top:24px;right:28px;min-width:48px;min-height:44px;padding:0 12px;color:#6e5750;background:transparent;border:0;border-radius:12px;font:inherit;cursor:pointer}.opening__skip:hover{background:rgb(110 87 80/.08)}
+@media(max-width:768px){.opening__artwork{top:39%;width:145vw;transform:translate(-56%,-50%)}.draw-path{stroke-width:1.8}.opening__brand{left:24px;right:24px;bottom:36px;max-width:none}.opening__brand strong{font-size:2rem}}
 </style>
 
 <style>
