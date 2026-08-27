@@ -30,36 +30,161 @@ function finish() {
 }
 
 async function start() {
-  if (!forceOpening && sessionStorage.getItem('chioansim-opening-played') === 'true') return finish();
+  if (
+    !forceOpening &&
+    sessionStorage.getItem('chioansim-opening-played') === 'true'
+  ) {
+    return finish();
+  }
+
   await nextTick();
-  if (!opening.value || !artwork.value || !brand.value) return finish();
+
+  if (!opening.value || !artwork.value || !brand.value) {
+    return finish();
+  }
+
   document.documentElement.classList.add('opening-lock');
-  const paths = [...artwork.value.querySelectorAll<SVGPathElement>('path')];
-  if (!paths.length) return finish();
+
+  const paths = [
+    ...artwork.value.querySelectorAll<SVGPathElement>('path'),
+  ];
+
+  if (!paths.length) {
+    return finish();
+  }
+
+  // 靜態 Debug
   if (staticDebug) {
-    gsap.set([artwork.value, brand.value, paths], { autoAlpha: 1, strokeDashoffset: 0 });
+    gsap.set([artwork.value, brand.value, paths], {
+      autoAlpha: 1,
+      strokeDashoffset: 0,
+    });
     return;
   }
+
+  // 使用者偏好減少動畫
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    gsap.set([artwork.value, brand.value, paths], { autoAlpha: 1, strokeDashoffset: 0 });
-    timeline = gsap.timeline({ onComplete: finish }).to({}, { duration: .5 }).to(opening.value, { autoAlpha: 0, duration: .2 });
+    gsap.set([artwork.value, brand.value, paths], {
+      autoAlpha: 1,
+      strokeDashoffset: 0,
+    });
+
+    timeline = gsap
+      .timeline({
+        onComplete: finish,
+      })
+      // 完整畫面停留 5 秒
+      .to({}, { duration: 5 })
+      .to(opening.value, {
+        autoAlpha: 0,
+        duration: 0.5,
+      });
+
     return;
   }
+
+  // SVG path 排序
   paths.sort((a, b) => {
-    const aa = a.getBBox(), bb = b.getBBox();
-    return (bb.x + bb.width / 2 - (bb.y + bb.height / 2) * .8) - (aa.x + aa.width / 2 - (aa.y + aa.height / 2) * .8);
+    const aa = a.getBBox();
+    const bb = b.getBBox();
+
+    return (
+      bb.x +
+      bb.width / 2 -
+      (bb.y + bb.height / 2) * 0.8 -
+      (aa.x + aa.width / 2 - (aa.y + aa.height / 2) * 0.8)
+    );
   });
-  paths.forEach(path => {
+
+  // 初始化線條
+  paths.forEach((path) => {
     const length = path.getTotalLength();
-    gsap.set(path, { strokeDasharray: length, strokeDashoffset: length, visibility: 'visible' });
+
+    gsap.set(path, {
+      strokeDasharray: length,
+      strokeDashoffset: length,
+      visibility: 'visible',
+    });
   });
-  timeline = gsap.timeline({ defaults: { ease: 'power2.inOut' }, onComplete: finish })
-    .fromTo(opening.value, { autoAlpha: 0 }, { autoAlpha: 1, duration: .4 })
-    .to(paths, { strokeDashoffset: 0, duration: .18, stagger: .015, ease: 'power1.inOut' })
-    .fromTo(artwork.value, { clipPath: 'inset(0 0 100% 100%)' }, { clipPath: 'inset(0)', duration: 3.7, ease: 'power1.inOut' }, '<')
-    .fromTo(brand.value, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .7, ease: 'power3.out' }, '-=.2')
-    .to({}, { duration: .6 })
-    .to(opening.value, { autoAlpha: 0, duration: .7 });
+
+  timeline = gsap.timeline({
+    defaults: {
+      ease: 'power2.inOut',
+    },
+    onComplete: finish,
+  });
+
+  timeline
+
+    // ① Opening 出現
+    .fromTo(
+      opening.value,
+      {
+        autoAlpha: 0,
+      },
+      {
+        autoAlpha: 1,
+        duration: 0.25,
+      },
+    )
+
+    // ② SVG 線稿快速描繪
+    .to(paths, {
+      strokeDashoffset: 0,
+
+      // 原本 .18 → 改快
+      duration: 0.1,
+
+      // 原本 .015 → 改快
+      stagger: 0.008,
+
+      ease: 'power1.inOut',
+    })
+
+    // ③ artwork 顯露同步進行
+    .fromTo(
+      artwork.value,
+      {
+        clipPath: 'inset(0 0 100% 100%)',
+      },
+      {
+        clipPath: 'inset(0)',
+        // 原本 3.7 秒，縮短
+        duration: 2.2,
+        ease: 'power1.inOut',
+      },
+      '<',
+    )
+
+    // ④ 品牌文字出現
+    .fromTo(
+      brand.value,
+      {
+        autoAlpha: 0,
+        y: 18,
+      },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.6,
+        ease: 'power3.out',
+      },
+      '-=0.15',
+    )
+
+    // =========================================
+    // ⑤ 完整 Opening 停留 5 秒
+    // =========================================
+    .to({}, {
+      duration: 5,
+    })
+
+    // ⑥ Opening 淡出
+    .to(opening.value, {
+      autoAlpha: 0,
+      duration: 0.65,
+      ease: 'power2.inOut',
+    });
 }
 
 onMounted(start);
