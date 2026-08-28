@@ -53,8 +53,7 @@ import {
 
 import { gsap } from '@/composables/useGsap';
 
-import handsSvg from '@/assets/opening/手部路徑.svg?raw';
-
+import handsSvg from '@/assets/opening/handcss.svg?raw';
 
 /* =========================================================
    Emits
