@@ -1,7 +1,7 @@
 <template>
   <q-page class="home-page">
     <OpeningExperience @finished="handleOpeningFinished" />
-    <main>
+    <main v-if="homeReady">
       <section ref="hero" class="story-hero" aria-labelledby="hero-title">
         <div class="blob blob--peach" aria-hidden="true"></div><div class="blob blob--blue" aria-hidden="true"></div>
         <div class="hero-copy" data-hero-copy><span class="eyebrow"><HeartHandshake :size="20" /> 照安心・居家照顧預約</span><h1 id="hero-title">讓照顧，<br><em>有人一起分擔。</em></h1><p>找到合適的居服員，<br>從預約開始，多一份安心。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></div>
@@ -20,28 +20,31 @@
         <button class="scroll-cue" type="button" @click="scrollToSection('needs')">往下看照顧旅程 <ArrowDown :size="20" /></button>
       </section>
 
-      <section id="needs" ref="needs" class="needs scene" aria-labelledby="needs-title">
+      <section id="needs" ref="needs" class="needs scene story-panel story-panel--peach" data-panel="right" aria-labelledby="needs-title">
+        <div class="panel-reveal" aria-hidden="true"></div>
         <span class="floating-service floating-service--1" aria-hidden="true"><Utensils :size="38" /></span><span class="floating-service floating-service--2" aria-hidden="true"><Stethoscope :size="40" /></span><span class="floating-service floating-service--3" aria-hidden="true"><ShoppingBasket :size="38" /></span><span class="floating-service floating-service--4" aria-hidden="true"><MessagesSquare :size="38" /></span>
         <header data-reveal><span class="eyebrow">選擇服務</span><h2 id="needs-title">今天，需要什麼幫忙？</h2><p>先選一項需要，其他細節可以慢慢說。</p></header>
         <div class="service-list" data-stagger><article v-for="item in services" :key="item.title"><component :is="item.icon" :size="32" /><div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div></article></div>
       </section>
 
-      <section class="caregivers scene" aria-labelledby="care-title">
+      <section class="caregivers scene story-panel story-panel--paper" data-panel="left" aria-labelledby="care-title">
+        <div class="panel-reveal" aria-hidden="true"></div>
         <header data-reveal><span class="eyebrow">照顧夥伴</span><h2 id="care-title">找到適合您的居服員</h2><p>看服務經驗與地區，再決定要找誰。</p><router-link class="text-link" to="/caregivers">查看全部居服員 <ArrowRight :size="19" /></router-link></header>
         <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員"><q-skeleton v-for="n in 4" :key="n" type="rect" class="skeleton" /></div>
         <div v-else-if="caregiverError" class="state" role="status"><WifiOff /><div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div><button type="button" @click="loadCaregivers">重新整理</button></div>
         <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger><router-link v-for="c in caregivers.slice(0,6)" :key="c._id" to="/caregivers" class="caregiver-card"><div class="photo"><img :src="assetUrl(c.profilePhotoUrl)" :alt="`${caregiverName(c)}的居服員近照`" loading="lazy" @error="useFallbackPhoto"><span><BadgeCheck :size="17" /> 已認證</span></div><div class="body"><h3>{{ caregiverName(c) }}</h3><p><BriefcaseBusiness :size="17" /> {{ experienceLabel(c) }}</p><p><MapPin :size="17" /> {{ areaLabel(c) }}</p><b>查看介紹 <ChevronRight :size="17" /></b></div></router-link></div>
       </section>
 
-      <section ref="journey" class="journey" aria-labelledby="journey-title">
+      <section ref="journey" class="journey story-panel story-panel--oat" data-panel="center" aria-labelledby="journey-title">
+        <div class="panel-reveal" aria-hidden="true"></div>
         <div class="journey-stage"><div class="journey-copy"><span class="eyebrow">預約流程</span><h2 id="journey-title">一步一步，走向安心</h2><div class="journey-steps"><article v-for="step in steps" :key="step.number" class="journey-step"><b>{{ step.number }}</b><h3>{{ step.title }}</h3><p>{{ step.description }}</p></article></div></div><div class="journey-actors" aria-hidden="true"><div class="actor actor--caregiver"><UserRoundCheck :size="54" /></div><div class="care-path"><span></span></div><div class="actor actor--elder"><PersonStanding :size="54" /></div><Heart class="journey-heart" :size="34" /></div></div>
       </section>
 
-      <section class="booking scene" aria-labelledby="booking-title" data-reveal><div><span class="eyebrow">選擇時間</span><h2 id="booking-title">安排一個方便的日期</h2><p>登入後選擇受照顧者、服務內容與時間。</p><router-link class="primary" to="/login">開始預約 <ArrowRight :size="21" /></router-link></div><div class="calendar-card" aria-hidden="true"><header><CalendarDays :size="28" /><strong>預約日期</strong></header><div class="week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="dates"><span v-for="date in 14" :key="date" :class="{ selected: date === 9 }">{{ date }}</span></div></div></section>
+      <section class="booking scene story-panel story-panel--blue" data-panel="left" aria-labelledby="booking-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">選擇時間</span><h2 id="booking-title">安排一個方便的日期</h2><p>登入後選擇受照顧者、服務內容與時間。</p><router-link class="primary" to="/login">開始預約 <ArrowRight :size="21" /></router-link></div><div class="calendar-card" aria-hidden="true" data-reveal><header><CalendarDays :size="28" /><strong>預約日期</strong></header><div class="week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="dates"><span v-for="date in 14" :key="date" :class="{ selected: date === 9 }">{{ date }}</span></div></div></section>
 
-      <section id="subsidy" class="estimate scene" aria-labelledby="estimate-title" data-reveal><div><span class="eyebrow">簡單試算</span><h2 id="estimate-title">長照費用，先算算看</h2><p>完成四個選擇，就能看到預估費用。</p><aside><ShieldCheck :size="22" /> 試算僅供參考，實際補助依主管機關核定。</aside></div><div class="calculator"><CareCostCalculator compact /></div></section>
+      <section id="subsidy" class="estimate scene story-panel story-panel--chestnut" data-panel="center" aria-labelledby="estimate-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">簡單試算</span><h2 id="estimate-title">長照費用，先算算看</h2><p>完成四個選擇，就能看到預估費用。</p><aside><ShieldCheck :size="22" /> 試算僅供參考，實際補助依主管機關核定。</aside></div><div class="calculator" data-reveal><CareCostCalculator compact /></div></section>
 
-      <section class="ending" aria-labelledby="ending-title" data-reveal><HouseHeart :size="54" /><span>照顧，不必一個人面對</span><h2 id="ending-title">有人陪伴，安心就從這裡開始。</h2><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></section>
+      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy" data-reveal><HouseHeart :size="54" /><span>照顧，不必一個人面對</span><h2 id="ending-title">有人陪伴，安心就從這裡開始。</h2><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
     </main>
     <q-dialog v-model="lineDialog"><q-card class="line-dialog"><q-card-section class="line-dialog__mark"><MessageCircleHeart :size="42" /></q-card-section><q-card-section class="line-dialog__copy"><button type="button" aria-label="關閉 LINE 專人服務" v-close-popup><X :size="22" /></button><small>照安心 LINE 官方帳號</small><h2>需要時，我們就在 LINE 裡陪您</h2><p>官方 LINE ID</p><strong>@690hzupc</strong><a href="https://line.me/R/ti/p/@690hzupc" target="_blank" rel="noopener noreferrer">開啟 LINE 加好友 <ArrowRight :size="20" /></a></q-card-section><q-card-actions align="center"><q-btn flat no-caps label="稍後再說" v-close-popup /></q-card-actions></q-card></q-dialog>
   </q-page>
@@ -57,7 +60,7 @@ import { gsap } from '@/composables/useGsap';
 
 interface Caregiver { _id: string; userId?: { name?: string } | string; profilePhotoUrl?: string; yearsExperience?: number; serviceAreas?: string[] }
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
+const hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), homeReady = ref(false), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
 let motionContext: gsap.Context | undefined, motionStarted = false;
 const services = [{ title: '日常照顧', description: '洗澡、穿衣與生活協助', icon: markRaw(UserRoundCheck) }, { title: '陪同就醫', description: '陪您看診、取藥', icon: markRaw(Stethoscope) }, { title: '備餐代購', description: '準備餐點與日常採買', icon: markRaw(ShoppingBasket) }, { title: '陪伴關懷', description: '聊天、散步與日常陪伴', icon: markRaw(MessagesSquare) }];
 const steps = [{ number: '01', title: '告訴我們需求', description: '選擇需要的照顧服務。' }, { number: '02', title: '找到居服員', description: '查看經驗與服務地區。' }, { number: '03', title: '選擇日期', description: '安排方便的服務時間。' }, { number: '04', title: '安心開始', description: '清楚掌握服務進度。' }];
@@ -76,6 +79,15 @@ function setupMotion() {
   const heroEl = hero.value, needsEl = needs.value, journeyEl = journey.value;
   motionContext = gsap.context(() => {
     gsap.timeline().from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .22).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .42).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .65);
+    gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
+      const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
+      if (!reveal) return;
+      const direction = panel.dataset.panel;
+      gsap.fromTo(reveal, direction === 'center' ? { scale: .12 } : { xPercent: direction === 'left' ? -104 : 104 }, {
+        scale: 1, xPercent: 0, ease: 'none',
+        scrollTrigger: { trigger: panel, start: 'top 96%', end: 'top 28%', scrub: 1 },
+      });
+    });
     gsap.matchMedia().add('(min-width: 901px)', () => {
       gsap.timeline({ scrollTrigger: { trigger: heroEl, start: 'top top+=76', end: '+=900', scrub: 1, pin: true } }).to('.blob--peach', { xPercent: -38, yPercent: 18 }, 0).to('.blob--blue', { xPercent: 38, yPercent: -18 }, 0).to('.hero-copy', { y: -70, opacity: .15 }, 0).to('.caregiver-character', { x: 95, y: 28 }, 0).to('.elder-character', { x: -24 }, 0).to('.hill--back', { x: 42 }, 0).to('.doodle--heart', { x: 70, y: -110, rotate: 12 }, 0).to('.doodle--leaf', { x: -60, y: -90, rotate: -16 }, 0);
       const journeyTl = gsap.timeline({ scrollTrigger: { trigger: journeyEl, start: 'top top+=76', end: '+=1800', scrub: 1, pin: journeyEl.querySelector('.journey-stage') as HTMLElement } });
@@ -86,7 +98,7 @@ function setupMotion() {
     gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(el => gsap.from(el, { y: 30, opacity: 0, duration: .6, clearProps: 'transform,opacity', scrollTrigger: { trigger: el, start: 'top 88%', once: true } }));
   });
 }
-async function handleOpeningFinished() { await nextTick(); setupMotion(); }
+async function handleOpeningFinished() { homeReady.value = true; await nextTick(); setupMotion(); }
 onMounted(loadCaregivers);
 onBeforeUnmount(() => motionContext?.revert());
 </script>
@@ -104,4 +116,8 @@ onBeforeUnmount(() => motionContext?.revert());
 @media(max-width:900px){main{padding-inline:16px}.story-hero{grid-template-columns:1fr;padding-top:60px}.hero-scene{min-height:420px}.service-list{grid-template-columns:repeat(2,1fr)}.journey{min-height:auto}.journey-stage{grid-template-columns:1fr;padding:42px 30px}.journey-steps{display:grid;gap:16px}.journey-step{position:relative;opacity:1;padding:18px 0;border-top:1px solid #6e57502e}.journey-actors{display:none}.booking,.estimate{grid-template-columns:1fr}.booking{padding-inline:0}.estimate{margin-top:100px}.caregiver-row{grid-auto-columns:minmax(330px,80vw)}}
 @media(max-width:599px){main{padding:0 12px 48px}.story-hero{min-height:auto;padding:48px 10px 28px}.hero-copy h1{font-size:2.75rem}.hero-copy p br{display:none}.primary{width:100%}.hero-scene{min-height:320px}.photo-frame{inset:8% 0}.doodle{width:54px;height:54px}.scroll-cue{position:relative;left:auto;bottom:auto;width:max-content;margin:0 auto;transform:none}.scene{padding-top:84px}.needs{min-height:auto;padding-inline:0}.service-list{grid-template-columns:1fr}.service-list article{padding:18px 6px}.floating-service{display:none}.caregivers header{padding-left:0}.caregiver-row{grid-auto-columns:minmax(290px,88vw)}.caregiver-card{grid-template-columns:115px 1fr}.photo{min-height:225px}.journey{padding-top:84px}.journey-stage{min-height:auto;padding:32px 22px;border-radius:24px}.journey-copy{min-height:auto}.journey h2{font-size:2.35rem}.booking{gap:42px}.calendar-card{padding:20px}.estimate{padding:30px 16px}.calculator{padding:20px 12px}.ending{margin-top:84px;padding:64px 22px}.ending h2{font-size:2.3rem}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+.story-panel{position:relative;isolation:isolate;overflow:hidden;border-radius:clamp(28px,5vw,64px)}.story-panel>*:not(.panel-reveal){position:relative;z-index:1}.panel-reveal{position:absolute;z-index:0;inset:0;border-radius:inherit;will-change:transform}.story-panel--peach .panel-reveal{background:#f4d5ca}.story-panel--paper .panel-reveal{background:#fffdfb}.story-panel--oat .panel-reveal{background:#e9ddd7}.story-panel--blue .panel-reveal{background:#dee8e6}.story-panel--chestnut .panel-reveal{background:var(--chestnut)}.story-panel--green .panel-reveal{background:#dde5d3}.needs,.caregivers{padding:clamp(80px,10vw,130px) clamp(20px,6vw,72px)}.caregivers{margin-top:64px;padding-bottom:clamp(70px,9vw,110px)}.journey{padding-inline:24px}.journey-stage{background:transparent}.booking{min-height:88vh;margin-top:64px;padding-block:clamp(70px,10vw,120px)}.estimate{background:transparent}.ending{display:grid;grid-template-columns:1fr 1fr;gap:clamp(30px,6vw,80px);padding:clamp(34px,6vw,74px);text-align:left;background:none}.ending-photo{overflow:hidden;aspect-ratio:4/3;border-radius:28px;box-shadow:0 24px 55px #4938331f}.ending-photo img{width:100%;height:100%;object-fit:cover}.ending-copy>svg{color:#4f7264}.ending-copy>span{display:block;margin-top:24px;color:var(--chestnut)}.ending-copy button{display:block}.primary{transition:transform .2s ease,box-shadow .2s ease}.primary:hover{transform:translateY(-2px);box-shadow:0 14px 30px #b84f1642}.primary:active{transform:scale(.98)}
+@media(max-width:900px){.ending{grid-template-columns:1fr}.ending-photo{max-height:420px}.booking{padding-inline:clamp(22px,6vw,54px)}}
+@media(max-width:599px){.needs,.caregivers{padding:72px 18px}.journey{padding-inline:0}.ending{padding:28px 18px 54px}.story-panel{border-radius:26px}}
+@media(prefers-reduced-motion:reduce){.panel-reveal{transform:none!important}.primary{transition:none}}
 </style>
