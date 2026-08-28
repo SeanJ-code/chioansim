@@ -4,7 +4,7 @@
     <main v-if="homeReady">
       <section ref="hero" class="story-hero" aria-labelledby="hero-title">
         <div class="blob blob--peach" aria-hidden="true"></div><div class="blob blob--blue" aria-hidden="true"></div>
-        <div class="hero-copy" data-hero-copy><span class="eyebrow"><HeartHandshake :size="20" /> 照安心・居家照顧預約</span><h1 id="hero-title">讓照顧，<br><em>有人一起分擔。</em></h1><p>找到合適的居服員，<br>從預約開始，多一份安心。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></div>
+        <div class="hero-copy" data-hero-copy><span class="chapter-number">01</span><h1 id="hero-title">陽光顧，<br><em>有人希望。</em></h1><p>找到合適的居服員，<br>從預約開始，多一份安心。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></div>
         <div class="hero-scene" aria-hidden="true">
           <svg class="care-illustration" viewBox="0 0 640 560" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path class="hill hill--back" d="M21 471C100 391 185 433 258 390C344 339 390 365 460 413C523 456 572 422 629 376V560H21Z" />
@@ -23,28 +23,29 @@
       <section id="needs" ref="needs" class="needs scene story-panel story-panel--peach" data-panel="right" aria-labelledby="needs-title">
         <div class="panel-reveal" aria-hidden="true"></div>
         <span class="floating-service floating-service--1" aria-hidden="true"><Utensils :size="38" /></span><span class="floating-service floating-service--2" aria-hidden="true"><Stethoscope :size="40" /></span><span class="floating-service floating-service--3" aria-hidden="true"><ShoppingBasket :size="38" /></span><span class="floating-service floating-service--4" aria-hidden="true"><MessagesSquare :size="38" /></span>
-        <header data-reveal><span class="eyebrow">選擇服務</span><h2 id="needs-title">今天，需要什麼幫忙？</h2><p>先選一項需要，其他細節可以慢慢說。</p></header>
+        <header data-reveal><span class="chapter-number">02</span><h2 id="needs-title">每一份照顧，<br>都從理解開始。</h2><p>告訴我們需要什麼樣的陪伴。</p></header>
         <div class="service-list" data-stagger><article v-for="item in services" :key="item.title"><component :is="item.icon" :size="32" /><div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div></article></div>
       </section>
 
-      <section class="caregivers scene story-panel story-panel--paper" data-panel="left" aria-labelledby="care-title">
+      <section class="caregivers scene story-panel story-panel--paper" data-panel="bottom-left" aria-labelledby="care-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <header data-reveal><span class="eyebrow">照顧夥伴</span><h2 id="care-title">找到適合您的居服員</h2><p>看服務經驗與地區，再決定要找誰。</p><router-link class="text-link" to="/caregivers">查看全部居服員 <ArrowRight :size="19" /></router-link></header>
+        <header data-reveal><span class="chapter-number">03</span><h2 id="care-title">找到值得信任的<br>居服員</h2><p>資格、經驗與服務地區，都清楚呈現。</p><router-link class="text-link" to="/caregivers">查看全部居服員 <ArrowRight :size="19" /></router-link></header>
         <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員"><q-skeleton v-for="n in 4" :key="n" type="rect" class="skeleton" /></div>
         <div v-else-if="caregiverError" class="state" role="status"><WifiOff /><div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div><button type="button" @click="loadCaregivers">重新整理</button></div>
-        <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger><router-link v-for="c in caregivers.slice(0,6)" :key="c._id" to="/caregivers" class="caregiver-card"><div class="photo"><img :src="assetUrl(c.profilePhotoUrl)" :alt="`${caregiverName(c)}的居服員近照`" loading="lazy" @error="useFallbackPhoto"><span><BadgeCheck :size="17" /> 已認證</span></div><div class="body"><h3>{{ caregiverName(c) }}</h3><p><BriefcaseBusiness :size="17" /> {{ experienceLabel(c) }}</p><p><MapPin :size="17" /> {{ areaLabel(c) }}</p><b>查看介紹 <ChevronRight :size="17" /></b></div></router-link></div>
+        <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger><router-link v-for="c in caregivers.slice(0,3)" :key="c._id" to="/caregivers" class="caregiver-card"><div class="photo"><img :src="assetUrl(c.profilePhotoUrl)" :alt="`${caregiverName(c)}的居服員近照`" loading="lazy" @error="useFallbackPhoto"><span><BadgeCheck :size="17" /> 已認證</span></div><div class="body"><h3>{{ caregiverName(c) }}</h3><p><BriefcaseBusiness :size="17" /> {{ experienceLabel(c) }}</p><p><MapPin :size="17" /> {{ areaLabel(c) }}</p><b>查看介紹 <ChevronRight :size="17" /></b></div></router-link></div>
+        <ol class="trust-list" aria-label="居服員信任保障" data-reveal><li><b>01</b><span>安心資格</span></li><li><b>02</b><span>服務經驗</span></li><li><b>03</b><span>真實評價</span></li></ol>
       </section>
 
       <section ref="journey" class="journey story-panel story-panel--oat" data-panel="center" aria-labelledby="journey-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <div class="journey-stage"><div class="journey-copy"><span class="eyebrow">預約流程</span><h2 id="journey-title">一步一步，走向安心</h2><div class="journey-steps"><article v-for="step in steps" :key="step.number" class="journey-step"><b>{{ step.number }}</b><h3>{{ step.title }}</h3><p>{{ step.description }}</p></article></div></div><div class="journey-actors" aria-hidden="true"><div class="actor actor--caregiver"><UserRoundCheck :size="54" /></div><div class="care-path"><span></span></div><div class="actor actor--elder"><PersonStanding :size="54" /></div><Heart class="journey-heart" :size="34" /></div></div>
+        <div class="journey-stage"><div class="journey-copy"><span class="chapter-number">04</span><h2 id="journey-title">預約變得很簡單</h2><p>沿著照顧的路，一步一步完成安排。</p><div class="journey-steps"><article v-for="step in steps" :key="step.number" class="journey-step"><b>{{ step.number }}</b><h3>{{ step.title }}</h3><p>{{ step.description }}</p></article></div></div><div class="journey-actors" aria-hidden="true"><div class="actor actor--caregiver"><UserRoundCheck :size="54" /></div><div class="care-path"><span></span></div><div class="actor actor--elder"><HouseHeart :size="54" /></div><Heart class="journey-heart" :size="34" /></div></div>
       </section>
 
-      <section class="booking scene story-panel story-panel--blue" data-panel="left" aria-labelledby="booking-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">選擇時間</span><h2 id="booking-title">安排一個方便的日期</h2><p>登入後選擇受照顧者、服務內容與時間。</p><router-link class="primary" to="/login">開始預約 <ArrowRight :size="21" /></router-link></div><div class="calendar-card" aria-hidden="true" data-reveal><header><CalendarDays :size="28" /><strong>預約日期</strong></header><div class="week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="dates"><span v-for="date in 14" :key="date" :class="{ selected: date === 9 }">{{ date }}</span></div></div></section>
+      <section class="progress-story scene story-panel story-panel--blue" data-panel="left" aria-labelledby="progress-title"><div class="panel-reveal" aria-hidden="true"></div><header data-reveal><span class="chapter-number">05</span><h2 id="progress-title">照顧正在進行中</h2><p>從出發到抵達，家人都知道照顧正在發生。</p></header><div class="progress-route" data-progress-route><div class="route-person"><UserRoundCheck :size="48" /><span>居服員</span></div><div class="route-line"><i></i><span class="route-dot"></span></div><div class="route-home"><HouseHeart :size="50" /><span>家</span></div></div><ol class="progress-steps" data-stagger><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="27" /><span>{{ item.label }}</span></li></ol></section>
 
       <section id="subsidy" class="estimate scene story-panel story-panel--chestnut" data-panel="center" aria-labelledby="estimate-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">簡單試算</span><h2 id="estimate-title">長照費用，先算算看</h2><p>完成四個選擇，就能看到預估費用。</p><aside><ShieldCheck :size="22" /> 試算僅供參考，實際補助依主管機關核定。</aside></div><div class="calculator" data-reveal><CareCostCalculator compact /></div></section>
 
-      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy" data-reveal><HouseHeart :size="54" /><span>照顧，不必一個人面對</span><h2 id="ending-title">有人陪伴，安心就從這裡開始。</h2><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
+      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy" data-reveal><span class="chapter-number">06</span><HouseHeart :size="54" /><h2 id="ending-title">照顧的路上，<br>有人陪你一起。</h2><p>照顧不孤單，我們一直都在。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
     </main>
     <q-dialog v-model="lineDialog"><q-card class="line-dialog"><q-card-section class="line-dialog__mark"><MessageCircleHeart :size="42" /></q-card-section><q-card-section class="line-dialog__copy"><button type="button" aria-label="關閉 LINE 專人服務" v-close-popup><X :size="22" /></button><small>照安心 LINE 官方帳號</small><h2>需要時，我們就在 LINE 裡陪您</h2><p>官方 LINE ID</p><strong>@690hzupc</strong><a href="https://line.me/R/ti/p/@690hzupc" target="_blank" rel="noopener noreferrer">開啟 LINE 加好友 <ArrowRight :size="20" /></a></q-card-section><q-card-actions align="center"><q-btn flat no-caps label="稍後再說" v-close-popup /></q-card-actions></q-card></q-dialog>
   </q-page>
@@ -52,7 +53,7 @@
 
 <script setup lang="ts">
 import { markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { ArrowDown, ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarDays, ChevronRight, Heart, HeartHandshake, HouseHeart, MapPin, MessageCircleHeart, MessagesSquare, PersonStanding, ShieldCheck, ShoppingBasket, Sprout, Stethoscope, UserRoundCheck, Utensils, WifiOff, X } from '@lucide/vue';
+import { ArrowDown, ArrowRight, BadgeCheck, BellRing, Bike, BriefcaseBusiness, CheckCircle2, ChevronRight, Heart, HouseHeart, MapPin, MapPinned, MessageCircleHeart, MessagesSquare, Route, ShieldCheck, ShoppingBasket, Sprout, Stethoscope, UserRoundCheck, Utensils, WifiOff, X } from '@lucide/vue';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import OpeningExperience from '@/components/opening/OpeningExperience.vue';
@@ -64,6 +65,7 @@ const hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLE
 let motionContext: gsap.Context | undefined, motionStarted = false;
 const services = [{ title: '日常照顧', description: '洗澡、穿衣與生活協助', icon: markRaw(UserRoundCheck) }, { title: '陪同就醫', description: '陪您看診、取藥', icon: markRaw(Stethoscope) }, { title: '備餐代購', description: '準備餐點與日常採買', icon: markRaw(ShoppingBasket) }, { title: '陪伴關懷', description: '聊天、散步與日常陪伴', icon: markRaw(MessagesSquare) }];
 const steps = [{ number: '01', title: '告訴我們需求', description: '選擇需要的照顧服務。' }, { number: '02', title: '找到居服員', description: '查看經驗與服務地區。' }, { number: '03', title: '選擇日期', description: '安排方便的服務時間。' }, { number: '04', title: '安心開始', description: '清楚掌握服務進度。' }];
+const progressSteps = [{ label: '承接任務', icon: markRaw(CheckCircle2) }, { label: '準備出發', icon: markRaw(Bike) }, { label: '抵達服務地點', icon: markRaw(MapPinned) }, { label: '家人收到通知', icon: markRaw(BellRing) }, { label: '完成服務', icon: markRaw(Route) }];
 function caregiverName(c: Caregiver) { return typeof c.userId === 'object' ? c.userId.name || '照安心夥伴' : '照安心夥伴'; }
 function experienceLabel(c: Caregiver) { return c.yearsExperience ? `${c.yearsExperience} 年服務經驗` : '新進照護夥伴'; }
 function areaLabel(c: Caregiver) { return c.serviceAreas?.slice(0, 2).join('、') || '服務地區洽談'; }
@@ -78,13 +80,14 @@ function setupMotion() {
   motionStarted = true;
   const heroEl = hero.value, needsEl = needs.value, journeyEl = journey.value;
   motionContext = gsap.context(() => {
-    gsap.timeline().from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .22).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .42).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .65);
+    gsap.timeline().fromTo(heroEl, { clipPath: 'inset(46% round 64px)' }, { clipPath: 'inset(0% round 0 0 64px 64px)', duration: 1, ease: 'power3.inOut' }).from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }, .28).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .4).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .58).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .78);
     gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
       const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
       if (!reveal) return;
       const direction = panel.dataset.panel;
-      gsap.fromTo(reveal, direction === 'center' ? { scale: .12 } : { xPercent: direction === 'left' ? -104 : 104 }, {
-        scale: 1, xPercent: 0, ease: 'none',
+      const from = direction === 'center' ? { scale: .12 } : direction === 'bottom-left' ? { xPercent: -70, yPercent: 70, scale: .3 } : { xPercent: direction === 'left' ? -104 : 104 };
+      gsap.fromTo(reveal, from, {
+        scale: 1, xPercent: 0, yPercent: 0, ease: 'none',
         scrollTrigger: { trigger: panel, start: 'top 96%', end: 'top 28%', scrub: 1 },
       });
     });
@@ -95,6 +98,8 @@ function setupMotion() {
       journeyTl.to('.journey-heart', { opacity: 1, scale: 1, duration: .25 });
     });
     gsap.to('.floating-service--1', { x: 70, y: -55, rotate: -8, scrollTrigger: { trigger: needsEl, scrub: 1.2 } }); gsap.to('.floating-service--2', { x: -55, y: -85, rotate: 7, scrollTrigger: { trigger: needsEl, scrub: 1.5 } }); gsap.to('.floating-service--3', { x: 80, y: -110, rotate: 10, scrollTrigger: { trigger: needsEl, scrub: 1 } });
+    gsap.fromTo('.route-line i', { scaleX: 0 }, { scaleX: 1, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
+    gsap.fromTo('.route-dot', { xPercent: -50 }, { xPercent: 50, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
     gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(el => gsap.from(el, { y: 30, opacity: 0, duration: .6, clearProps: 'transform,opacity', scrollTrigger: { trigger: el, start: 'top 88%', once: true } }));
   });
 }
@@ -120,4 +125,10 @@ onBeforeUnmount(() => motionContext?.revert());
 @media(max-width:900px){.ending{grid-template-columns:1fr}.ending-photo{max-height:420px}.booking{padding-inline:clamp(22px,6vw,54px)}}
 @media(max-width:599px){.needs,.caregivers{padding:72px 18px}.journey{padding-inline:0}.ending{padding:28px 18px 54px}.story-panel{border-radius:26px}}
 @media(prefers-reduced-motion:reduce){.panel-reveal{transform:none!important}.primary{transition:none}}
+.chapter-number{display:block;margin-bottom:14px;color:var(--persimmon);font-size:.9rem;font-weight:700;letter-spacing:.2em}.story-hero{background:linear-gradient(135deg,#e8eddf 0%,#dde5d3 100%);border-radius:0 0 64px 64px;padding-inline:clamp(28px,5vw,70px)}.story-hero::after{content:"";position:absolute;inset:0;z-index:0;opacity:.18;pointer-events:none;background-image:radial-gradient(#6e8a57 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(90deg,transparent,#000,transparent)}.hero-copy,.hero-scene,.scroll-cue{z-index:1}.needs{text-align:left}.needs header{margin-inline:0}.service-list{margin-left:auto;width:min(850px,100%)}.service-list article{min-height:150px;align-items:flex-start;padding:30px 18px;background:#fff9f552;border-top-color:#eb907980;border-radius:20px}.caregivers{border-radius:50% 50% 48px 48px/10% 10% 48px 48px}.caregivers header{padding-left:0}.caregiver-row{grid-auto-columns:minmax(300px,1fr);overflow:visible}.trust-list{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:36px 0 0;padding:0;border-top:1px solid #6e57502e;list-style:none}.trust-list li{display:flex;align-items:center;gap:14px;padding:24px 12px;border-bottom:1px solid #6e57502e}.trust-list b{color:var(--persimmon);letter-spacing:.14em}.trust-list span{font-weight:700}.journey-copy>p{color:var(--chestnut);font-size:1.08rem}.progress-story{min-height:92vh;display:flex;flex-direction:column;justify-content:center;margin-top:64px;padding:clamp(70px,9vw,110px) clamp(24px,7vw,90px)}.progress-story header{max-width:680px}.progress-route{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;margin:60px 0 44px}.route-person,.route-home{display:grid;place-items:center;gap:8px;color:var(--chestnut);font-weight:700}.route-line{position:relative;height:5px;background:#fffdfb;border-radius:99px}.route-line i{position:absolute;inset:0;background:var(--persimmon);border-radius:inherit;transform-origin:left}.route-dot{position:absolute;left:50%;top:50%;width:22px;height:22px;background:var(--paper);border:6px solid var(--persimmon);border-radius:50%;transform:translate(-50%,-50%)}.progress-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:0;padding:0;list-style:none}.progress-steps li{display:grid;place-items:center;gap:10px;min-height:116px;padding:18px;color:var(--chestnut);background:#fffdfb99;border-radius:18px;text-align:center}.progress-steps svg{color:#52756d}.estimate{margin-top:64px}.ending-copy p{margin:0 0 28px;color:var(--chestnut);font-size:1.08rem}.ending-copy .chapter-number{margin-bottom:24px}.ending-photo img{filter:saturate(.82) contrast(.94)}
+@media(max-width:900px){.story-hero{border-radius:0 0 40px 40px}.caregiver-row{grid-auto-columns:minmax(300px,78vw);overflow-x:auto}.progress-steps{grid-template-columns:repeat(3,1fr)}.journey{min-height:auto}.journey-stage{min-height:auto}}
+@media(max-width:599px){.story-hero{padding-inline:10px}.needs{text-align:center}.service-list article{min-height:auto;text-align:left}.caregivers{border-radius:26px}.trust-list{grid-template-columns:1fr}.trust-list li{justify-content:center}.progress-story{min-height:auto;padding:72px 18px}.progress-route{gap:12px;margin:42px 0 34px}.route-person svg,.route-home svg{width:38px}.progress-steps{grid-template-columns:1fr 1fr}.progress-steps li:last-child{grid-column:1/-1}.ending-copy{text-align:center}.ending-copy>svg{margin-inline:auto}.ending-copy button{margin-inline:auto}}
+@media(prefers-reduced-motion:reduce){.route-line i{transform:none!important}.route-dot{display:none}}
+.journey h2{font-size:clamp(2.4rem,4vw,3rem)}
+@media(max-width:599px){.journey h2{font-size:2.35rem}}
 </style>
