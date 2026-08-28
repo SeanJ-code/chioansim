@@ -8,7 +8,7 @@
   >
     <!--
       主視覺 SVG
-      handcss.svg 會透過 v-html 直接插入
+      手部路徑.svg 會透過 v-html 直接插入
     -->
     <div
       ref="artwork"
@@ -53,7 +53,7 @@ import {
 
 import { gsap } from '@/composables/useGsap';
 
-import handsSvg from '@/assets/opening/hands-path.svg?raw';
+import handsSvg from '@/assets/opening/手部路徑.svg?raw';
 
 
 /* =========================================================
@@ -156,7 +156,7 @@ function finish() {
      手紋、皺紋、小細節
      淺蜜桃色
 
-  未來若 handcss.svg 已經人工分類 class，
+  未來若手部路徑.svg 已經人工分類 class，
   這段也不會覆蓋既有分類。
 */
 
