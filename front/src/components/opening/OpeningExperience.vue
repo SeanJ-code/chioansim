@@ -53,7 +53,7 @@ import {
 
 import { gsap } from '@/composables/useGsap';
 
-import handsSvg from '@/assets/opening/handcss.svg?raw';
+import handsSvg from '@/assets/opening/hands-path.svg?raw';
 
 
 /* =========================================================
@@ -161,7 +161,7 @@ function finish() {
 */
 
 function classifyHandPaths(
-  paths: SVGPathElement[],
+  paths: SVGGeometryElement[],
 ) {
   const pathData = paths.map((path) => ({
     path,
@@ -274,8 +274,8 @@ async function start() {
     取得 SVG 所有 path
   */
   const paths = [
-    ...artwork.value.querySelectorAll<SVGPathElement>(
-      'path',
+    ...artwork.value.querySelectorAll<SVGGeometryElement>(
+      'path, polygon',
     ),
   ];
 
@@ -649,7 +649,8 @@ onBeforeUnmount(() => {
    所有 SVG PATH 共通樣式
 ========================================================= */
 
-.opening__artwork :deep(path) {
+.opening__artwork :deep(path),
+.opening__artwork :deep(polygon) {
   visibility: hidden;
 
   fill: none !important;
