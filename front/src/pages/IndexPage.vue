@@ -80,7 +80,7 @@ function setupMotion() {
   motionStarted = true;
   const heroEl = hero.value, needsEl = needs.value, journeyEl = journey.value;
   motionContext = gsap.context(() => {
-    gsap.timeline().fromTo(heroEl, { clipPath: 'inset(46% round 64px)' }, { clipPath: 'inset(0% round 0 0 64px 64px)', duration: 1, ease: 'power3.inOut' }).from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }, .28).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .4).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .58).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .78);
+    gsap.timeline().fromTo(heroEl, { clipPath: 'inset(46%)' }, { clipPath: 'inset(0%)', duration: 1, ease: 'power3.inOut' }).from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }, .28).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .4).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .58).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .78);
     gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
       const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
       if (!reveal) return;
@@ -131,4 +131,9 @@ onBeforeUnmount(() => motionContext?.revert());
 @media(prefers-reduced-motion:reduce){.route-line i{transform:none!important}.route-dot{display:none}}
 .journey h2{font-size:clamp(2.4rem,4vw,3rem)}
 @media(max-width:599px){.journey h2{font-size:2.35rem}}
+
+/* Full-bleed scroll story: chapters are the page, not framed cards. */
+.home-page,.home-page main{padding:0;overflow:clip}.story-hero,.scene,.journey,.ending{width:100%;max-width:none;margin:0}.story-panel,.story-hero,.caregivers,.panel-reveal{border-radius:0}.story-hero,.needs,.caregivers,.progress-story,.booking,.estimate,.ending{min-height:100dvh;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2))}.story-hero{min-height:calc(100dvh - 76px)}.needs,.caregivers,.progress-story,.booking,.estimate,.ending{margin:0}.journey{padding:0}.journey-stage{width:100%;min-height:100dvh;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));border-radius:0}.estimate,.ending{padding-block:clamp(70px,9vw,110px)}
+@media(max-width:900px){.home-page main{padding:0}.story-hero,.needs,.caregivers,.progress-story,.booking,.estimate,.ending,.journey-stage{padding-inline:clamp(22px,6vw,54px)}}
+@media(max-width:599px){.home-page main{padding:0}.story-hero,.needs,.caregivers,.progress-story,.booking,.estimate,.ending,.journey-stage{min-height:auto;padding-inline:18px}.story-hero{min-height:calc(100dvh - 66px)}.needs,.caregivers,.progress-story,.booking,.estimate,.ending{padding-block:72px}.journey-stage{padding-block:72px}.caregivers,.story-panel{border-radius:0}}
 </style>
