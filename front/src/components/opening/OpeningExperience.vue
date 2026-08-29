@@ -8,7 +8,7 @@
   >
     <!--
       主視覺 SVG
-      手部路徑.svg 會透過 v-html 直接插入
+      hands-web.svg 會透過 v-html 直接插入
     -->
     <div
       ref="artwork"
@@ -53,7 +53,7 @@ import {
 
 import { gsap } from '@/composables/useGsap';
 
-import handsSvg from '@/assets/opening/handcss.svg?raw';
+import handsSvg from '@/assets/opening/hands-web.svg?raw';
 
 /* =========================================================
    Emits
@@ -155,12 +155,12 @@ function finish() {
      手紋、皺紋、小細節
      淺蜜桃色
 
-  未來若手部路徑.svg 已經人工分類 class，
+  hands-web.svg 已有人工可覆寫的分類 class，
   這段也不會覆蓋既有分類。
 */
 
 function classifyHandPaths(
-  paths: SVGGeometryElement[],
+  paths: SVGPathElement[],
 ) {
   const pathData = paths.map((path) => ({
     path,
@@ -273,8 +273,8 @@ async function start() {
     取得 SVG 所有 path
   */
   const paths = [
-    ...artwork.value.querySelectorAll<SVGGeometryElement>(
-      'path, polygon',
+    ...artwork.value.querySelectorAll<SVGPathElement>(
+      'path',
     ),
   ];
 
@@ -648,8 +648,7 @@ onBeforeUnmount(() => {
    所有 SVG PATH 共通樣式
 ========================================================= */
 
-.opening__artwork :deep(path),
-.opening__artwork :deep(polygon) {
+.opening__artwork :deep(path) {
   visibility: hidden;
 
   fill: none !important;
