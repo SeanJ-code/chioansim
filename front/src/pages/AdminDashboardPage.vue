@@ -185,7 +185,7 @@
           <section class="member-table leave-review-panel">
             <header class="table-heading"><div><p class="section-kicker">LEAVE REVIEW</p><h2>居服員請假審核</h2></div><q-badge color="deep-orange-8" :label="`${pendingLeaves.length} 件待審`" /></header>
             <q-banner v-if="leaveConflict" rounded class="booking-progress__warning"><template #avatar><TriangleAlert :size="22" /></template><strong>{{ leaveConflict.message }}</strong><div>請先處理下列 {{ leaveConflict.conflicts.length }} 筆照護任務，再重新核准。</div><q-list dense><q-item v-for="item in leaveConflict.conflicts" :key="item._id"><q-item-section>{{ item.bookingNumber }}・{{ formatFullDate(item.scheduledStartAt) }}</q-item-section><q-item-section side><q-badge :label="bookingStatusLabel(item.status)" /></q-item-section></q-item></q-list></q-banner>
-            <q-list separator><q-item v-for="item in leaves" :key="item._id"><q-item-section><q-item-label class="text-weight-bold">{{ item.caregiverId?.userId?.name || '居服員' }}・{{ item.leaveType }}</q-item-label><q-item-label caption>{{ formatFullDate(item.startAt) }} 至 {{ formatFullDate(item.endAt) }}</q-item-label><q-item-label>{{ item.reason }}</q-item-label></q-item-section><q-item-section side><q-badge :color="item.status === 'PENDING' ? 'orange-8' : item.status === 'APPROVED' ? 'positive' : 'grey-7'" :label="item.status" /></q-item-section><q-item-section v-if="item.status === 'PENDING'" side><div class="row-actions"><q-btn flat no-caps color="negative" label="駁回" @click="reviewLeave(item, 'REJECTED')" /><q-btn unelevated no-caps color="positive" label="核准" @click="reviewLeave(item, 'APPROVED')" /></div></q-item-section></q-item></q-list>
+            <q-list separator><q-item v-for="item in leaves" :key="item._id" class="leave-review-item" :data-leave-id="item._id"><q-item-section><q-item-label class="text-weight-bold">{{ item.caregiverId?.userId?.name || '居服員' }}・{{ item.leaveType }}</q-item-label><q-item-label caption>{{ formatFullDate(item.startAt) }} 至 {{ formatFullDate(item.endAt) }}</q-item-label><q-item-label>{{ item.reason }}</q-item-label></q-item-section><q-item-section side><q-badge :color="item.status === 'PENDING' ? 'orange-8' : item.status === 'APPROVED' ? 'positive' : 'grey-7'" :label="item.status" /></q-item-section><q-item-section v-if="item.status === 'PENDING'" side><div class="row-actions"><q-btn flat no-caps color="negative" label="駁回" @click="reviewLeave(item, 'REJECTED')" /><q-btn unelevated no-caps color="positive" label="核准" @click="reviewLeave(item, 'APPROVED')" /></div></q-item-section></q-item></q-list>
             <div v-if="!leaves.length" class="booking-empty">目前沒有請假申請。</div>
           </section>
         </q-tab-panel>
@@ -287,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRouter } from 'vue-router';
 import {
@@ -298,6 +298,7 @@ import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
 import { taipeiDateKey, taipeiDateTime } from '@/utils/datetime';
+import { useCareMotion } from '@/composables/useCareMotion';
 
 type PlainObject = Record<string, any>;
 type AlertItem = PlainObject & { note?: string };
@@ -407,7 +408,7 @@ async function reviewLeave(leave: PlainObject, status: 'APPROVED' | 'REJECTED') 
   try {
     await api.patch(`/admin/nurse-leaves/${leave._id}`, { status });
     $q.notify({ type: 'positive', message: status === 'APPROVED' ? '請假已核准。' : '請假已駁回。' });
-    await loadDashboard();
+    await useCareMotion().flip('.leave-review-item', async () => { await loadDashboard(); await nextTick(); });
     liveSync.notifyChanged();
   } catch (error: any) {
     if (error?.response?.data?.code === 'LEAVE_BOOKING_CONFLICT') leaveConflict.value = error.response.data;
