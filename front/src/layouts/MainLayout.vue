@@ -62,6 +62,8 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <CareRadialMenu />
   </q-layout>
 </template>
 
@@ -69,6 +71,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import EssentialLink, { type EssentialLinkProps } from '@/components/EssentialLink.vue';
+import CareRadialMenu from '@/components/navigation/CareRadialMenu.vue';
 import { LogIn, LogOut, ShieldCheck } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth-store';
 import 'boxicons/css/boxicons.min.css';

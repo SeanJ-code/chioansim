@@ -5,22 +5,25 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'login',
     component: () => import('@/pages/LoginPage.vue'),
+    meta: { radialMenu: false },
   },
   {
     path: '/register/:role(user|patient|nurse)',
     name: 'register',
     component: () => import('@/pages/RegisterPage.vue'),
+    meta: { radialMenu: false },
   },
   {
     path: '/forgot-password',
     name: 'forgot-password',
     component: () => import('@/pages/ForgotPasswordPage.vue'),
+    meta: { radialMenu: false },
   },
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
-      { path: '', name: 'home', component: () => import('@/pages/IndexPage.vue') },
+      { path: '', name: 'home', component: () => import('@/pages/IndexPage.vue'), meta: { radialMenu: false } },
       { path: 'users', name: 'users', component: () => import('@/pages/UsersPage.vue') },
       {
         path: 'users/recipients/new',
@@ -38,7 +41,7 @@ const routes: RouteRecordRaw[] = [
         path: 'admin',
         name: 'admin-dashboard',
         component: () => import('@/pages/AdminDashboardPage.vue'),
-        meta: { requiresAuth: true, role: 'ADMIN' },
+        meta: { requiresAuth: true, role: 'ADMIN', radialMenu: false },
       },
       { path: 'organizations', name: 'organizations', component: () => import('@/pages/OrganizationsPage.vue') },
     ],
@@ -46,6 +49,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/:catchAll(.*)*',
     component: () => import('@/pages/ErrorNotFound.vue'),
+    meta: { radialMenu: false },
   },
 ];
 
