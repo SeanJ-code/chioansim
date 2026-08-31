@@ -23,7 +23,7 @@
       <section id="needs" ref="needs" class="needs scene story-panel story-panel--peach" data-panel="right" aria-labelledby="needs-title">
         <div class="panel-reveal" aria-hidden="true"></div>
         <header data-reveal><span class="chapter-number">02</span><h2 id="needs-title">每一份照顧，<br>都從理解開始。</h2><p>告訴我們需要什麼樣的陪伴。</p></header>
-        <div class="service-list" data-stagger><article v-for="item in services" :key="item.title"><component :is="item.icon" :size="32" /><div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div></article></div>
+        <div class="service-list"><article v-for="(item, index) in services" :key="item.title" class="service-card" :data-service-index="index"><span class="service-card__number">0{{ index + 1 }}</span><span class="service-card__icon"><component :is="item.icon" :size="34" /></span><div class="service-card__copy"><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div><span class="service-card__arrow" aria-hidden="true"><ArrowRight :size="22" /></span></article></div>
       </section>
 
       <section class="caregivers scene story-panel story-panel--paper" data-panel="bottom-left" aria-labelledby="care-title">
@@ -35,9 +35,17 @@
         <ol class="trust-list" aria-label="居服員信任保障" data-reveal><li><b>01</b><span>安心資格</span></li><li><b>02</b><span>服務經驗</span></li><li><b>03</b><span>真實評價</span></li></ol>
       </section>
 
-      <section ref="journey" class="journey story-panel story-panel--oat" data-panel="center" aria-labelledby="journey-title">
+      <section ref="journey" class="booking-story story-panel story-panel--oat" data-panel="center" aria-labelledby="journey-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <div class="journey-stage"><div class="journey-copy"><span class="chapter-number">04</span><h2 id="journey-title">預約變得很簡單</h2><p>沿著照顧的路，一步一步完成安排。</p><div class="journey-steps"><article v-for="step in steps" :key="step.number" class="journey-step"><b>{{ step.number }}</b><h3>{{ step.title }}</h3><p>{{ step.description }}</p></article></div></div><div class="journey-actors" aria-hidden="true"><div class="actor actor--caregiver"><UserRoundCheck :size="54" /></div><div class="care-path"><span></span></div><div class="actor actor--elder"><HouseHeart :size="54" /></div><Heart class="journey-heart" :size="34" /></div></div>
+        <header class="booking-story__heading"><span class="chapter-number">04</span><h2 id="journey-title">預約，<br>其實可以很簡單。</h2><p>四個步驟，就有人來陪你。</p></header>
+        <div class="booking-stage" aria-label="預約流程：告訴需求、找到居服員、選擇時間、安心開始">
+          <div class="booking-stage__path" aria-hidden="true"><span class="booking-path-line"></span></div>
+          <div class="booking-node booking-node--need"><span>01</span><MessagesSquare :size="36" /><strong>告訴我們需求</strong></div>
+          <div class="booking-node booking-node--caregiver"><span>02</span><UserRoundCheck :size="38" /><strong>找到居服員</strong></div>
+          <div class="booking-node booking-node--date"><span>03</span><div class="mini-calendar"><small>SEP</small><strong>02</strong><b>14:30</b></div><strong>選擇時間</strong></div>
+          <div class="booking-node booking-node--done"><span>04</span><HouseHeart :size="42" /><strong>安心開始</strong></div>
+          <Heart class="booking-heart" :size="34" aria-hidden="true" />
+        </div>
       </section>
 
       <section class="progress-story scene story-panel story-panel--blue" data-panel="left" aria-labelledby="progress-title"><div class="panel-reveal" aria-hidden="true"></div><header data-reveal><span class="chapter-number">05</span><h2 id="progress-title">照顧正在進行中</h2><p>從出發到抵達，家人都知道照顧正在發生。</p></header><div class="progress-route" data-progress-route><div class="route-person"><UserRoundCheck :size="48" /><span>居服員</span></div><div class="route-line"><i></i><span class="route-dot"></span></div><div class="route-home"><HouseHeart :size="50" /><span>家</span></div></div><ol class="progress-steps" data-stagger><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="27" /><span>{{ item.label }}</span></li></ol></section>
@@ -63,7 +71,6 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const homePage = ref<HTMLElement>(), hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), homeReady = ref(false), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
 let motionContext: gsap.Context | undefined, media: gsap.MatchMedia | undefined, motionStarted = false;
 const services = [{ title: '日常照顧', description: '洗澡、穿衣與生活協助', icon: markRaw(UserRoundCheck) }, { title: '陪同就醫', description: '陪您看診、取藥', icon: markRaw(Stethoscope) }, { title: '備餐代購', description: '準備餐點與日常採買', icon: markRaw(ShoppingBasket) }, { title: '陪伴關懷', description: '聊天、散步與日常陪伴', icon: markRaw(MessagesSquare) }];
-const steps = [{ number: '01', title: '告訴我們需求', description: '選擇需要的照顧服務。' }, { number: '02', title: '找到居服員', description: '查看經驗與服務地區。' }, { number: '03', title: '選擇日期', description: '安排方便的服務時間。' }, { number: '04', title: '安心開始', description: '清楚掌握服務進度。' }];
 const progressSteps = [{ label: '承接任務', icon: markRaw(CheckCircle2) }, { label: '準備出發', icon: markRaw(Bike) }, { label: '抵達服務地點', icon: markRaw(MapPinned) }, { label: '家人收到通知', icon: markRaw(BellRing) }, { label: '完成服務', icon: markRaw(Route) }];
 function caregiverName(c: Caregiver) { return typeof c.userId === 'object' ? c.userId.name || '照安心夥伴' : '照安心夥伴'; }
 function experienceLabel(c: Caregiver) { return c.yearsExperience ? `${c.yearsExperience} 年服務經驗` : '新進照護夥伴'; }
@@ -101,6 +108,26 @@ function setupHomeScrollAnimations() {
       gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(element => gsap.from(element, { y: 42, autoAlpha: 0, duration: .85, ease: 'power3.out', scrollTrigger: { trigger: element, start: 'top 82%', end: 'bottom 58%', toggleActions: 'play none none reverse' } }));
       gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach(group => gsap.from(group.children, { y: 34, autoAlpha: 0, duration: .7, stagger: .12, ease: 'power3.out', scrollTrigger: { trigger: group, start: 'top 82%', toggleActions: 'play none none reverse' } }));
 
+      const serviceCards = gsap.utils.toArray<HTMLElement>('.service-card');
+      gsap.timeline({ scrollTrigger: { trigger: needsEl, start: 'top 72%', end: 'center 48%', toggleActions: 'play none none reverse' } })
+        .from('#needs .chapter-number', { y: 20, autoAlpha: 0, duration: .45, ease: 'power2.out' })
+        .from('#needs-title', { y: 45, autoAlpha: 0, duration: .75, ease: 'power3.out' }, '-=.2')
+        .from('#needs header p', { y: 18, autoAlpha: 0, duration: .5 }, '-=.35')
+        .from(serviceCards, { y: 90, rotation: index => [-3, 2, -2, 3][index] ?? 0, scale: .88, autoAlpha: 0, duration: .85, stagger: .14, ease: 'back.out(1.25)' }, '-=.15')
+        .from('.service-card__icon', { scale: 0, rotation: -20, duration: .5, stagger: .12, ease: 'back.out(1.8)' }, '-=.65')
+        .from('.service-card__copy h3', { x: -20, autoAlpha: 0, duration: .4, stagger: .1 }, '-=.45')
+        .from('.service-card__copy p', { y: 12, autoAlpha: 0, duration: .35, stagger: .1 }, '-=.35');
+      serviceCards.forEach((card, index) => gsap.to(card, { y: index % 2 === 0 ? -28 : 28, rotation: index % 2 === 0 ? -1.2 : 1.2, ease: 'none', scrollTrigger: { trigger: needsEl, start: 'top center', end: 'bottom top', scrub: 1.2 } }));
+
+      gsap.timeline({ scrollTrigger: { trigger: journeyEl, start: 'top 68%', end: 'bottom 38%', scrub: 1 } })
+        .from('.booking-story__heading > *', { y: 30, autoAlpha: 0, stagger: .08 }, 0)
+        .fromTo('.booking-path-line', { scaleX: 0 }, { scaleX: 1, transformOrigin: 'left center', ease: 'none' }, .12)
+        .from('.booking-node--need', { y: 35, scale: .8, autoAlpha: 0 }, .1)
+        .from('.booking-node--caregiver', { y: -35, scale: .8, autoAlpha: 0 }, .32)
+        .from('.booking-node--date', { y: 35, scale: .8, autoAlpha: 0 }, .54)
+        .from('.booking-node--done', { y: -35, scale: .8, autoAlpha: 0 }, .76)
+        .from('.booking-heart', { scale: 0, rotation: -25, autoAlpha: 0, ease: 'back.out(2)' }, .88);
+
       gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
         const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
         const copy = panel.querySelector<HTMLElement>('header, .ending-copy, :scope > div:not(.panel-reveal)');
@@ -121,22 +148,17 @@ function setupHomeScrollAnimations() {
         .to({}, { duration: .2 });
     });
 
-    media.add('(min-width: 1024px) and (prefers-reduced-motion: no-preference)', () => {
-      const steps = gsap.utils.toArray<HTMLElement>('.journey-step');
-      gsap.set(steps, { opacity: .25, scale: .96, y: 18 });
-      const timeline = gsap.timeline({ scrollTrigger: { trigger: '.journey-stage', start: 'top top', end: '+=180%', pin: true, scrub: 1, anticipatePin: 1, invalidateOnRefresh: true } });
-      timeline.from('.journey-copy > .chapter-number', { y: 30, autoAlpha: 0 }).from('#journey-title', { y: 45, autoAlpha: 0 }, .1);
-      steps.forEach((step, index) => timeline.to(step, { opacity: 1, scale: 1, y: 0, duration: .12 }, .2 + index * .2).to(steps.filter((_, i) => i !== index), { opacity: .25, scale: .96, duration: .12 }, .2 + index * .2));
-      timeline.fromTo('.actor--caregiver', { xPercent: -25, autoAlpha: 0, scale: .92 }, { xPercent: 0, autoAlpha: 1, scale: 1, duration: .16 }, .35)
-        .fromTo('.care-path span', { scaleX: 0, transformOrigin: 'left center' }, { scaleX: 1, ease: 'none', duration: .42 }, .43)
-        .to('.actor--caregiver', { xPercent: 85, y: -8, rotation: 2, ease: 'none', duration: .42 }, .43)
-        .to('.actor--caregiver', { y: 0, rotation: 0, duration: .1 }, .82)
-        .fromTo('.journey-heart', { scale: 0, rotation: -8, autoAlpha: 0 }, { scale: 1, rotation: 0, autoAlpha: 1, ease: 'back.out(1.7)', duration: .12 }, .72)
-        .fromTo('.actor--elder', { opacity: .6, scale: .95 }, { opacity: 1, scale: 1.06, duration: .14 }, .82).to('.actor--elder', { scale: 1, duration: .08 }, .94);
-    });
-
-    media.add('(max-width: 1023px) and (prefers-reduced-motion: no-preference)', () => {
-      gsap.utils.toArray<HTMLElement>('.journey-step').forEach(step => gsap.from(step, { y: 24, autoAlpha: 0, duration: .55, scrollTrigger: { trigger: step, start: 'top 86%', toggleActions: 'play none none reverse' } }));
+    media.add('(hover: hover) and (prefers-reduced-motion: no-preference)', () => {
+      const cleanups = gsap.utils.toArray<HTMLElement>('.service-card').map(card => {
+        const scale = gsap.quickTo(card, 'scale', { duration: .35, ease: 'power3.out' });
+        const icon = card.querySelector<HTMLElement>('.service-card__icon');
+        const arrow = card.querySelector<HTMLElement>('.service-card__arrow');
+        const enter = () => { scale(1.025); gsap.to(icon, { rotation: -7, scale: 1.12, duration: .35, ease: 'back.out(1.7)' }); gsap.to(arrow, { x: 7, duration: .3 }); };
+        const leave = () => { scale(1); gsap.to(icon, { rotation: 0, scale: 1, duration: .4 }); gsap.to(arrow, { x: 0, duration: .3 }); };
+        card.addEventListener('mouseenter', enter); card.addEventListener('mouseleave', leave);
+        return () => { card.removeEventListener('mouseenter', enter); card.removeEventListener('mouseleave', leave); };
+      });
+      return () => cleanups.forEach(cleanup => cleanup());
     });
 
     gsap.utils.toArray<HTMLElement>('[data-panel]').forEach((panel, index) => gsap.to(homePage.value!, { '--scroll-bg': ['#fff9f5', '#fffdfb', '#f4eadf', '#e4ecdf', '#f8ded4'][Math.min(index, 4)], ease: 'none', scrollTrigger: { trigger: panel, start: 'top bottom', end: 'bottom top', scrub: 1.2 } }));
@@ -182,4 +204,24 @@ onBeforeUnmount(() => { media?.revert(); motionContext?.revert(); });
 .home-page{background:var(--scroll-bg,var(--milk))}.cta-motion{display:inline-flex;will-change:transform,opacity}.journey{min-height:auto}.ending-photo img,.hero-scene{will-change:transform}.ending-copy{will-change:transform,opacity}
 @media(max-width:1023px){.journey-step{transform:none}.cta-motion{max-width:100%}}
 @media(prefers-reduced-motion:reduce){.cta-motion,.ending-copy,.ending-photo img{will-change:auto!important}}
+
+/* Needs: one clear card language. Booking: one continuous process language. */
+.service-list{width:100%;margin:48px 0 0;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.service-list .service-card{position:relative;min-height:340px;display:flex;flex-direction:column;overflow:hidden;padding:32px 28px;border:1px solid #6e57501f;border-radius:28px;background:var(--paper);box-shadow:0 22px 60px #49383314;transform-origin:center bottom;will-change:transform}
+.service-card__number{position:absolute;top:22px;right:24px;color:var(--chestnut);font-size:.8rem;font-weight:700;letter-spacing:.12em;opacity:.55}
+.service-card__icon{width:72px;height:72px;display:grid;place-items:center;margin-top:36px;color:var(--persimmon);background:#eb90792b;border-radius:50%}
+.service-card__copy{margin-top:auto;padding-right:48px}.service-card__copy h3{font-size:clamp(1.45rem,1.6vw,2rem)}
+.service-card__arrow{position:absolute;right:26px;bottom:28px;width:44px;height:44px;display:grid;place-items:center;color:#fff;background:var(--ink);border-radius:50%}
+
+.booking-story{width:100%;min-height:100dvh;padding:clamp(72px,9vw,120px) max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));display:grid;align-content:center;gap:clamp(56px,8vw,100px)}
+.booking-story__heading{max-width:760px}.booking-story__heading h2{margin:12px 0 16px;font-size:clamp(2.4rem,5vw,4.1rem);line-height:1.15}.booking-story__heading p{margin:0;color:var(--chestnut);font-size:1.08rem}
+.booking-stage{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;gap:clamp(18px,3vw,48px);min-height:280px}
+.booking-stage__path{position:absolute;left:9%;right:9%;top:50%;height:5px;overflow:hidden;background:#fffdfb;border-radius:99px}.booking-path-line{display:block;width:100%;height:100%;background:var(--persimmon)}
+.booking-node{position:relative;z-index:2;min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px 16px;color:var(--ink);background:var(--paper);border:1px solid #6e57501f;border-radius:28px;box-shadow:0 18px 40px #49383314;text-align:center}
+.booking-node>span{position:absolute;top:16px;left:18px;color:var(--persimmon);font-size:.78rem;font-weight:700;letter-spacing:.14em}.booking-node>svg{color:var(--persimmon)}.booking-node>strong{font-size:1.05rem}
+.mini-calendar{width:88px;display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:10px;color:var(--ink);background:#f8e7df;border-radius:14px}.mini-calendar small{grid-column:1/-1;color:var(--persimmon);font-weight:700;letter-spacing:.12em}.mini-calendar strong{font-size:1.8rem}.mini-calendar b{font-size:.85rem}
+.booking-heart{position:absolute;z-index:3;right:0;top:18%;color:var(--persimmon);fill:#fffdfb}
+@media(max-width:900px){.service-list{grid-template-columns:repeat(2,minmax(0,1fr))}.booking-story{padding-inline:clamp(22px,6vw,54px)}.booking-stage{grid-template-columns:repeat(2,minmax(0,1fr))}.booking-stage__path{display:none}.booking-heart{right:3%;top:47%}}
+@media(max-width:599px){.service-list{grid-template-columns:1fr;gap:16px}.service-list .service-card{min-height:270px;padding:28px 24px}.service-card__icon{margin-top:20px}.booking-story{min-height:auto;padding:72px 18px}.booking-stage{grid-template-columns:1fr;gap:22px;padding-left:26px}.booking-stage__path{display:block;left:9px;right:auto;top:8%;width:5px;height:84%;background:var(--persimmon)}.booking-path-line{display:none}.booking-node{min-height:150px}.booking-heart{right:4%;top:auto;bottom:-12px}}
+@media(prefers-reduced-motion:reduce){.service-card,.service-card__icon,.service-card__arrow,.booking-path-line,.booking-node,.booking-heart{transform:none!important;will-change:auto!important}}
 </style>
