@@ -37,7 +37,10 @@ const profileUpdateSchema = yup
 
 const journalSchema = yup
   .object({
-    bookingId: yup.string().matches(/^[a-f\d]{24}$/i, '預約編號格式錯誤').optional(),
+    bookingId: yup
+      .string()
+      .matches(/^[a-f\d]{24}$/i, '預約編號格式錯誤')
+      .optional(),
     title: yup.string().trim().required('日誌標題為必填').max(100),
     content: yup.string().trim().required('日誌內容為必填').max(3000),
     mood: yup.string().oneOf(['STEADY', 'TIRED', 'WORRIED', 'FULFILLED']).default('STEADY'),
@@ -81,7 +84,10 @@ nurseRoutes.get(
         User.findById(request.auth?.userId).select('name phone email account'),
         CaregiverCredential.find({ caregiverId: profile._id }).sort({ createdAt: -1 }),
         Booking.find({ caregiverId: profile._id, hidden: { $ne: true } })
-          .populate('recipientId', 'name careLevel mobilityStatus heightCm weightKg profilePhotoUrls healthNotes allergyNotes specialRequirements')
+          .populate(
+            'recipientId',
+            'name careLevel mobilityStatus heightCm weightKg profilePhotoUrls healthNotes allergyNotes specialRequirements',
+          )
           .populate('requesterUserId', 'name role account phone')
           .populate('serviceTypeIds', 'name durationMinutes')
           .sort({ scheduledStartAt: 1 })
@@ -92,7 +98,9 @@ nurseRoutes.get(
         CaregiverLeaveRequest.find({ caregiverId: profile._id, hidden: { $ne: true } })
           .sort({ startAt: -1 })
           .limit(20),
-        Complaint.find({ complainantUserId: request.auth?.userId }).sort({ createdAt: -1 }).limit(20),
+        Complaint.find({ complainantUserId: request.auth?.userId })
+          .sort({ createdAt: -1 })
+          .limit(20),
         Review.find({ targetUserId: request.auth?.userId, hidden: { $ne: true } })
           .sort({ createdAt: -1 })
           .limit(20),
@@ -108,7 +116,9 @@ nurseRoutes.get(
       receivedReviews,
       summary: {
         upcomingBookings: bookings.filter(
-          (item) => item.get('scheduledStartAt') >= now && !['COMPLETED', 'CANCELLED'].includes(item.get('status')),
+          (item) =>
+            item.get('scheduledStartAt') >= now &&
+            !['COMPLETED', 'CANCELLED'].includes(item.get('status')),
         ).length,
         completedBookings: bookings.filter((item) => item.get('status') === 'COMPLETED').length,
         pendingLeaves: leaves.filter((item) => item.get('status') === 'PENDING').length,
@@ -194,73 +204,137 @@ nurseRoutes.patch(
 )
 
 // 工作日誌 CRUD；DELETE 只隱藏，保留未來稽核與服務爭議查詢能力。
-nurseRoutes.get('/me/journals', authenticate, authorize('NURSE'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  response.json(await CaregiverWorkJournal.find({ caregiverId: profile?._id, hidden: { $ne: true } }).sort({ occurredAt: -1 }))
-}))
+nurseRoutes.get(
+  '/me/journals',
+  authenticate,
+  authorize('NURSE'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    response.json(
+      await CaregiverWorkJournal.find({ caregiverId: profile?._id, hidden: { $ne: true } }).sort({
+        occurredAt: -1,
+      }),
+    )
+  }),
+)
 
-nurseRoutes.post('/me/journals', authenticate, authorize('NURSE'), upload.array('photos', 3), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  const input = await journalSchema.validate(
-    { ...request.body, followUpRequired: request.body.followUpRequired === 'true' },
-    { abortEarly: false, stripUnknown: true },
-  )
-  const files = (request.files as Express.Multer.File[] | undefined) || []
-  response.status(201).json(await CaregiverWorkJournal.create({
-    ...input,
-    caregiverId: profile?._id,
-    photoUrls: files.map((file) => `/uploads/${file.filename}`),
-  }))
-}))
+nurseRoutes.post(
+  '/me/journals',
+  authenticate,
+  authorize('NURSE'),
+  upload.array('photos', 3),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    const input = await journalSchema.validate(
+      { ...request.body, followUpRequired: request.body.followUpRequired === 'true' },
+      { abortEarly: false, stripUnknown: true },
+    )
+    const files = (request.files as Express.Multer.File[] | undefined) || []
+    response.status(201).json(
+      await CaregiverWorkJournal.create({
+        ...input,
+        caregiverId: profile?._id,
+        photoUrls: files.map((file) => `/uploads/${file.filename}`),
+      }),
+    )
+  }),
+)
 
-nurseRoutes.patch('/me/journals/:journalId', authenticate, authorize('NURSE'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  const input = await journalSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
-  response.json(await CaregiverWorkJournal.findOneAndUpdate({ _id: request.params.journalId, caregiverId: profile?._id, hidden: { $ne: true } }, input, { new: true, runValidators: true }))
-}))
+nurseRoutes.patch(
+  '/me/journals/:journalId',
+  authenticate,
+  authorize('NURSE'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    const input = await journalSchema.validate(request.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    })
+    response.json(
+      await CaregiverWorkJournal.findOneAndUpdate(
+        { _id: request.params.journalId, caregiverId: profile?._id, hidden: { $ne: true } },
+        input,
+        { new: true, runValidators: true },
+      ),
+    )
+  }),
+)
 
-nurseRoutes.delete('/me/journals/:journalId', authenticate, authorize('NURSE'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  await CaregiverWorkJournal.findOneAndUpdate({ _id: request.params.journalId, caregiverId: profile?._id }, { hidden: true, hiddenAt: new Date() })
-  response.status(204).send()
-}))
+nurseRoutes.delete(
+  '/me/journals/:journalId',
+  authenticate,
+  authorize('NURSE'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    await CaregiverWorkJournal.findOneAndUpdate(
+      { _id: request.params.journalId, caregiverId: profile?._id },
+      { hidden: true, hiddenAt: new Date() },
+    )
+    response.status(204).send()
+  }),
+)
 
 // 請假申請：居服員可新增、查看與撤回待審申請；管理員審核日後可沿用此 Collection。
-nurseRoutes.get('/me/leaves', authenticate, authorize('NURSE'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  response.json(await CaregiverLeaveRequest.find({ caregiverId: profile?._id, hidden: { $ne: true } }).sort({ startAt: -1 }))
-}))
+nurseRoutes.get(
+  '/me/leaves',
+  authenticate,
+  authorize('NURSE'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    response.json(
+      await CaregiverLeaveRequest.find({ caregiverId: profile?._id, hidden: { $ne: true } }).sort({
+        startAt: -1,
+      }),
+    )
+  }),
+)
 
-nurseRoutes.post('/me/leaves', authenticate, authorize('NURSE'), upload.single('proof'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  const input = await leaveSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
-  if (input.leaveType === 'SICK' && !request.file) {
-    response.status(400).json({ message: '病假請上傳假單或診斷證明。' })
-    return
-  }
-  response.status(201).json(await CaregiverLeaveRequest.create({
-    ...input,
-    caregiverId: profile?._id,
-    proofFileUrl: request.file ? `/uploads/${request.file.filename}` : undefined,
-  }))
-}))
+nurseRoutes.post(
+  '/me/leaves',
+  authenticate,
+  authorize('NURSE'),
+  upload.single('proof'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    const input = await leaveSchema.validate(request.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    })
+    if (input.leaveType === 'SICK' && !request.file) {
+      response.status(400).json({ message: '病假請上傳假單或診斷證明。' })
+      return
+    }
+    response.status(201).json(
+      await CaregiverLeaveRequest.create({
+        ...input,
+        caregiverId: profile?._id,
+        proofFileUrl: request.file ? `/uploads/${request.file.filename}` : undefined,
+      }),
+    )
+  }),
+)
 
-nurseRoutes.patch('/me/leaves/:leaveId/cancel', authenticate, authorize('NURSE'), asyncHandler(async (rawRequest, response) => {
-  const request = rawRequest as AuthRequest
-  const profile = await ownProfile(request)
-  const leave = await CaregiverLeaveRequest.findOneAndUpdate(
-    { _id: request.params.leaveId, caregiverId: profile?._id, status: 'PENDING' },
-    { status: 'CANCELLED' },
-    { new: true },
-  )
-  response.status(leave ? 200 : 409).json(leave || { message: '只有待審中的請假可以撤回' })
-}))
+nurseRoutes.patch(
+  '/me/leaves/:leaveId/cancel',
+  authenticate,
+  authorize('NURSE'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const profile = await ownProfile(request)
+    const leave = await CaregiverLeaveRequest.findOneAndUpdate(
+      { _id: request.params.leaveId, caregiverId: profile?._id, status: 'PENDING' },
+      { status: 'CANCELLED' },
+      { new: true },
+    )
+    response.status(leave ? 200 : 409).json(leave || { message: '只有待審中的請假可以撤回' })
+  }),
+)
 
 // POST /nurses/me/availability：平日預設可服務，因此这里只新增「休假／暫停服務」例外。
 nurseRoutes.post(
@@ -281,9 +355,15 @@ nurseRoutes.post(
       return
     }
     const status = request.body.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'LEAVE'
-    response.status(201).json(await Availability.create({
-      caregiverId: profile._id, date, startTime: '09:00', endTime: '17:00', status,
-    }))
+    response.status(201).json(
+      await Availability.create({
+        caregiverId: profile._id,
+        date,
+        startTime: '09:00',
+        endTime: '17:00',
+        status,
+      }),
+    )
   }),
 )
 
@@ -315,7 +395,12 @@ nurseRoutes.patch(
     response.json(
       await Availability.findOneAndUpdate(
         { _id: request.params.availabilityId, caregiverId: profile?._id },
-        { ...request.body, ...(request.body.date ? { date: new Date(`${String(request.body.date)}T00:00:00.000Z`) } : {}) },
+        {
+          ...request.body,
+          ...(request.body.date
+            ? { date: new Date(`${String(request.body.date)}T00:00:00.000Z`) }
+            : {}),
+        },
         { new: true, runValidators: true },
       ),
     )
@@ -391,49 +476,62 @@ nurseRoutes.get(
 )
 
 // 公開未來 14 天排班：週一至週五 09:00–17:00 自動產生；休假與已預約時段不回傳。
-nurseRoutes.get('/:id/availability', asyncHandler(async (request, response) => {
-  const caregiver = await CaregiverProfile.exists({
-    _id: request.params.id, verificationStatus: 'APPROVED', active: true,
-  })
-  if (!caregiver) {
-    response.status(404).json({ message: '這位居服員目前未開放預約' })
-    return
-  }
-  const firstKey = taipeiDateKey(new Date())
-  const start = new Date(`${firstKey}T00:00:00.000Z`)
-  const end = new Date(start.getTime() + 14 * 86_400_000)
-  const exceptions = await Availability.find({
-    caregiverId: request.params.id,
-    date: { $gte: start, $lt: end },
-    hidden: { $ne: true },
-    status: { $in: ['LEAVE', 'UNAVAILABLE'] },
-  }).select('date status')
-  const blockedDays = new Set(exceptions.map((item) => item.date.toISOString().slice(0, 10)))
-  const bookings = await Booking.find({
-    caregiverId: request.params.id,
-    scheduledStartAt: { $gte: start, $lt: end },
-    status: { $nin: ['CANCELLED', 'ABANDONED'] }, hidden: { $ne: true },
-  }).select('scheduledStartAt scheduledEndAt')
-  const overlaps = (from: Date, to: Date) => bookings.some((item) =>
-    item.scheduledStartAt < to && (item.scheduledEndAt || item.scheduledStartAt) > from)
-  const slots = []
-  for (let offset = 0; offset < 14; offset += 1) {
-    const day = new Date(start.getTime() + offset * 86_400_000)
-    const key = day.toISOString().slice(0, 10)
-    if ([0, 6].includes(taipeiWeekday(key)) || blockedDays.has(key)) continue
-    for (let hour = 9; hour < 17; hour += 2) {
-      const startTime = `${String(hour).padStart(2, '0')}:00`
-      const endTime = `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`
-      const from = taipeiDateTimeToUtc(key, startTime)
-      const to = taipeiDateTimeToUtc(key, endTime)
-      if (!overlaps(from, to)) slots.push({
-        _id: `${request.params.id}|${key}|${startTime}|${endTime}`,
-        date: day, startTime, endTime, status: 'AVAILABLE',
-      })
+nurseRoutes.get(
+  '/:id/availability',
+  asyncHandler(async (request, response) => {
+    const caregiver = await CaregiverProfile.exists({
+      _id: request.params.id,
+      verificationStatus: 'APPROVED',
+      active: true,
+    })
+    if (!caregiver) {
+      response.status(404).json({ message: '這位居服員目前未開放預約' })
+      return
     }
-  }
-  response.json(slots)
-}))
+    const firstKey = taipeiDateKey(new Date())
+    const start = new Date(`${firstKey}T00:00:00.000Z`)
+    const end = new Date(start.getTime() + 14 * 86_400_000)
+    const exceptions = await Availability.find({
+      caregiverId: request.params.id,
+      date: { $gte: start, $lt: end },
+      hidden: { $ne: true },
+      status: { $in: ['LEAVE', 'UNAVAILABLE'] },
+    }).select('date status')
+    const blockedDays = new Set(exceptions.map((item) => item.date.toISOString().slice(0, 10)))
+    const bookings = await Booking.find({
+      caregiverId: request.params.id,
+      scheduledStartAt: { $gte: start, $lt: end },
+      status: { $nin: ['CANCELLED', 'ABANDONED'] },
+      hidden: { $ne: true },
+    }).select('scheduledStartAt scheduledEndAt')
+    const overlaps = (from: Date, to: Date) =>
+      bookings.some(
+        (item) =>
+          item.scheduledStartAt < to && (item.scheduledEndAt || item.scheduledStartAt) > from,
+      )
+    const slots = []
+    for (let offset = 0; offset < 14; offset += 1) {
+      const day = new Date(start.getTime() + offset * 86_400_000)
+      const key = day.toISOString().slice(0, 10)
+      if ([0, 6].includes(taipeiWeekday(key)) || blockedDays.has(key)) continue
+      for (let hour = 9; hour < 17; hour += 2) {
+        const startTime = `${String(hour).padStart(2, '0')}:00`
+        const endTime = `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`
+        const from = taipeiDateTimeToUtc(key, startTime)
+        const to = taipeiDateTimeToUtc(key, endTime)
+        if (!overlaps(from, to))
+          slots.push({
+            _id: `${request.params.id}|${key}|${startTime}|${endTime}`,
+            date: day,
+            startTime,
+            endTime,
+            status: 'AVAILABLE',
+          })
+      }
+    }
+    response.json(slots)
+  }),
+)
 
 // GET /nurses/:id/credentials：公開頁只顯示已通過審核的證照與技能。
 nurseRoutes.get(

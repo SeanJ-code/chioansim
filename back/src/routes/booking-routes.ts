@@ -2,9 +2,7 @@ import { Router } from 'express'
 import { authenticate, authorize } from '../middlewares/auth'
 import type { AuthRequest } from '../types/auth'
 import { asyncHandler } from '../utils/http'
-import {
-  LOCATION_SHARING_STATUSES,
-} from '../utils/booking-policy'
+import { LOCATION_SHARING_STATUSES } from '../utils/booking-policy'
 import {
   Booking,
   Availability,
@@ -77,22 +75,35 @@ async function canView(request: AuthRequest, booking: ViewableBooking): Promise<
 function gpsLocation(body: Record<string, unknown>, sharingExpiresAt: Date) {
   const latitude = Number(body.latitude)
   const longitude = Number(body.longitude)
-  if (body.consent !== true || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+  if (
+    body.consent !== true ||
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
     throw Object.assign(new Error('請同意定位分享並提供有效的經緯度'), { statusCode: 400 })
   }
   return {
     latitude,
     longitude,
     address: typeof body.address === 'string' ? body.address : undefined,
-    accuracyMeters: Number.isFinite(Number(body.accuracyMeters)) ? Number(body.accuracyMeters) : undefined,
+    accuracyMeters: Number.isFinite(Number(body.accuracyMeters))
+      ? Number(body.accuracyMeters)
+      : undefined,
     sharingExpiresAt,
     updatedAt: new Date(),
   }
 }
 
-function hideExpiredLocation<T extends { get(path: string): unknown; set(path: string, value: unknown): unknown }>(booking: T): T {
+function hideExpiredLocation<
+  T extends { get(path: string): unknown; set(path: string, value: unknown): unknown },
+>(booking: T): T {
   const expiresAt = booking.get('latestLocation.sharingExpiresAt')
-  if (expiresAt && new Date(String(expiresAt)) <= new Date()) booking.set('latestLocation', undefined)
+  if (expiresAt && new Date(String(expiresAt)) <= new Date())
+    booking.set('latestLocation', undefined)
   return booking
 }
 
@@ -112,10 +123,10 @@ bookingRoutes.get(
       filter = { requesterUserId: request.auth.userId }
     }
     const bookings = await Booking.find({ ...filter, hidden: { $ne: true } })
-        .populate('recipientId')
-        .populate({ path: 'caregiverId', populate: { path: 'userId', select: 'name' } })
-        .populate('serviceTypeIds')
-        .sort({ scheduledStartAt: -1 })
+      .populate('recipientId')
+      .populate({ path: 'caregiverId', populate: { path: 'userId', select: 'name' } })
+      .populate('serviceTypeIds')
+      .sort({ scheduledStartAt: -1 })
     response.json(bookings.map(hideExpiredLocation))
   }),
 )
@@ -126,10 +137,19 @@ bookingRoutes.post(
   authorize('USER', 'PATIENT', 'NURSE', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const { availabilityId, recipientId, serviceTypeIds, serviceAddress, specialRequirements } = await bookingCreateSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
+    const { availabilityId, recipientId, serviceTypeIds, serviceAddress, specialRequirements } =
+      await bookingCreateSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
     if (recipientId) {
-      const ownsRecipient = await CareRecipient.exists({ _id: recipientId, accountUserId: request.auth?.userId })
-      const relation = await UserRecipientRelation.exists({ recipientId, userId: request.auth?.userId, canBookService: true, status: 'ACTIVE' })
+      const ownsRecipient = await CareRecipient.exists({
+        _id: recipientId,
+        accountUserId: request.auth?.userId,
+      })
+      const relation = await UserRecipientRelation.exists({
+        recipientId,
+        userId: request.auth?.userId,
+        canBookService: true,
+        status: 'ACTIVE',
+      })
       if (!ownsRecipient && !relation && request.auth?.role !== 'ADMIN') {
         response.status(403).json({ message: '您沒有為這位受照護者預約的權限' })
         return
@@ -145,36 +165,73 @@ bookingRoutes.post(
       response.status(409).json({ message: '這個時段剛被預約或已不開放，請重新選擇' })
       return
     }
-    const blocked = await Availability.exists({ caregiverId, date: { $gte: date, $lt: new Date(date.getTime() + 86_400_000) }, status: { $in: ['LEAVE', 'UNAVAILABLE'] }, hidden: { $ne: true } })
-    if (blocked) { response.status(409).json({ message: '這位居服員當日休假或暫停服務' }); return }
+    const blocked = await Availability.exists({
+      caregiverId,
+      date: { $gte: date, $lt: new Date(date.getTime() + 86_400_000) },
+      status: { $in: ['LEAVE', 'UNAVAILABLE'] },
+      hidden: { $ne: true },
+    })
+    if (blocked) {
+      response.status(409).json({ message: '這位居服員當日休假或暫停服務' })
+      return
+    }
     let createdRequestId: Types.ObjectId | undefined
     try {
       const approvedCaregiver = await CaregiverProfile.exists({
-        _id: caregiverId, verificationStatus: 'APPROVED', active: true,
+        _id: caregiverId,
+        verificationStatus: 'APPROVED',
+        active: true,
       })
       if (!approvedCaregiver) throw new Error('這位居服員目前未開放預約')
-      const types = await ServiceType.find({ _id: { $in: serviceTypeIds }, active: true, hidden: { $ne: true } })
+      const types = await ServiceType.find({
+        _id: { $in: serviceTypeIds },
+        active: true,
+        hidden: { $ne: true },
+      })
       if (types.length !== serviceTypeIds.length) throw new Error('服務項目不存在或已停用')
       const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime)
       const scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
-      if (scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt || startTime < '09:00' || endTime > '17:00') throw Object.assign(new Error('請選擇未來週一至週五 09:00–17:00 的有效時段'), { statusCode: 400 })
+      if (
+        scheduledStartAt <= new Date() ||
+        scheduledEndAt <= scheduledStartAt ||
+        startTime < '09:00' ||
+        endTime > '17:00'
+      )
+        throw Object.assign(new Error('請選擇未來週一至週五 09:00–17:00 的有效時段'), {
+          statusCode: 400,
+        })
       const overlaps = await Booking.exists({
-        caregiverId, hidden: { $ne: true },
+        caregiverId,
+        hidden: { $ne: true },
         status: { $nin: NON_BLOCKING_BOOKING_STATUSES },
-        scheduledStartAt: { $lt: scheduledEndAt }, scheduledEndAt: { $gt: scheduledStartAt },
+        scheduledStartAt: { $lt: scheduledEndAt },
+        scheduledEndAt: { $gt: scheduledStartAt },
       })
       if (overlaps) throw new Error('這位居服員在此時段已有其他服務')
       const serviceRequest = await ServiceRequest.create({
-        requesterUserId: request.auth?.userId, recipientId: recipientId || undefined, serviceTypeIds,
-        preferredDate: scheduledStartAt, preferredStartTime: startTime,
-        estimatedDuration: Math.max(0, (scheduledEndAt.getTime() - scheduledStartAt.getTime()) / 60000),
-        serviceAddress, specialRequirements, status: 'MATCHED',
+        requesterUserId: request.auth?.userId,
+        recipientId: recipientId || undefined,
+        serviceTypeIds,
+        preferredDate: scheduledStartAt,
+        preferredStartTime: startTime,
+        estimatedDuration: Math.max(
+          0,
+          (scheduledEndAt.getTime() - scheduledStartAt.getTime()) / 60000,
+        ),
+        serviceAddress,
+        specialRequirements,
+        status: 'MATCHED',
       })
       createdRequestId = serviceRequest._id
       const booking = await Booking.create({
-        bookingNumber: `BK${Date.now()}`, serviceRequestId: serviceRequest._id,
-        requesterUserId: request.auth?.userId, recipientId: recipientId || undefined,
-        caregiverId, serviceTypeIds, scheduledStartAt, scheduledEndAt,
+        bookingNumber: `BK${Date.now()}`,
+        serviceRequestId: serviceRequest._id,
+        requesterUserId: request.auth?.userId,
+        recipientId: recipientId || undefined,
+        caregiverId,
+        serviceTypeIds,
+        scheduledStartAt,
+        scheduledEndAt,
         serviceAddress,
         totalAmount: types.reduce((sum, service) => sum + Number(service.get('basePrice') || 0), 0),
         status: 'PENDING',
@@ -213,7 +270,9 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    response.json(await acceptBooking(String(request.params.id), request.auth!, request.get('x-request-id')))
+    response.json(
+      await acceptBooking(String(request.params.id), request.auth!, request.get('x-request-id')),
+    )
   }),
 )
 
@@ -225,12 +284,23 @@ bookingRoutes.patch(
     const allowed = ['estimatedDistanceKm', 'estimatedDurationMin', 'estimatedArrivalAt']
     const rejected = Object.keys(request.body || {}).filter((key) => !allowed.includes(key))
     if (rejected.length) {
-      response.status(422).json({ code: 'BUSINESS_RULE_VIOLATION', message: `此路徑不可修改工作流程欄位：${rejected.join('、')}` })
+      response.status(422).json({
+        code: 'BUSINESS_RULE_VIOLATION',
+        message: `此路徑不可修改工作流程欄位：${rejected.join('、')}`,
+      })
       return
     }
-    const update = Object.fromEntries(allowed.filter((key) => key in request.body).map((key) => [key, request.body[key]]))
-    const booking = await Booking.findByIdAndUpdate(request.params.id, update, { new: true, runValidators: true })
-    if (!booking) { response.status(404).json({ code: 'NOT_FOUND', message: '找不到預約' }); return }
+    const update = Object.fromEntries(
+      allowed.filter((key) => key in request.body).map((key) => [key, request.body[key]]),
+    )
+    const booking = await Booking.findByIdAndUpdate(request.params.id, update, {
+      new: true,
+      runValidators: true,
+    })
+    if (!booking) {
+      response.status(404).json({ code: 'NOT_FOUND', message: '找不到預約' })
+      return
+    }
     await publishBookingChange(String(booking._id))
     response.json(booking)
   }),
@@ -243,7 +313,9 @@ bookingRoutes.delete(
     const request = rawRequest as AuthRequest
     const booking = await Booking.findById(request.params.id)
     if (!booking || !(await canView(request, booking))) {
-      response.status(booking ? 403 : 404).json({ message: booking ? '無權隱藏此預約' : '找不到預約' })
+      response
+        .status(booking ? 403 : 404)
+        .json({ message: booking ? '無權隱藏此預約' : '找不到預約' })
       return
     }
     await Booking.findByIdAndUpdate(booking._id, {
@@ -263,8 +335,13 @@ bookingRoutes.post(
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     const booking = await Booking.findById(request.params.id)
-    if (!booking) { response.status(404).json({ message: '找不到工作任務' }); return }
-    const sharingExpiresAt = new Date(new Date(booking.get('scheduledEndAt') || Date.now()).getTime() + 2 * 60 * 60 * 1000)
+    if (!booking) {
+      response.status(404).json({ message: '找不到工作任務' })
+      return
+    }
+    const sharingExpiresAt = new Date(
+      new Date(booking.get('scheduledEndAt') || Date.now()).getTime() + 2 * 60 * 60 * 1000,
+    )
     const location = gpsLocation(request.body.location || {}, sharingExpiresAt)
     const update = {
       estimatedArrivalAt: request.body.estimatedArrivalAt,
@@ -272,7 +349,14 @@ bookingRoutes.post(
       estimatedDistanceKm: request.body.estimatedDistanceKm,
       latestLocation: location,
     }
-    response.json(await departBooking(String(request.params.id), request.auth!, update, request.get('x-request-id')))
+    response.json(
+      await departBooking(
+        String(request.params.id),
+        request.auth!,
+        update,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -284,8 +368,13 @@ bookingRoutes.patch(
     const request = rawRequest as AuthRequest
     const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
     const booking = await Booking.findOne({ _id: request.params.id, caregiverId: profile?._id })
-    if (!booking) { response.status(404).json({ message: '找不到工作任務' }); return }
-    const sharingExpiresAt = new Date(new Date(booking.get('scheduledEndAt') || Date.now()).getTime() + 2 * 60 * 60 * 1000)
+    if (!booking) {
+      response.status(404).json({ message: '找不到工作任務' })
+      return
+    }
+    const sharingExpiresAt = new Date(
+      new Date(booking.get('scheduledEndAt') || Date.now()).getTime() + 2 * 60 * 60 * 1000,
+    )
     const location = gpsLocation(request.body, sharingExpiresAt)
     const updated = await Booking.findOneAndUpdate(
       {
@@ -313,7 +402,13 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    response.json(await stopLocationSharing(String(request.params.id), request.auth!, request.get('x-request-id')))
+    response.json(
+      await stopLocationSharing(
+        String(request.params.id),
+        request.auth!,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -326,7 +421,14 @@ bookingRoutes.post(
     const location = request.body.location
       ? gpsLocation(request.body.location, new Date(Date.now() + 2 * 60 * 60 * 1000))
       : undefined
-    response.json(await arriveBooking(String(request.params.id), request.auth!, location, request.get('x-request-id')))
+    response.json(
+      await arriveBooking(
+        String(request.params.id),
+        request.auth!,
+        location,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -394,7 +496,15 @@ bookingRoutes.patch(
       response.status(400).json({ message: 'decision 必須為 CONTINUE 或 CANCEL' })
       return
     }
-    response.json(await resolveInjuryDecision(String(request.params.id), String(request.params.reportId), decision, request.auth!, request.get('x-request-id')))
+    response.json(
+      await resolveInjuryDecision(
+        String(request.params.id),
+        String(request.params.reportId),
+        decision,
+        request.auth!,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -404,7 +514,9 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    response.json(await startService(String(request.params.id), request.auth!, request.get('x-request-id')))
+    response.json(
+      await startService(String(request.params.id), request.auth!, request.get('x-request-id')),
+    )
   }),
 )
 
@@ -414,7 +526,11 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const booking = await requestCompletion(String(request.params.id), request.auth!, request.get('x-request-id'))
+    const booking = await requestCompletion(
+      String(request.params.id),
+      request.auth!,
+      request.get('x-request-id'),
+    )
     response.json({ booking })
   }),
 )
@@ -425,7 +541,13 @@ bookingRoutes.post(
   authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    response.json(await confirmCompletion(String(request.params.id), request.auth!, request.get('x-request-id')))
+    response.json(
+      await confirmCompletion(
+        String(request.params.id),
+        request.auth!,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -435,7 +557,14 @@ bookingRoutes.post(
   authorize('NURSE'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    response.json(await abandonBooking(String(request.params.id), request.body.reason, request.auth!, request.get('x-request-id')))
+    response.json(
+      await abandonBooking(
+        String(request.params.id),
+        request.body.reason,
+        request.auth!,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -450,7 +579,14 @@ bookingRoutes.post(
       response.status(400).json({ message: '請先選擇取消原因' })
       return
     }
-    response.json(await cancelBooking(String(request.params.id), reason, request.auth!, request.get('x-request-id')))
+    response.json(
+      await cancelBooking(
+        String(request.params.id),
+        reason,
+        request.auth!,
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
 
@@ -460,10 +596,34 @@ bookingRoutes.patch(
   authorize('USER', 'PATIENT', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const { date: dateText, startTime, endTime } = await bookingRescheduleSchema.validate(request.body, { abortEarly: false, stripUnknown: true })
-    const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime), scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
-    if ([0, 6].includes(taipeiWeekday(dateText)) || scheduledStartAt <= new Date() || scheduledEndAt <= scheduledStartAt || startTime < '09:00' || endTime > '17:00') return void response.status(400).json({ message: '請選擇未來週一至週五 09:00–17:00 的有效時段' })
+    const {
+      date: dateText,
+      startTime,
+      endTime,
+    } = await bookingRescheduleSchema.validate(request.body, {
+      abortEarly: false,
+      stripUnknown: true,
+    })
+    const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime),
+      scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
+    if (
+      [0, 6].includes(taipeiWeekday(dateText)) ||
+      scheduledStartAt <= new Date() ||
+      scheduledEndAt <= scheduledStartAt ||
+      startTime < '09:00' ||
+      endTime > '17:00'
+    )
+      return void response
+        .status(400)
+        .json({ message: '請選擇未來週一至週五 09:00–17:00 的有效時段' })
     const dayStart = new Date(`${dateText}T00:00:00.000Z`)
-    response.json(await rescheduleBooking(String(request.params.id), request.auth!, { scheduledStartAt, scheduledEndAt, startTime, dayStart }, request.get('x-request-id')))
+    response.json(
+      await rescheduleBooking(
+        String(request.params.id),
+        request.auth!,
+        { scheduledStartAt, scheduledEndAt, startTime, dayStart },
+        request.get('x-request-id'),
+      ),
+    )
   }),
 )
