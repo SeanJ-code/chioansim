@@ -1,10 +1,10 @@
 <template>
   <q-page class="home-page">
     <OpeningExperience @finished="handleOpeningFinished" />
-    <main v-if="homeReady">
+    <main v-if="homeReady" ref="homePage">
       <section ref="hero" class="story-hero" aria-labelledby="hero-title">
         <div class="blob blob--peach" aria-hidden="true"></div><div class="blob blob--blue" aria-hidden="true"></div>
-        <div class="hero-copy" data-hero-copy><span class="chapter-number">01</span><h1 id="hero-title">陽光顧，<br><em>有人希望。</em></h1><p>找到合適的居服員，<br>從預約開始，多一份安心。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></div>
+        <div class="hero-copy" data-hero-copy><span class="chapter-number">01</span><h1 id="hero-title">陽光顧，<br><em>有人希望。</em></h1><p>找到合適的居服員，<br>從預約開始，多一份安心。</p><span class="cta-motion"><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></span></div>
         <div class="hero-scene" aria-hidden="true">
           <svg class="care-illustration" viewBox="0 0 640 560" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path class="hill hill--back" d="M21 471C100 391 185 433 258 390C344 339 390 365 460 413C523 456 572 422 629 376V560H21Z" />
@@ -44,7 +44,7 @@
 
       <section id="subsidy" class="estimate scene story-panel story-panel--chestnut" data-panel="center" aria-labelledby="estimate-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">簡單試算</span><h2 id="estimate-title">長照費用，先算算看</h2><p>完成四個選擇，就能看到預估費用。</p><aside><ShieldCheck :size="22" /> 試算僅供參考，實際補助依主管機關核定。</aside></div><div class="calculator" data-reveal><CareCostCalculator compact /></div></section>
 
-      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy" data-reveal><span class="chapter-number">06</span><HouseHeart :size="54" /><h2 id="ending-title">照顧的路上，<br>有人陪你一起。</h2><p>照顧不孤單，我們一直都在。</p><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
+      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy"><span class="chapter-number">06</span><HouseHeart :size="54" /><h2 id="ending-title">照顧的路上，<br>有人陪你一起。</h2><p>照顧不孤單，我們一直都在。</p><span class="cta-motion"><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></span><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
     </main>
     <q-dialog v-model="lineDialog"><q-card class="line-dialog"><q-card-section class="line-dialog__mark"><MessageCircleHeart :size="42" /></q-card-section><q-card-section class="line-dialog__copy"><button type="button" aria-label="關閉 LINE 專人服務" v-close-popup><X :size="22" /></button><small>照安心 LINE 官方帳號</small><h2>需要時，我們就在 LINE 裡陪您</h2><p>官方 LINE ID</p><strong>@690hzupc</strong><a href="https://line.me/R/ti/p/@690hzupc" target="_blank" rel="noopener noreferrer">開啟 LINE 加好友 <ArrowRight :size="20" /></a></q-card-section><q-card-actions align="center"><q-btn flat no-caps label="稍後再說" v-close-popup /></q-card-actions></q-card></q-dialog>
   </q-page>
@@ -56,12 +56,12 @@ import { ArrowDown, ArrowRight, BadgeCheck, BellRing, Bike, BriefcaseBusiness, C
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import OpeningExperience from '@/components/opening/OpeningExperience.vue';
-import { gsap } from '@/composables/useGsap';
+import { gsap, ScrollTrigger } from '@/composables/useGsap';
 
 interface Caregiver { _id: string; userId?: { name?: string } | string; profilePhotoUrl?: string; yearsExperience?: number; serviceAreas?: string[] }
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), homeReady = ref(false), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
-let motionContext: gsap.Context | undefined, motionStarted = false;
+const homePage = ref<HTMLElement>(), hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), homeReady = ref(false), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
+let motionContext: gsap.Context | undefined, media: gsap.MatchMedia | undefined, motionStarted = false;
 const services = [{ title: '日常照顧', description: '洗澡、穿衣與生活協助', icon: markRaw(UserRoundCheck) }, { title: '陪同就醫', description: '陪您看診、取藥', icon: markRaw(Stethoscope) }, { title: '備餐代購', description: '準備餐點與日常採買', icon: markRaw(ShoppingBasket) }, { title: '陪伴關懷', description: '聊天、散步與日常陪伴', icon: markRaw(MessagesSquare) }];
 const steps = [{ number: '01', title: '告訴我們需求', description: '選擇需要的照顧服務。' }, { number: '02', title: '找到居服員', description: '查看經驗與服務地區。' }, { number: '03', title: '選擇日期', description: '安排方便的服務時間。' }, { number: '04', title: '安心開始', description: '清楚掌握服務進度。' }];
 const progressSteps = [{ label: '承接任務', icon: markRaw(CheckCircle2) }, { label: '準備出發', icon: markRaw(Bike) }, { label: '抵達服務地點', icon: markRaw(MapPinned) }, { label: '家人收到通知', icon: markRaw(BellRing) }, { label: '完成服務', icon: markRaw(Route) }];
@@ -74,37 +74,78 @@ function useFallbackPhoto(event: Event) { const image = event.currentTarget as H
 function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }); }
 function handleFeatureItem(name: string) { if (name === 'LINE 專人服務') lineDialog.value = true; }
 async function loadCaregivers() { caregiverLoading.value = true; caregiverError.value = false; try { caregivers.value = (await api.get<Caregiver[]>('/nurses')).data; } catch { caregiverError.value = true; } finally { caregiverLoading.value = false; } }
-function setupMotion() {
-  if (motionStarted || reduceMotion || !hero.value || !needs.value || !journey.value) return;
+function setupHomeScrollAnimations() {
+  if (motionStarted || !homePage.value || !hero.value || !needs.value || !journey.value) return;
   motionStarted = true;
   const heroEl = hero.value, needsEl = needs.value, journeyEl = journey.value;
   motionContext = gsap.context(() => {
-    gsap.timeline().fromTo(heroEl, { clipPath: 'inset(46%)' }, { clipPath: 'inset(0%)', duration: 1, ease: 'power3.inOut' }).from('[data-hero-copy] > *', { y: 34, opacity: 0, duration: .72, stagger: .09, ease: 'power3.out' }, .28).from('.elder-character', { y: 55, opacity: 0, duration: .8, ease: 'power3.out' }, .4).from('.caregiver-character', { x: 70, opacity: 0, duration: .9, ease: 'power3.out' }, .58).from('.doodle', { scale: .5, opacity: 0, duration: .45, stagger: .1 }, .78);
-    gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
-      const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
-      if (!reveal) return;
-      const direction = panel.dataset.panel;
-      const from = direction === 'center' ? { scale: .12 } : direction === 'bottom-left' ? { xPercent: -70, yPercent: 70, scale: .3 } : { xPercent: direction === 'left' ? -104 : 104 };
-      gsap.fromTo(reveal, from, {
-        scale: 1, xPercent: 0, yPercent: 0, ease: 'none',
-        scrollTrigger: { trigger: panel, start: 'top 96%', end: 'top 28%', scrub: 1 },
+    media = gsap.matchMedia();
+    media.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.from('[data-hero-copy] > *', { y: 10, autoAlpha: 0, duration: .25, stagger: .04 });
+      gsap.utils.toArray<HTMLElement>('[data-reveal], [data-stagger] > *').forEach(element => gsap.from(element, { y: 10, autoAlpha: 0, duration: .25, scrollTrigger: { trigger: element, start: 'top 88%', toggleActions: 'play none none reverse' } }));
+    });
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.timeline()
+        .from('.hero-copy .chapter-number', { y: 18, autoAlpha: 0, duration: .45 })
+        .from('.hero-copy h1', { y: 55, autoAlpha: 0, duration: .75, ease: 'power3.out' }, '-=.2')
+        .from('.hero-copy p', { y: 28, autoAlpha: 0, duration: .6, ease: 'power3.out' }, '-=.38')
+        .from('.hero-copy .cta-motion', { y: 20, scale: .92, autoAlpha: 0, duration: .55, ease: 'back.out(1.4)' }, '-=.3')
+        .from('.hero-scene', { scale: .94, rotation: -1.5, autoAlpha: 0, duration: .8, ease: 'power3.out' }, '-=.55');
+
+      gsap.timeline({ scrollTrigger: { trigger: heroEl, start: 'top top', end: 'bottom top', scrub: .8, invalidateOnRefresh: true } })
+        .to('.hero-copy', { yPercent: -16, opacity: .35, ease: 'none' }, 0)
+        .to('.hero-scene', { yPercent: 12, scale: .94, ease: 'none' }, 0)
+        .to('.blob--peach', { xPercent: -12, yPercent: 15, rotation: -8, ease: 'none' }, 0)
+        .to('.blob--blue', { xPercent: 14, yPercent: -10, rotation: 7, ease: 'none' }, 0);
+
+      gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(element => gsap.from(element, { y: 42, autoAlpha: 0, duration: .85, ease: 'power3.out', scrollTrigger: { trigger: element, start: 'top 82%', end: 'bottom 58%', toggleActions: 'play none none reverse' } }));
+      gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach(group => gsap.from(group.children, { y: 34, autoAlpha: 0, duration: .7, stagger: .12, ease: 'power3.out', scrollTrigger: { trigger: group, start: 'top 82%', toggleActions: 'play none none reverse' } }));
+
+      gsap.utils.toArray<HTMLElement>('[data-panel]').forEach(panel => {
+        const reveal = panel.querySelector<HTMLElement>('.panel-reveal');
+        const copy = panel.querySelector<HTMLElement>('header, .ending-copy, :scope > div:not(.panel-reveal)');
+        if (!reveal || panel === journeyEl) return;
+        gsap.fromTo(reveal, { scale: 1.05 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: panel, start: 'top 72%', end: 'bottom 28%', scrub: 1 } });
+        if (copy) gsap.fromTo(copy, { xPercent: panel.dataset.panel === 'left' ? -5 : 5 }, { xPercent: 0, ease: 'none', scrollTrigger: { trigger: panel, start: 'top 75%', end: 'bottom 25%', scrub: .8 } });
       });
+
+      gsap.utils.toArray<HTMLElement>('.cta-motion').forEach(wrapper => gsap.timeline({ scrollTrigger: { trigger: wrapper, start: 'top 88%', end: 'bottom 30%', scrub: .8 } }).fromTo(wrapper, { y: 16, scale: .94, opacity: .65 }, { y: 0, scale: 1, opacity: 1, duration: .65 }).to(wrapper, { scale: .96, opacity: .75, duration: .35 }));
+      gsap.fromTo('.route-line i', { scaleX: 0 }, { scaleX: 1, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
+      gsap.fromTo('.route-dot', { xPercent: -50 }, { xPercent: 50, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
+
+      const ending = homePage.value?.querySelector<HTMLElement>('.ending');
+      if (ending) gsap.timeline({ scrollTrigger: { trigger: ending, start: 'top 80%', end: 'bottom bottom', scrub: 1 } })
+        .fromTo('.ending-photo img', { scale: 1.08, yPercent: 8 }, { scale: 1, yPercent: 0, duration: .8, ease: 'none' }, 0)
+        .fromTo('.ending-copy', { y: 70, opacity: .2 }, { y: 0, opacity: 1, duration: .8, ease: 'none' }, 0)
+        .fromTo('.ending-copy > svg', { scale: .7, rotation: -8 }, { scale: 1, rotation: 0, duration: .65 }, .1)
+        .to({}, { duration: .2 });
     });
-    gsap.matchMedia().add('(min-width: 901px)', () => {
-      gsap.timeline({ scrollTrigger: { trigger: heroEl, start: 'top top+=76', end: '+=900', scrub: 1, pin: true } }).to('.blob--peach', { xPercent: -38, yPercent: 18 }, 0).to('.blob--blue', { xPercent: 38, yPercent: -18 }, 0).to('.hero-copy', { y: -70, opacity: .15 }, 0).to('.caregiver-character', { x: 95, y: 28 }, 0).to('.elder-character', { x: -24 }, 0).to('.hill--back', { x: 42 }, 0).to('.doodle--heart', { x: 70, y: -110, rotate: 12 }, 0).to('.doodle--leaf', { x: -60, y: -90, rotate: -16 }, 0);
-      const journeyTl = gsap.timeline({ scrollTrigger: { trigger: journeyEl, start: 'top top+=76', end: '+=1800', scrub: 1, pin: journeyEl.querySelector('.journey-stage') as HTMLElement } });
-      document.querySelectorAll('.journey-step').forEach((step, index) => { if (index) journeyTl.to('.journey-step', { opacity: 0, y: -18, duration: .12 }).set(step, { opacity: 1, y: 0 }).to('.actor--caregiver', { x: `${index * 11}vw`, duration: .65 }).to('.care-path span', { scaleX: 1 - index * .27, duration: .65 }, '<'); });
-      journeyTl.to('.journey-heart', { opacity: 1, scale: 1, duration: .25 });
+
+    media.add('(min-width: 1024px) and (prefers-reduced-motion: no-preference)', () => {
+      const steps = gsap.utils.toArray<HTMLElement>('.journey-step');
+      gsap.set(steps, { opacity: .25, scale: .96, y: 18 });
+      const timeline = gsap.timeline({ scrollTrigger: { trigger: '.journey-stage', start: 'top top', end: '+=180%', pin: true, scrub: 1, anticipatePin: 1, invalidateOnRefresh: true } });
+      timeline.from('.journey-copy > .chapter-number', { y: 30, autoAlpha: 0 }).from('#journey-title', { y: 45, autoAlpha: 0 }, .1);
+      steps.forEach((step, index) => timeline.to(step, { opacity: 1, scale: 1, y: 0, duration: .12 }, .2 + index * .2).to(steps.filter((_, i) => i !== index), { opacity: .25, scale: .96, duration: .12 }, .2 + index * .2));
+      timeline.fromTo('.actor--caregiver', { xPercent: -25, autoAlpha: 0, scale: .92 }, { xPercent: 0, autoAlpha: 1, scale: 1, duration: .16 }, .35)
+        .fromTo('.care-path span', { scaleX: 0, transformOrigin: 'left center' }, { scaleX: 1, ease: 'none', duration: .42 }, .43)
+        .to('.actor--caregiver', { xPercent: 85, y: -8, rotation: 2, ease: 'none', duration: .42 }, .43)
+        .to('.actor--caregiver', { y: 0, rotation: 0, duration: .1 }, .82)
+        .fromTo('.journey-heart', { scale: 0, rotation: -8, autoAlpha: 0 }, { scale: 1, rotation: 0, autoAlpha: 1, ease: 'back.out(1.7)', duration: .12 }, .72)
+        .fromTo('.actor--elder', { opacity: .6, scale: .95 }, { opacity: 1, scale: 1.06, duration: .14 }, .82).to('.actor--elder', { scale: 1, duration: .08 }, .94);
     });
-    gsap.to('.floating-service--1', { x: 70, y: -55, rotate: -8, scrollTrigger: { trigger: needsEl, scrub: 1.2 } }); gsap.to('.floating-service--2', { x: -55, y: -85, rotate: 7, scrollTrigger: { trigger: needsEl, scrub: 1.5 } }); gsap.to('.floating-service--3', { x: 80, y: -110, rotate: 10, scrollTrigger: { trigger: needsEl, scrub: 1 } });
-    gsap.fromTo('.route-line i', { scaleX: 0 }, { scaleX: 1, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
-    gsap.fromTo('.route-dot', { xPercent: -50 }, { xPercent: 50, ease: 'none', scrollTrigger: { trigger: '[data-progress-route]', start: 'top 78%', end: 'bottom 45%', scrub: 1 } });
-    gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach(el => gsap.from(el, { y: 30, opacity: 0, duration: .6, clearProps: 'transform,opacity', scrollTrigger: { trigger: el, start: 'top 88%', once: true } }));
-  });
+
+    media.add('(max-width: 1023px) and (prefers-reduced-motion: no-preference)', () => {
+      gsap.utils.toArray<HTMLElement>('.journey-step').forEach(step => gsap.from(step, { y: 24, autoAlpha: 0, duration: .55, scrollTrigger: { trigger: step, start: 'top 86%', toggleActions: 'play none none reverse' } }));
+    });
+
+    gsap.utils.toArray<HTMLElement>('[data-panel]').forEach((panel, index) => gsap.to(homePage.value!, { '--scroll-bg': ['#fff9f5', '#fffdfb', '#f4eadf', '#e4ecdf', '#f8ded4'][Math.min(index, 4)], ease: 'none', scrollTrigger: { trigger: panel, start: 'top bottom', end: 'bottom top', scrub: 1.2 } }));
+    ScrollTrigger.refresh();
+  }, homePage.value);
 }
-async function handleOpeningFinished() { homeReady.value = true; await nextTick(); setupMotion(); }
+async function handleOpeningFinished() { homeReady.value = true; await nextTick(); setupHomeScrollAnimations(); }
 onMounted(loadCaregivers);
-onBeforeUnmount(() => motionContext?.revert());
+onBeforeUnmount(() => { media?.revert(); motionContext?.revert(); });
 </script>
 
 <style scoped>
@@ -138,4 +179,7 @@ onBeforeUnmount(() => motionContext?.revert());
 
 .story-hero{grid-template-columns:minmax(320px,.78fr) 1.22fr;background-image:linear-gradient(90deg,#e8eddf 0 27%,#e8eddfed 39%,#dde5d340 66%,#dde5d314),url('/images/home/cat.svg'),linear-gradient(135deg,#e8eddf,#dde5d3);background-position:center,78% center,center;background-repeat:no-repeat;background-size:cover,auto 94%,cover}.story-hero .blob,.story-hero .hero-scene{display:none}.hero-copy{max-width:620px}
 @media(max-width:900px){.story-hero{grid-template-columns:1fr;background-image:linear-gradient(180deg,#e8eddf 0 46%,#e8eddfdf 60%,#dde5d329),url('/images/home/cat.svg'),linear-gradient(135deg,#e8eddf,#dde5d3);background-position:center,center bottom,center;background-size:cover,auto 70%,cover}.hero-copy{align-self:start;margin-top:clamp(34px,8vh,70px)}}
+.home-page{background:var(--scroll-bg,var(--milk))}.cta-motion{display:inline-flex;will-change:transform,opacity}.journey{min-height:auto}.ending-photo img,.hero-scene{will-change:transform}.ending-copy{will-change:transform,opacity}
+@media(max-width:1023px){.journey-step{transform:none}.cta-motion{max-width:100%}}
+@media(prefers-reduced-motion:reduce){.cta-motion,.ending-copy,.ending-photo img{will-change:auto!important}}
 </style>
