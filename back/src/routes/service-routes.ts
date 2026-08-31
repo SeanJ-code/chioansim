@@ -10,6 +10,8 @@ import {
   ServiceType,
   UserRecipientRelation,
 } from '../models'
+import { emitBookingRealtime } from '../realtime'
+import { findApprovedLeaveConflict, findAvailabilityConflict, findBookingConflict, findPendingLeaveConflict } from '../utils/availability-policy'
 
 export const serviceRoutes = Router()
 
@@ -226,6 +228,21 @@ serviceRoutes.post(
     }
     // 先鎖定需求再建立 Booking；若建立失敗，要把需求還原為 OPEN。
     try {
+      const scheduledStartAt = serviceRequest.get('preferredDate') as Date
+      const durationMinutes = Number(serviceRequest.get('estimatedDuration'))
+      if (!Number.isFinite(durationMinutes) || durationMinutes <= 0)
+        throw Object.assign(new Error('服務需求缺少有效的預估時數，無法承接。'), { statusCode: 409, code: 'BOOKING_INTERVAL_INVALID' })
+      const scheduledEndAt = new Date(scheduledStartAt.getTime() + durationMinutes * 60_000)
+      const [pendingLeave, approvedLeave, blocked, overlaps] = await Promise.all([
+        findPendingLeaveConflict(profile._id, scheduledStartAt, scheduledEndAt),
+        findApprovedLeaveConflict(profile._id, scheduledStartAt, scheduledEndAt),
+        findAvailabilityConflict(profile._id, scheduledStartAt, scheduledEndAt),
+        findBookingConflict(profile._id, scheduledStartAt, scheduledEndAt),
+      ])
+      if (pendingLeave) throw Object.assign(new Error('此服務時間與待審請假重疊'), { statusCode: 409, code: 'PENDING_LEAVE_CONFLICT' })
+      if (approvedLeave) throw Object.assign(new Error('此服務時間與已核准休假重疊'), { statusCode: 409, code: 'APPROVED_LEAVE_CONFLICT' })
+      if (blocked) throw Object.assign(new Error('此服務時間目前暫停服務'), { statusCode: 409, code: 'UNAVAILABLE_CONFLICT' })
+      if (overlaps.length) throw Object.assign(new Error('此服務時間已有其他任務'), { statusCode: 409, code: 'BOOKING_CONFLICT' })
       const booking = await Booking.create({
         bookingNumber: `BK${Date.now()}`,
         serviceRequestId: serviceRequest._id,
@@ -233,10 +250,13 @@ serviceRoutes.post(
         recipientId: serviceRequest.get('recipientId'),
         caregiverId: profile._id,
         serviceTypeIds: serviceRequest.get('serviceTypeIds'),
-        scheduledStartAt: serviceRequest.get('preferredDate'),
+        scheduledStartAt,
+        scheduledEndAt,
         serviceAddress: serviceRequest.get('serviceAddress'),
+        status: 'ACCEPTED',
         acceptedAt: new Date(),
       })
+      await emitBookingRealtime(booking.id)
       response.status(201).json(booking)
     } catch (error) {
       await ServiceRequest.findByIdAndUpdate(serviceRequest._id, { status: 'OPEN' })

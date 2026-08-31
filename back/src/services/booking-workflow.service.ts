@@ -482,13 +482,16 @@ export async function rescheduleBooking(
     permission: (booking) => canView(booking, actor),
     update: async (current) => {
       const caregiverId = current.get('caregiverId')
-      const [leave, blocked, overlaps] = await Promise.all([
+      const [pendingLeave, approvedLeave, blocked, overlaps] = await Promise.all([
+        findPendingLeaveConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt),
         findApprovedLeaveConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt),
         findAvailabilityConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt),
         findBookingConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt, current._id),
       ])
-      if (leave || blocked || overlaps.length)
-        fail(409, 'CONFLICT', leave ? '居服員在此時段已有核准休假' : blocked ? '居服員在此時段暫停服務' : '居服員在此時段已有其他任務')
+      if (pendingLeave) fail(409, 'PENDING_LEAVE_CONFLICT', '居服員在此時段已有待審請假')
+      if (approvedLeave) fail(409, 'APPROVED_LEAVE_CONFLICT', '居服員在此時段已有核准休假')
+      if (blocked) fail(409, 'UNAVAILABLE_CONFLICT', '居服員在此時段暫停服務')
+      if (overlaps.length) fail(409, 'BOOKING_CONFLICT', '居服員在此時段已有其他任務')
       return {
         scheduledStartAt: schedule.scheduledStartAt,
         scheduledEndAt: schedule.scheduledEndAt,

@@ -10,8 +10,8 @@ import { Booking, Review, User } from '../models'
 import { Complaint } from '../models/complaint'
 import { CaregiverLeaveRequest, CaregiverWorkJournal } from '../models/caregiver-work'
 import * as yup from 'yup'
-import { taipeiDateKey, taipeiDateTimeToUtc, taipeiWeekday } from '../utils/datetime'
-import { findApprovedLeaveConflict, findBookingConflict, findPendingLeaveConflict } from '../utils/availability-policy'
+import { taipeiDateKey, taipeiDateTimeToUtc, taipeiDayStartUtc, taipeiWeekday } from '../utils/datetime'
+import { BLOCKING_BOOKING_STATUSES, findApprovedLeaveConflict, findBookingConflict, findPendingLeaveConflict, intervalsOverlap } from '../utils/availability-policy'
 import { Notification } from '../models/notification'
 import { emitLeaveRealtime } from '../realtime'
 
@@ -528,37 +528,27 @@ nurseRoutes.get(
       return
     }
     const firstKey = taipeiDateKey(new Date())
-    const start = new Date(`${firstKey}T00:00:00.000Z`)
+    const start = taipeiDayStartUtc(firstKey)
     const end = new Date(start.getTime() + 14 * 86_400_000)
-    const exceptions = await Availability.find({
-      caregiverId: request.params.id,
-      date: { $gte: start, $lt: end },
-      hidden: { $ne: true },
-      status: { $in: ['LEAVE', 'UNAVAILABLE'] },
-    }).select('date status')
-    const blockedDays = new Set(exceptions.map((item) => item.date.toISOString().slice(0, 10)))
-    const bookings = await Booking.find({
-      caregiverId: request.params.id,
-      scheduledStartAt: { $gte: start, $lt: end },
-      status: { $nin: ['CANCELLED', 'ABANDONED'] },
-      hidden: { $ne: true },
-    }).select('scheduledStartAt scheduledEndAt')
-    const overlaps = (from: Date, to: Date) =>
-      bookings.some(
-        (item) =>
-          item.scheduledStartAt < to && (item.scheduledEndAt || item.scheduledStartAt) > from,
-      )
+    const [exceptions, leaves, bookings] = await Promise.all([
+      Availability.find({ caregiverId: request.params.id, date: { $gte: start, $lt: end }, hidden: { $ne: true }, status: 'UNAVAILABLE' }).select('date startTime endTime'),
+      CaregiverLeaveRequest.find({ caregiverId: request.params.id, startAt: { $lt: end }, endAt: { $gt: start }, status: { $in: ['PENDING', 'APPROVED'] }, hidden: { $ne: true } }).select('startAt endAt'),
+      Booking.find({ caregiverId: request.params.id, scheduledStartAt: { $lt: end }, scheduledEndAt: { $gt: start }, status: { $in: BLOCKING_BOOKING_STATUSES }, hidden: { $ne: true } }).select('scheduledStartAt scheduledEndAt'),
+    ])
     const slots = []
     for (let offset = 0; offset < 14; offset += 1) {
       const day = new Date(start.getTime() + offset * 86_400_000)
       const key = day.toISOString().slice(0, 10)
-      if ([0, 6].includes(taipeiWeekday(key)) || blockedDays.has(key)) continue
+      if ([0, 6].includes(taipeiWeekday(key))) continue
       for (let hour = 9; hour < 17; hour += 2) {
         const startTime = `${String(hour).padStart(2, '0')}:00`
         const endTime = `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`
         const from = taipeiDateTimeToUtc(key, startTime)
         const to = taipeiDateTimeToUtc(key, endTime)
-        if (!overlaps(from, to))
+        const unavailable = exceptions.some((item) => taipeiDateKey(item.get('date')) === key && intervalsOverlap(from, to, taipeiDateTimeToUtc(key, item.get('startTime')), taipeiDateTimeToUtc(key, item.get('endTime'))))
+        const onLeave = leaves.some((item) => intervalsOverlap(from, to, item.get('startAt'), item.get('endAt')))
+        const booked = bookings.some((item) => intervalsOverlap(from, to, item.get('scheduledStartAt'), item.get('scheduledEndAt')))
+        if (!unavailable && !onLeave && !booked)
           slots.push({
             _id: `${request.params.id}|${key}|${startTime}|${endTime}`,
             date: day,

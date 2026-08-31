@@ -31,7 +31,7 @@ import {
   startService,
   stopLocationSharing,
 } from '../services/booking-workflow.service'
-import { findApprovedLeaveConflict, findAvailabilityConflict, findBookingConflict } from '../utils/availability-policy'
+import { findApprovedLeaveConflict, findAvailabilityConflict, findBookingConflict, findPendingLeaveConflict } from '../utils/availability-policy'
 
 export const bookingRoutes = Router()
 // 預約含個資、定位與健康紀錄，所以本檔全部 API 都必須登入。
@@ -187,12 +187,16 @@ bookingRoutes.post(
         throw Object.assign(new Error('請選擇未來週一至週五 09:00–17:00 的有效時段'), {
           statusCode: 400,
         })
-      const [leave, blocked, overlaps] = await Promise.all([
+      const [pendingLeave, approvedLeave, blocked, overlaps] = await Promise.all([
+        findPendingLeaveConflict(caregiverId, scheduledStartAt, scheduledEndAt),
         findApprovedLeaveConflict(caregiverId, scheduledStartAt, scheduledEndAt),
         findAvailabilityConflict(caregiverId, scheduledStartAt, scheduledEndAt),
         findBookingConflict(caregiverId, scheduledStartAt, scheduledEndAt),
       ])
-      if (leave || blocked || overlaps.length) throw Object.assign(new Error(leave ? '這位居服員在此時段休假' : blocked ? '這位居服員在此時段暫停服務' : '這位居服員在此時段已有其他服務'), { statusCode: 409 })
+      if (pendingLeave) throw Object.assign(new Error('這位居服員在此時段有待審請假'), { statusCode: 409, code: 'PENDING_LEAVE_CONFLICT' })
+      if (approvedLeave) throw Object.assign(new Error('這位居服員在此時段休假'), { statusCode: 409, code: 'APPROVED_LEAVE_CONFLICT' })
+      if (blocked) throw Object.assign(new Error('這位居服員在此時段暫停服務'), { statusCode: 409, code: 'UNAVAILABLE_CONFLICT' })
+      if (overlaps.length) throw Object.assign(new Error('這位居服員在此時段已有其他服務'), { statusCode: 409, code: 'BOOKING_CONFLICT' })
       const serviceRequest = await ServiceRequest.create({
         requesterUserId: request.auth?.userId,
         recipientId: recipientId || undefined,

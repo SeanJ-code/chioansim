@@ -214,7 +214,7 @@ const bookingSchema = new Schema(
     caregiverId: { type: Schema.Types.ObjectId, ref: 'CaregiverProfile', required: true },
     serviceTypeIds: [{ type: Schema.Types.ObjectId, ref: 'ServiceType' }],
     scheduledStartAt: { type: Date, required: true },
-    scheduledEndAt: Date,
+    scheduledEndAt: { type: Date, required: true },
     serviceAddress: { text: String, latitude: Number, longitude: Number },
     // 成交當下的服務總額快照；歷史畫面不可用日後調整的型錄價格重算。
     totalAmount: { type: Number, min: 0 },

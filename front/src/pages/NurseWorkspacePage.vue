@@ -148,7 +148,7 @@
             </div>
 
             <div v-else class="record-list">
-              <article v-for="item in dashboard?.leaves" :key="item._id" class="record-row"><div class="record-main"><small>{{ leaveName(item.leaveType) }}</small><h3>{{ dateTime(item.startAt) }} 至 {{ dateTime(item.endAt) }}</h3><p>{{ item.reason }}</p></div><span class="tag">{{ leaveStatus(item.status) }}</span><button v-if="item.status === 'PENDING'" class="outline-btn" type="button" @click="cancelLeave(item._id)">撤回</button></article>
+              <article v-for="item in dashboard?.leaves" :key="item._id" class="record-row"><div class="record-main"><small>{{ leaveName(item.leaveType) }}</small><h3>{{ dateTime(item.startAt) }} 至 {{ dateTime(item.endAt) }}</h3><p>{{ item.reason }}</p><p v-if="item.status === 'APPROVED'" class="approved-leave-note">已核准，如需取消請聯絡管理員</p></div><span class="tag">{{ leaveStatus(item.status) }}</span><button v-if="item.status === 'PENDING'" class="outline-btn" type="button" @click="cancelLeave(item._id)">撤回</button></article>
               <EmptyState v-if="!dashboard?.leaves.length" title="目前沒有請假紀錄" text="需要休息時提早告訴平台，我們會協助調整安排。" />
             </div>
           </section>
@@ -178,8 +178,9 @@ import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
 import { useLocationStore } from '@/stores/location-store';
-import { taipeiCalendarTime, taipeiDateKey, taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
+import { taipeiDateKey, taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
 import { toCalendarEvent } from '@/utils/booking-calendar';
+import { leaveCalendarSegments } from '@/utils/leave-calendar';
 import { QCalendarDay } from '@quasar/quasar-ui-qcalendar';
 import '@quasar/quasar-ui-qcalendar/index.css';
 import { BadgeCheck, BookOpenText, BriefcaseBusiness, CalendarClock, CalendarDays, CalendarOff, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock3, FileBadge2, FileText, ImagePlus, Mail, MapPin, MessageCircleHeart, MessageSquareHeart, Pencil, Phone, Plus, Search, ShieldAlert, Star, Trash2, UserRound, UserRoundCog, WifiOff, X } from '@lucide/vue';
@@ -214,10 +215,10 @@ const selectedScheduleDayLabel = computed(() => {
   const [year, month, day] = scheduleDay.value.split('/');
   return `${year} 年 ${month} 月 ${day} 日`;
 });
-const leaveCalendarDates = computed(() => (dashboard.value?.leaves || []).filter((item) => item.status === 'APPROVED').map((item) => taipeiDateKey(new Date(item.startAt)).replace(/-/g, '/')));
+const leaveCalendarDates = computed(() => [...new Set((dashboard.value?.leaves || []).filter((item) => item.status === 'APPROVED').flatMap((item) => leaveCalendarSegments(item).map((segment) => segment.date.replace(/-/g, '/'))))]);
 const selectedDayAvailability = computed(() => {
   const date = scheduleDay.value.replace(/\//g, '-');
-  return (dashboard.value?.leaves || []).find((item) => item.status === 'APPROVED' && taipeiDateKey(new Date(item.startAt)) === date) || availabilities.value.find((item) => item.date.slice(0, 10) === date);
+  return (dashboard.value?.leaves || []).find((item) => item.status === 'APPROVED' && leaveCalendarSegments(item).some((segment) => segment.date === date)) || availabilities.value.find((item) => item.date.slice(0, 10) === date);
 });
 const filteredAvailabilities = computed(() => {
   const date = scheduleDay.value.replace(/\//g, '-');
@@ -248,7 +249,7 @@ const bookingTone = (booking: Booking) => booking.status === 'CANCELLED' || book
 type CalendarEvent = ReturnType<typeof toCalendarEvent> & { id: string; kind: 'booking' | 'leave'; status?: string };
 const calendarEvents = computed<CalendarEvent[]>(() => [
   ...filteredBookings.value.filter((booking) => !['CANCELLED', 'ABANDONED'].includes(booking.status)).map((booking) => ({ ...toCalendarEvent(booking), id: booking._id, kind: 'booking' as const })),
-  ...(dashboard.value?.leaves || []).filter((leave) => ['PENDING', 'APPROVED'].includes(leave.status)).map((leave) => ({ id: `leave-${leave._id}`, bookingId: '', kind: 'leave' as const, status: leave.status, date: taipeiDateKey(new Date(leave.startAt)), startTime: taipeiCalendarTime(new Date(leave.startAt)), durationMinutes: Math.max(30, (new Date(leave.endAt).getTime() - new Date(leave.startAt).getTime()) / 60000), title: `${leaveStatus(leave.status)}・${leaveName(leave.leaveType)}` })),
+  ...(dashboard.value?.leaves || []).filter((leave) => ['PENDING', 'APPROVED'].includes(leave.status)).flatMap((leave) => leaveCalendarSegments(leave).map((segment) => ({ ...segment, bookingId: '', kind: 'leave' as const, status: leave.status, title: `${leaveStatus(leave.status)}・${leaveName(leave.leaveType)}` }))),
 ]);
 const calendarRangeLabel = computed(() => taipeiDateTime(`${calendarDate.value}T00:00:00+08:00`, { year: 'numeric', month: 'long', day: 'numeric' }));
 const bookingById = (id: string) => dashboard.value?.bookings.find((booking) => booking._id === id);
@@ -322,6 +323,7 @@ async function removeAvailability(id: string) { await api.delete(`/nurses/availa
   box-shadow:0 24px 70px rgb(77 52 43/.18)
 }
 .availability-badge.leave{color:#875312;background:#fff0d9}.tag-success{color:#2f6b51;background:#def1e7}.tag-danger{color:#a93f37;background:#fde6e3}.tag-muted,.booking-cancelled{color:#786b66;background:#eeeeec}.journal-guidance{margin:0;padding:14px 16px;color:#745e57;background:#fff1ea;border-radius:14px;line-height:1.7}
+.approved-leave-note{color:#786b66!important;font-size:.88rem;font-weight:700}
 .dialog-head{padding:28px 32px 18px;border-bottom:1px solid #f1e5df}
 .dialog-head small{color:var(--orange);font-size:.78rem;font-weight:800;letter-spacing:.12em}
 .dialog-head h2{margin:7px 0 0;color:var(--ink);font-size:1.9rem;line-height:1.3}

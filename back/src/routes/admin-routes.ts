@@ -136,6 +136,10 @@ adminRoutes.patch(
       return
     }
     if (request.body.status === 'APPROVED') {
+      if (new Date(before.get('endAt')) <= new Date()) {
+        response.status(409).json({ code: 'LEAVE_ALREADY_EXPIRED', message: '請假結束時間已早於現在，無法核准。' })
+        return
+      }
       const conflicts = await findBookingConflict(before.get('caregiverId'), before.get('startAt'), before.get('endAt'), undefined, ACTIVE_BOOKING_STATUSES)
       if (conflicts.length) {
         response.status(409).json({
@@ -175,6 +179,33 @@ adminRoutes.patch(
       title: request.body.status === 'APPROVED' ? '您的請假已核准' : '您的請假未核准',
       message: `${new Date(leave.get('startAt')).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} 的請假申請已完成審核。`,
     })
+    await emitLeaveRealtime(leave.get('caregiverId'))
+    response.json(leave)
+  }),
+)
+
+// PATCH /admin/nurse-leaves/:id/cancel：只有管理員能撤銷已核准請假。
+adminRoutes.patch(
+  '/nurse-leaves/:id/cancel',
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const before = await CaregiverLeaveRequest.findOne({ _id: request.params.id, status: 'APPROVED', hidden: { $ne: true } })
+    if (!before) {
+      response.status(409).json({ message: '找不到可撤銷的已核准請假' })
+      return
+    }
+    const leave = await CaregiverLeaveRequest.findOneAndUpdate(
+      { _id: before._id, status: 'APPROVED', updatedAt: before.get('updatedAt') },
+      { status: 'CANCELLED', adminNote: request.body.adminNote, reviewedByAdminId: request.auth?.userId, reviewedAt: new Date() },
+      { new: true, runValidators: true },
+    )
+    if (!leave) {
+      response.status(409).json({ message: '請假狀態已由其他操作更新，請重新整理' })
+      return
+    }
+    await recordAudit(request, 'CAREGIVER_LEAVE_CANCELLED_BY_ADMIN', 'caregiverleaverequests', String(leave._id), before.toObject(), leave.toObject())
+    const caregiver = await CaregiverProfile.findById(leave.get('caregiverId')).select('userId')
+    if (caregiver?.get('userId')) await Notification.create({ recipientUserId: caregiver.get('userId'), type: 'SYSTEM', title: '已核准請假已由管理員撤銷', message: '如需重新請假，請再次提出申請。' })
     await emitLeaveRealtime(leave.get('caregiverId'))
     response.json(leave)
   }),
