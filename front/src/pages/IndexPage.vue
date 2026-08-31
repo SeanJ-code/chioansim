@@ -22,7 +22,6 @@
 
       <section id="needs" ref="needs" class="needs scene story-panel story-panel--peach" data-panel="right" aria-labelledby="needs-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <span class="floating-service floating-service--1" aria-hidden="true"><Utensils :size="38" /></span><span class="floating-service floating-service--2" aria-hidden="true"><Stethoscope :size="40" /></span><span class="floating-service floating-service--3" aria-hidden="true"><ShoppingBasket :size="38" /></span><span class="floating-service floating-service--4" aria-hidden="true"><MessagesSquare :size="38" /></span>
         <header data-reveal><span class="chapter-number">02</span><h2 id="needs-title">每一份照顧，<br>都從理解開始。</h2><p>告訴我們需要什麼樣的陪伴。</p></header>
         <div class="service-list" data-stagger><article v-for="item in services" :key="item.title"><component :is="item.icon" :size="32" /><div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div></article></div>
       </section>
