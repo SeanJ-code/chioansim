@@ -72,8 +72,16 @@
                 </q-card-actions>
               </q-card>
               <div class="schedule-layout">
-                <q-date v-model="scheduleDay" minimal color="deep-orange" class="schedule-calendar" :options="weekdayOnly" />
+                <q-date v-model="scheduleDay" minimal color="deep-orange" class="schedule-calendar" :options="weekdayOnly" :events="leaveCalendarDates" event-color="grey-7" />
                 <div class="availability-list">
+                  <q-banner v-if="selectedDayAvailability" rounded class="leave-day-banner">
+                    <template #avatar><CalendarOff :size="23" /></template>
+                    <div class="leave-day-banner__copy">
+                      <strong>{{ selectedDayAvailability.status === 'LEAVE' ? '這一天已安排休假' : '這一天暫停提供服務' }}</strong>
+                      <span>本日不開放新的照護任務。</span>
+                    </div>
+                    <template #action><q-badge color="grey-7" text-color="white">不可接案</q-badge></template>
+                  </q-banner>
                   <p class="schedule-note"><CalendarDays :size="18" />{{ availabilityListTitle }}</p>
                   <article v-for="item in filteredAvailabilities" :key="item._id" :class="['availability-row', item.status.toLowerCase()]">
                     <div><strong>09:00－17:00</strong><small>{{ exceptionLabel(item.status) }}</small></div>
@@ -109,7 +117,7 @@
               <article v-for="booking in filteredBookings" :key="booking._id" :class="['record-row', `booking-${booking.status.toLowerCase()}`]">
                 <div class="date-box"><strong>{{ day(booking.scheduledStartAt) }}</strong><span>{{ month(booking.scheduledStartAt) }}</span></div>
                 <div class="record-main"><h3>{{ booking.recipientId?.name || '本人服務需求' }}</h3><p>{{ dateTime(booking.scheduledStartAt) }}・{{ booking.serviceTypeIds?.map((item) => item.name).join('、') || '照護服務' }}</p></div>
-                <button v-if="booking.status === 'PENDING'" class="accept-task-button" type="button" @click="openBookingConfirm(booking)">等待居服員確認</button>
+                <button v-if="booking.status === 'PENDING'" class="accept-task-button" type="button" :disabled="isBookingOnUnavailableDay(booking)" @click="openBookingConfirm(booking)">{{ isBookingOnUnavailableDay(booking) ? '休假中・不可承接' : '等待居服員確認' }}</button>
                 <button v-else-if="booking.status === 'ACCEPTED'" class="journey-button" type="button" :disabled="saving" @click="beginJourney(booking)">開始前往</button>
                 <button v-else-if="booking.status === 'DEPARTED' && locationStore.isSharing && locationStore.bookingId === booking._id" class="journey-button" type="button" :disabled="saving" @click="markArrived(booking)">我已抵達</button>
                 <button v-else-if="booking.status === 'DEPARTED'" class="journey-button" type="button" :disabled="saving" @click="resumeJourney(booking)">繼續分享位置</button>
@@ -199,12 +207,17 @@ function useFallbackPhoto(event: Event) { const image = event.currentTarget as H
 const verificationLabel = computed(() => ({ PENDING: '接案資格審核中', APPROVED: '接案資格已通過', REJECTED: '證照需要補件', EXPIRED: '證照已到期' } as Record<string, string>)[dashboard.value?.profile.verificationStatus || 'PENDING']);
 const locationUpdatedLabel = computed(() => locationStore.lastUpdatedAt ? new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(locationStore.lastUpdatedAt)) : '尚未分享');
 const summaries = computed(() => [{ section: 'schedule' as Section, label: '即將服務', value: `${dashboard.value?.summary.upcomingBookings || 0} 件`, caption: '查看預約與服務時間', icon: CalendarClock }, { section: 'journal' as Section, label: '工作日誌', value: `${dashboard.value?.journals.length || 0} 篇`, caption: '留下交班與追蹤重點', icon: BookOpenText }, { section: 'leave' as Section, label: '待審請假', value: `${dashboard.value?.summary.pendingLeaves || 0} 件`, caption: '安排休息也照顧自己', icon: CalendarOff }, { section: 'safety' as Section, label: '處理中通報', value: `${dashboard.value?.summary.pendingReports || 0} 件`, caption: '需要協助時告訴我們', icon: ShieldAlert }]);
-const actions: Partial<Record<Section, { label: string; type: DialogType }>> = { schedule: { label: '安排休假', type: 'schedule' }, journal: { label: '新增工作日誌', type: 'journal' }, safety: { label: '立即安全通報', type: 'incident' }, leave: { label: '提出請假申請', type: 'leave' } }; const sectionAction = computed(() => { const item = actions[activeSection.value]; return item ? { label: item.label, action: () => item.type === 'schedule' ? openSchedule() : openDialog(item.type) } : null; });
+const actions: Partial<Record<Section, { label: string; type: DialogType }>> = { journal: { label: '新增工作日誌', type: 'journal' }, safety: { label: '立即安全通報', type: 'incident' }, leave: { label: '提出請假申請', type: 'leave' } }; const sectionAction = computed(() => { const item = actions[activeSection.value]; return item ? { label: item.label, action: () => openDialog(item.type) } : null; });
 const dialogTitle = computed(() => dialogType.value === 'booking' && selectedBooking.value?.status !== 'PENDING' ? '照護任務詳情' : ({ profile: '修改我的資料', schedule: editingAvailabilityId.value ? '修改休假安排' : '安排休假', journal: '寫一篇安心工作日誌', incident: '向管理員提出安全通報', leave: '提出請假申請', review: '留下本次服務評量', booking: '確認這次照護任務', completion: '提出完成任務' }[dialogType.value])); const dialogCopy = computed(() => ({ profile: '姓名與電話會與帳號綁定，避免冒用；接案資格不會因此改變。', schedule: '平日 09:00–17:00 預設開放預約；這裡只需要登記休假或暫停服務。', journal: '記錄服務重點、交班提醒或後續需要留意的事情。送出後無法修改。', incident: '若正遭遇立即危險，請先撥打 110 或 119，再留下平台通報。', leave: '送出後由管理員確認；若已有行程，請同步與平台聯繫。', review: '您的回饋只用於改善媒合品質與服務安全。', booking: '請核對使用者、受照護者、服務內容與時間。班表只提供查看，不會直接修改任務。', completion: '送出後會通知使用者核對；雙方確認後，系統才會正式結案。' }[dialogType.value]));
 const weekdayOnly = (date: string) => { const day = new Date(`${date.replace(/\//g, '-')}T00:00:00`).getDay(); return day !== 0 && day !== 6; };
 const selectedScheduleDayLabel = computed(() => {
   const [year, month, day] = scheduleDay.value.split('/');
   return `${year} 年 ${month} 月 ${day} 日`;
+});
+const leaveCalendarDates = computed(() => availabilities.value.map((item) => item.date.slice(0, 10).replace(/-/g, '/')));
+const selectedDayAvailability = computed(() => {
+  const date = scheduleDay.value.replace(/\//g, '-');
+  return availabilities.value.find((item) => item.date.slice(0, 10) === date);
 });
 const filteredAvailabilities = computed(() => {
   const date = scheduleDay.value.replace(/\//g, '-');
@@ -228,6 +241,7 @@ const filteredBookings = computed(() => {
 });
 const journalPreviews = computed(() => (journalPhotos.value || []).map((file) => URL.createObjectURL(file)));
 const exceptionLabel = (value: string) => value === 'LEAVE' ? '休假' : '暫無提供服務';
+const isBookingOnUnavailableDay = (booking: Booking) => availabilities.value.some((item) => item.date.slice(0, 10) === taipeiDateKey(new Date(booking.scheduledStartAt)));
 const attendanceLabel = (booking: Booking) => booking.status === 'CANCELLED' ? '取消任務' : ({ CHECKED_IN: '已報到', LATE: '遲到・已抵達', OVERDUE: '逾期中', COMPLETED: '完成任務' } as Record<string, string>)[booking.attendanceStatus || ''] || bookingStatus(booking.status);
 const bookingTone = (booking: Booking) => booking.status === 'CANCELLED' || booking.attendanceStatus === 'COMPLETED' ? 'muted' : booking.attendanceStatus === 'OVERDUE' ? 'danger' : ['ACCEPTED', 'ARRIVED', 'IN_SERVICE'].includes(booking.status) || ['CHECKED_IN', 'LATE'].includes(booking.attendanceStatus || '') ? 'success' : 'neutral';
 const calendarEvents = computed(() => filteredBookings.value.filter((booking) => !['CANCELLED', 'ABANDONED'].includes(booking.status)).map(toCalendarEvent));
@@ -326,6 +340,7 @@ async function removeAvailability(id: string) { await api.delete(`/nurses/availa
 .availability-row.available{background:#f1efed}
 .location-sharing-card{margin-top:14px;color:var(--brown);background:#fffaf7;border-color:#ead9d1;border-radius:18px}.location-sharing-card__head,.location-sharing-card__head>div{display:flex;align-items:center;gap:10px}.location-sharing-card__head{justify-content:space-between;padding-bottom:8px}.location-sharing-card__head>div>svg{flex:0 0 auto;color:var(--orange)}.location-sharing-card__head span{display:grid}.location-sharing-card__head small{color:#957a71}.location-sharing-card__head strong{color:var(--ink);font-size:1.05rem}.sharing-badge{padding:6px 10px;color:#fff;background:#3f765d}.sharing-badge.is-off{color:#74645e;background:#eee8e5}.location-sharing-card__body{display:grid;gap:8px;padding-top:4px}.location-privacy-banner{color:#755e56;background:#fff0e8}.location-sharing-card__body>small{color:#8d746b}.location-sharing-card__body>p{margin:0;color:#ae4038}.stop-sharing-button{min-height:42px;color:#a44338;border-radius:12px}
 .accept-task-button,.complete-task-button,.journey-button{min-height:44px;padding:0 14px;color:#fff;background:#3f765d;border:0;border-radius:12px;font-weight:700;white-space:nowrap;cursor:pointer}.accept-task-button:hover,.complete-task-button:hover,.journey-button:hover{background:#315f4a}.accept-task-button:disabled,.complete-task-button:disabled,.journey-button:disabled{opacity:.55;cursor:wait}.schedule-dialog-calendar{width:100%;background:#fff6f1;border:1px solid #eddfd8;border-radius:17px}.booking-confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px 32px 25px}.booking-confirm-grid>div{display:grid;gap:5px;padding:17px;background:#fff6f1;border-radius:16px}.booking-confirm-grid span,.booking-confirm-grid small{color:#8a7067}.booking-confirm-grid strong{color:var(--ink);font-size:1.04rem;line-height:1.5}
+.leave-day-banner{margin-bottom:16px;color:#665f5b;background:#eeeeec;border:1px solid #d5d1ce}.leave-day-banner :deep(.q-banner__avatar){color:#77716d}.leave-day-banner__copy{display:flex;flex-direction:column;gap:4px}.leave-day-banner__copy strong{color:#514b48;font-size:1rem}.leave-day-banner__copy span{color:#817a76;font-size:.88rem}.accept-task-button:disabled{color:#716a66;background:#ebe8e5;border:1px solid #d8d3cf;cursor:not-allowed;opacity:1}
 .booking-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px}.booking-view-toolbar>span{color:#8a7067;font-size:.88rem}.calendar-panel{min-width:0;margin-top:14px;overflow:hidden;background:#fffaf7;border:1px solid #eddfd8;border-radius:18px}.calendar-nav{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #eddfd8}.calendar-nav button{min-width:44px;min-height:44px;padding:0 13px;display:grid;place-items:center;color:var(--brown);background:#fff;border:1px solid #e7d7d0;border-radius:12px;font-weight:700;cursor:pointer}.calendar-nav strong{text-align:center;color:var(--ink)}.calendar-panel :deep(.q-calendar){height:650px;background:#fff}.calendar-event{position:absolute;left:4px!important;right:4px!important;z-index:2;display:grid;align-content:start;gap:2px;min-height:44px;margin:0;padding:5px 7px;text-align:left;white-space:normal;overflow:hidden;border:1px solid rgb(73 56 51/.12);border-radius:8px;cursor:pointer}.calendar-event strong{font-size:.78rem}.calendar-event span{font-size:.82rem;line-height:1.3;overflow:hidden}.calendar-event:focus-visible{outline:3px solid #2f6fca;outline-offset:2px}
 @media(max-width:599px){
   .form-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;border-radius:22px}
