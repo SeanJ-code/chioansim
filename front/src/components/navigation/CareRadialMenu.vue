@@ -46,14 +46,14 @@ const roleItems: Partial<Record<UserRole, MenuItem[]>> = {
   USER: [
     { id: 'search', label: '找居服員', icon: markRaw(Search), to: { name: 'caregivers' } },
     { id: 'bookings', label: '我的預約', icon: markRaw(CalendarDays), to: { name: 'users', query: { radial: 'bookings' } } },
-    { id: 'notifications', label: '訊息通知', icon: markRaw(BellRing), to: { name: 'users', query: { radial: 'notifications' } } },
+    { id: 'notifications', label: '照護通知', icon: markRaw(BellRing), to: { name: 'users', query: { radial: 'notifications' } } },
     { id: 'line', label: 'LINE 客服', icon: markRaw(HeartHandshake), to: { name: 'users', query: { radial: 'line' } } },
   ],
   NURSE: [
-    { id: 'today', label: '今日任務', icon: markRaw(ClipboardCheck), to: { name: 'nurse-workspace', query: { section: 'schedule' } } },
-    { id: 'bookings', label: '我的預約', icon: markRaw(CalendarDays), to: { name: 'nurse-workspace', query: { section: 'schedule' } } },
-    { id: 'notifications', label: '訊息通知', icon: markRaw(BellRing), to: { name: 'nurse-workspace' } },
-    { id: 'location', label: 'GPS 回報位置', icon: markRaw(MapPin), to: { name: 'nurse-workspace', query: { section: 'schedule' } } },
+    { id: 'today', label: '今日任務', icon: markRaw(ClipboardCheck), to: { name: 'nurse-workspace', query: { radial: 'today' } } },
+    { id: 'calendar', label: '我的班表', icon: markRaw(CalendarDays), to: { name: 'nurse-workspace', query: { radial: 'calendar' } } },
+    { id: 'activity', label: '任務動態', icon: markRaw(BellRing), to: { name: 'nurse-workspace', query: { radial: 'activity' } } },
+    { id: 'location', label: '位置分享', icon: markRaw(MapPin), to: { name: 'nurse-workspace', query: { radial: 'location' } } },
   ],
 };
 
@@ -67,7 +67,10 @@ const triggerRef = ref<HTMLButtonElement>();
 const backdropRef = ref<HTMLButtonElement>();
 let timeline: gsap.core.Timeline | undefined;
 
-const menuItems = computed(() => roleItems[authStore.user?.role || 'PATIENT'] || []);
+const menuItems = computed(() => {
+  const role = authStore.user?.role;
+  return role ? roleItems[role] ?? [] : [];
+});
 const shouldShowMenu = computed(() => menuItems.value.length > 0 && route.meta.radialMenu !== false);
 const radius = computed(() => $q.screen.lt.sm ? 92 : 118);
 

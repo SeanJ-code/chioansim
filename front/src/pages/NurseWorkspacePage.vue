@@ -84,12 +84,12 @@
                   <EmptyState v-if="!filteredAvailabilities.length" title="這一天照常提供服務" text="平日 09:00–17:00 預設可預約；只有需要休息時才必須安排。" />
                 </div>
               </div>
-              <div class="booking-divider"><span>已媒合的服務任務</span></div>
+              <div ref="bookingListRef" class="booking-divider"><span>已媒合的服務任務</span></div>
               <div class="booking-view-toolbar">
                 <q-btn-toggle v-model="bookingView" no-caps unelevated toggle-color="deep-orange" :options="[{ label: '任務列表', value: 'list' }, { label: '我的班表', value: 'calendar' }]" aria-label="切換任務列表或我的班表" />
                 <span v-if="bookingView === 'calendar'">時間皆為台北時間</span>
               </div>
-              <div v-if="bookingView === 'calendar'" class="calendar-panel">
+              <div v-if="bookingView === 'calendar'" ref="calendarSectionRef" class="calendar-panel">
                 <div class="calendar-nav" aria-label="班表日期導覽">
                   <button type="button" aria-label="上一段日期" @click="calendarRef?.prev()"><ChevronLeft :size="20" /></button>
                   <button type="button" @click="calendarRef?.moveToToday()">今天</button>
@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { api } from '@/boot/axios';
@@ -186,7 +186,7 @@ type Dashboard = { user: { name: string; phone?: string; email?: string }; profi
 const EmptyState = defineComponent({ props: { title: { type: String, required: true }, text: { type: String, required: true } }, setup: (props) => () => h('div', { class: 'empty-state' }, [h(ClipboardList, { size: 34 }), h('h3', props.title), h('p', props.text)]) });
 const liveSync = useLiveSyncStore();
 const locationStore = useLocationStore();
-const $q = useQuasar(); const auth = useAuthStore(); const route = useRoute(); const router = useRouter(); const dashboard = ref<Dashboard | null>(null); const loading = ref(true); const saving = ref(false); const errorMessage = ref(''); const activeSection = ref<Section>(route.query.section === 'schedule' ? 'schedule' : 'overview'); const dialogOpen = ref(false); const dialogType = ref<DialogType>('profile'); const selectedBooking = ref<Booking | null>(null); const availabilities = ref<Availability[]>([]); const scheduleDay = ref(new Date().toISOString().slice(0, 10).replace(/-/g, '/')); const scheduleSearch = ref(''); const scheduleStatus = ref('ALL'); const editingAvailabilityId = ref<string | null>(null); const journalPhotos = ref<File[] | null>(null); const leaveProof = ref<File | null>(null);
+const $q = useQuasar(); const auth = useAuthStore(); const route = useRoute(); const router = useRouter(); const dashboard = ref<Dashboard | null>(null); const loading = ref(true); const saving = ref(false); const errorMessage = ref(''); const activeSection = ref<Section>(route.query.section === 'schedule' ? 'schedule' : 'overview'); const dialogOpen = ref(false); const dialogType = ref<DialogType>('profile'); const selectedBooking = ref<Booking | null>(null); const availabilities = ref<Availability[]>([]); const scheduleDay = ref(new Date().toISOString().slice(0, 10).replace(/-/g, '/')); const scheduleSearch = ref(''); const scheduleStatus = ref('ALL'); const editingAvailabilityId = ref<string | null>(null); const journalPhotos = ref<File[] | null>(null); const leaveProof = ref<File | null>(null); const bookingListRef = ref<HTMLElement | null>(null); const calendarSectionRef = ref<HTMLElement | null>(null);
 watch(() => route.query.section, (section) => { if (section === 'schedule') activeSection.value = 'schedule'; });
 const bookingView = ref<'list' | 'calendar'>($q.screen.lt.sm ? 'list' : 'calendar'); const calendarDate = ref(taipeiDateKey(new Date())); const calendarRef = ref<any>(null); const calendarView = computed(() => $q.screen.lt.sm ? 'day' : 'week');
 const profileForm = reactive({ name: '', phone: '', email: '', yearsExperience: 0, serviceAreasText: '', introduction: '' }); const scheduleForm = reactive({ date: new Date().toISOString().slice(0, 10), startTime: '09:00', endTime: '17:00', status: 'LEAVE' }); const journalForm = reactive({ title: '', content: '', occurredAt: new Date().toISOString().slice(0, 16), mood: 'STEADY', followUpRequired: false }); const incidentForm = reactive({ category: 'WORKPLACE_BULLYING', priority: 'NORMAL', description: '' }); const leaveForm = reactive({ leaveType: 'PERSONAL', startAt: '', endAt: '', reason: '' }); const reviewForm = reactive({ rating: 5, comment: '' });
@@ -248,12 +248,45 @@ const resumeJourney = (booking: Booking) => runLocationAction(() => locationStor
 const markArrived = (booking: Booking) => runLocationAction(() => locationStore.arrive(booking._id), '已通知家庭您抵達服務地點。');
 const beginService = (booking: Booking) => runLocationAction(() => locationStore.startService(booking._id), '服務已開始，位置分享已停止。');
 async function stopLocationSharing() { saving.value = true; try { await locationStore.stopSharing(); $q.notify({ type: 'info', position: 'top', message: '位置分享已停止。' }); } catch (error: any) { locationFailure(error); } finally { saving.value = false; } }
+const locationBooking = computed(() => dashboard.value?.bookings.find((booking) => booking._id === locationStore.bookingId && ['DEPARTED', 'ARRIVED'].includes(booking.status)) ?? dashboard.value?.bookings.find((booking) => ['ACCEPTED', 'DEPARTED', 'ARRIVED'].includes(booking.status)) ?? null);
+function openPriorityTask() {
+  const priority = ['IN_SERVICE', 'ARRIVED', 'DEPARTED', 'ACCEPTED', 'PENDING'];
+  const booking = priority.map((status) => dashboard.value?.bookings.find((item) => item.status === status)).find((item): item is Booking => Boolean(item));
+  if (booking) openBookingConfirm(booking);
+  else $q.notify({ type: 'info', position: 'top', message: '目前沒有需要處理的任務。' });
+}
+async function handleRadialLocation() {
+  const booking = locationBooking.value;
+  if (!booking) { $q.notify({ type: 'info', position: 'top', message: '目前沒有可以分享位置的進行中任務。' }); return; }
+  if (booking.status === 'ACCEPTED') await beginJourney(booking);
+  else if (booking.status === 'DEPARTED' && locationStore.isSharing) await markArrived(booking);
+  else if (booking.status === 'DEPARTED') await resumeJourney(booking);
+  else if (booking.status === 'ARRIVED' && locationStore.isSharing) await beginService(booking);
+  else if (booking.status === 'ARRIVED') await resumeJourney(booking);
+}
+async function handleNurseRadialAction(action: unknown) {
+  if (!action || loading.value) return;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (action === 'today') {
+    activeSection.value = 'schedule'; bookingView.value = 'list'; scheduleSearch.value = ''; scheduleStatus.value = 'ALL';
+    await nextTick();
+    bookingListRef.value?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  } else if (action === 'calendar') {
+    activeSection.value = 'schedule'; bookingView.value = 'calendar'; calendarDate.value = taipeiDateKey(new Date());
+    await nextTick();
+    calendarRef.value?.moveToToday();
+    calendarSectionRef.value?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  } else if (action === 'activity') openPriorityTask();
+  else if (action === 'location') await handleRadialLocation();
+  await router.replace({ query: { ...route.query, radial: undefined } });
+}
+watch(() => route.query.radial, handleNurseRadialAction, { immediate: true });
 async function loadDashboard() { loading.value = true; errorMessage.value = ''; try { const restored = await auth.restoreSession(); if (!restored || auth.user?.role !== 'NURSE') { await router.replace('/login'); return; } const workspace = await api.get<Dashboard>('/nurses/me/dashboard'); dashboard.value = workspace.data; if (locationStore.isSharing && !workspace.data.bookings.some((item) => item._id === locationStore.bookingId && ['DEPARTED', 'ARRIVED'].includes(item.status))) locationStore.stopLocal(); await loadAvailabilities().catch(() => { availabilities.value = []; }); } catch (error: any) { errorMessage.value = error?.response?.data?.message || '請確認後端與 MongoDB 已啟動，再重新整理一次。'; } finally { loading.value = false; } }
 async function request(task: () => Promise<unknown>) { saving.value = true; try { await task(); dialogOpen.value = false; await loadDashboard(); liveSync.notifyChanged(); } finally { saving.value = false; } }
 function fileRejected() { errorMessage.value = '照片最多 3 張，且每張需小於 5 MB。'; }
 function confirmSubmit() { if (dialogType.value === 'journal' && !window.confirm('確定送出這篇工作日誌嗎？送出後無法修改。')) return; void submitDialog(); }
 async function submitDialog() { if (dialogType.value === 'profile') await request(() => api.patch('/nurses/me/profile', { name: profileForm.name, phone: profileForm.phone, email: profileForm.email, yearsExperience: profileForm.yearsExperience, serviceAreas: profileForm.serviceAreasText.split(/[、,，]/).map((v) => v.trim()).filter(Boolean), introduction: profileForm.introduction })); else if (dialogType.value === 'schedule') await request(() => editingAvailabilityId.value ? api.patch(`/nurses/availability/${editingAvailabilityId.value}`, { ...scheduleForm, date: new Date(`${scheduleForm.date}T00:00:00`) }) : api.post('/nurses/me/availability', { ...scheduleForm, date: new Date(`${scheduleForm.date}T00:00:00`) })); else if (dialogType.value === 'journal') { const body = new FormData(); Object.entries(journalForm).forEach(([key, value]) => body.append(key, String(value))); (journalPhotos.value || []).forEach((file) => body.append('photos', file)); await request(() => api.post('/nurses/me/journals', body)); } else if (dialogType.value === 'incident') { const body = new FormData(); Object.entries(incidentForm).forEach(([key, value]) => body.append(key, value)); await request(() => api.post('/feedback/complaints', body)); } else if (dialogType.value === 'leave') { if (leaveForm.leaveType === 'SICK' && !leaveProof.value) { errorMessage.value = '病假請先上傳假單或診斷證明。'; return; } const body = new FormData(); Object.entries(leaveForm).forEach(([key, value]) => body.append(key, value)); if (leaveProof.value) body.append('proof', leaveProof.value); await request(() => api.post('/nurses/me/leaves', body)); } else if (dialogType.value === 'booking' && selectedBooking.value) { const id = selectedBooking.value._id; await request(() => api.post(`/bookings/${id}/accept`)); } else if (dialogType.value === 'completion' && selectedBooking.value) { const id = selectedBooking.value._id; await request(() => api.post(`/bookings/${id}/request-completion`)); } else { const targetUserId = selectedBooking.value?.requesterUserId?._id; if (targetUserId) { await request(() => api.post('/feedback/reviews', { bookingId: selectedBooking.value?._id, targetUserId, ...reviewForm })); Object.assign(reviewForm, { rating: 5, comment: '' }); $q.notify({ type: 'positive', position: 'top', timeout: 2500, message: '完成回饋，謝謝您留下服務感受。', actions: [{ label: '關閉', color: 'white' }] }); } } }
-async function removeAvailability(id: string) { await api.delete(`/nurses/availability/${id}`); await loadAvailabilities(); liveSync.notifyChanged(); } async function hideJournal(id: string) { await api.delete(`/nurses/me/journals/${id}`); await loadDashboard(); liveSync.notifyChanged(); } async function cancelLeave(id: string) { await api.patch(`/nurses/me/leaves/${id}/cancel`); await loadDashboard(); liveSync.notifyChanged(); } onMounted(async () => { await locationStore.getPermissionStatus(); await loadDashboard(); liveSync.start(loadDashboard); }); onBeforeUnmount(() => { liveSync.stop(); void locationStore.stopSharing(); journalPreviews.value.forEach((url) => URL.revokeObjectURL(url)); });
+async function removeAvailability(id: string) { await api.delete(`/nurses/availability/${id}`); await loadAvailabilities(); liveSync.notifyChanged(); } async function hideJournal(id: string) { await api.delete(`/nurses/me/journals/${id}`); await loadDashboard(); liveSync.notifyChanged(); } async function cancelLeave(id: string) { await api.patch(`/nurses/me/leaves/${id}/cancel`); await loadDashboard(); liveSync.notifyChanged(); } onMounted(async () => { await locationStore.getPermissionStatus(); await loadDashboard(); await handleNurseRadialAction(route.query.radial); liveSync.start(loadDashboard); }); onBeforeUnmount(() => { liveSync.stop(); void locationStore.stopSharing(); journalPreviews.value.forEach((url) => URL.revokeObjectURL(url)); });
 </script>
 
 <style scoped>
@@ -303,4 +336,5 @@ async function removeAvailability(id: string) { await api.delete(`/nurses/availa
   .booking-confirm-grid{grid-template-columns:1fr;padding:18px}.booking-confirm-grid .wide{grid-column:auto}
   .booking-view-toolbar{align-items:stretch;flex-direction:column}.booking-view-toolbar :deep(.q-btn-group){width:100%}.booking-view-toolbar :deep(.q-btn){min-height:44px;flex:1}.calendar-nav{grid-template-columns:44px auto minmax(0,1fr) 44px;padding:8px}.calendar-nav strong{font-size:.88rem}.calendar-panel :deep(.q-calendar){height:610px}
 }
+.booking-divider,.calendar-panel{scroll-margin-top:90px}
 </style>

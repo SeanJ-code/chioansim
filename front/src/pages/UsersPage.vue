@@ -1319,7 +1319,7 @@ function handleRadialAction(action: unknown) {
   if (action) void router.replace({ query: { ...route.query, radial: undefined } });
 }
 
-watch(() => route.query.radial, handleRadialAction);
+watch(() => route.query.radial, handleRadialAction, { immediate: true });
 
 function levelLabel(level:string) {
   return ({ A: 'A 級｜社區整合型服務中心', B: 'B 級｜複合型服務中心', C: 'C 級｜巷弄長照站' } as Record<string,string>)[level] || '長照服務據點';
@@ -1466,7 +1466,6 @@ onMounted(async () => {
   await Promise.all([loadRecipients(), loadBookings(), loadNotifications()]);
   liveSync.start(async () => { await Promise.all([loadRecipients(), loadBookings(), loadNotifications()]); });
   if (route.query.recipientSaved === '1') openRecipient();
-  handleRadialAction(route.query.radial);
 });
 onBeforeUnmount(liveSync.stop);
 onBeforeUnmount(stopTracking);

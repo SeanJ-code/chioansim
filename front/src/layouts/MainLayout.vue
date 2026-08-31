@@ -80,7 +80,7 @@ import { ScrollTrigger } from '@/composables/useGsap';
 const publicLinks: EssentialLinkProps[] = [
   { label: '首頁', caption: '系統與環境狀態', icon: 'bx bx-home', link: '/' },
   { label: '使用者', caption: '受照護者與服務需求', icon: 'bx bx-user', link: '/users' },
-  { label: '照服員', caption: '證照、時段與服務紀錄', icon: 'bx bx-first-aid', link: '/caregivers' },
+  { label: '居服員', caption: '證照、時段與服務紀錄', icon: 'bx bx-first-aid', link: '/caregivers' },
   { label: '機構與企業', caption: 'B2B 照護合作方案', icon: 'bx bx-building-house', link: '/organizations' },
 ];
 
