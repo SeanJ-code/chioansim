@@ -11,6 +11,9 @@ import { Complaint } from '../models/complaint'
 import { CaregiverLeaveRequest, CaregiverWorkJournal } from '../models/caregiver-work'
 import * as yup from 'yup'
 import { taipeiDateKey, taipeiDateTimeToUtc, taipeiWeekday } from '../utils/datetime'
+import { findApprovedLeaveConflict, findBookingConflict, findPendingLeaveConflict } from '../utils/availability-policy'
+import { Notification } from '../models/notification'
+import { emitLeaveRealtime } from '../realtime'
 
 export const nurseRoutes = Router()
 
@@ -302,21 +305,46 @@ nurseRoutes.post(
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     const profile = await ownProfile(request)
+    if (!profile) {
+      response.status(404).json({ message: '找不到居服員資料' })
+      return
+    }
     const input = await leaveSchema.validate(request.body, {
       abortEarly: false,
       stripUnknown: true,
     })
+    if (input.startAt >= input.endAt) {
+      response.status(400).json({ message: '請假結束時間必須晚於開始時間' })
+      return
+    }
+    if (input.endAt <= new Date()) {
+      response.status(400).json({ message: '不能申請已結束的過去時段' })
+      return
+    }
     if (input.leaveType === 'SICK' && !request.file) {
       response.status(400).json({ message: '病假請上傳假單或診斷證明。' })
       return
     }
-    response.status(201).json(
-      await CaregiverLeaveRequest.create({
+    const duplicate = await Promise.all([
+      findPendingLeaveConflict(profile._id, input.startAt, input.endAt),
+      findApprovedLeaveConflict(profile._id, input.startAt, input.endAt),
+    ])
+    if (duplicate.some(Boolean)) {
+      response.status(409).json({ code: 'LEAVE_CONFLICT', message: '此時段已有待審或已核准的請假' })
+      return
+    }
+    const leave = await CaregiverLeaveRequest.create({
         ...input,
-        caregiverId: profile?._id,
+        caregiverId: profile._id,
         proofFileUrl: request.file ? `/uploads/${request.file.filename}` : undefined,
-      }),
-    )
+      })
+    const bookingConflicts = await findBookingConflict(profile._id, input.startAt, input.endAt)
+    await Promise.all([
+      recordAudit(request, 'CAREGIVER_LEAVE_SUBMITTED', 'caregiverleaverequests', String(leave._id), undefined, leave.toObject()),
+      Notification.insertMany((await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((admin) => ({ recipientUserId: admin._id, type: 'SYSTEM', title: '有新的居服員請假待審核', message: bookingConflicts.length ? '此申請與既有照護任務重疊，請優先處理。' : '請前往管理頁確認請假時段。' }))),
+      emitLeaveRealtime(profile._id),
+    ])
+    response.status(201).json({ ...leave.toObject(), hasBookingConflict: bookingConflicts.length > 0 })
   }),
 )
 
@@ -332,11 +360,15 @@ nurseRoutes.patch(
       { status: 'CANCELLED' },
       { new: true },
     )
+    if (leave) await Promise.all([
+      recordAudit(request, 'CAREGIVER_LEAVE_CANCELLED', 'caregiverleaverequests', String(leave._id), { status: 'PENDING' }, leave.toObject()),
+      emitLeaveRealtime(profile?._id),
+    ])
     response.status(leave ? 200 : 409).json(leave || { message: '只有待審中的請假可以撤回' })
   }),
 )
 
-// POST /nurses/me/availability：平日預設可服務，因此这里只新增「休假／暫停服務」例外。
+// POST /nurses/me/availability：只記錄主動暫停服務；正式請假必須走 Leave 審核。
 nurseRoutes.post(
   '/me/availability',
   authenticate,
@@ -354,14 +386,17 @@ nurseRoutes.post(
       response.status(400).json({ message: '週六、週日原本就不開放預約，不需要另外安排休假' })
       return
     }
-    const status = request.body.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'LEAVE'
+    if (request.body.status !== 'UNAVAILABLE') {
+      response.status(400).json({ message: '正式請假請使用安心請假提出申請' })
+      return
+    }
     response.status(201).json(
       await Availability.create({
         caregiverId: profile._id,
         date,
         startTime: '09:00',
         endTime: '17:00',
-        status,
+        status: 'UNAVAILABLE',
       }),
     )
   }),
@@ -375,6 +410,10 @@ nurseRoutes.get(
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
+    if (request.body.status && request.body.status !== 'UNAVAILABLE') {
+      response.status(400).json({ message: '正式請假請使用安心請假提出申請' })
+      return
+    }
     response.json(
       await Availability.find({
         caregiverId: profile?._id,

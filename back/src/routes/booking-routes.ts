@@ -5,7 +5,6 @@ import { asyncHandler } from '../utils/http'
 import { LOCATION_SHARING_STATUSES } from '../utils/booking-policy'
 import {
   Booking,
-  Availability,
   CaregiverProfile,
   CareRecipient,
   InjuryReport,
@@ -32,8 +31,7 @@ import {
   startService,
   stopLocationSharing,
 } from '../services/booking-workflow.service'
-
-const NON_BLOCKING_BOOKING_STATUSES = ['CANCELLED', 'ABANDONED', 'COMPLETED']
+import { findApprovedLeaveConflict, findAvailabilityConflict, findBookingConflict } from '../utils/availability-policy'
 
 export const bookingRoutes = Router()
 // 預約含個資、定位與健康紀錄，所以本檔全部 API 都必須登入。
@@ -160,19 +158,8 @@ bookingRoutes.post(
       response.status(409).json({ message: '這個時段剛被預約或已不開放，請重新選擇' })
       return
     }
-    const date = new Date(`${dateText}T00:00:00.000Z`)
     if ([0, 6].includes(taipeiWeekday(dateText))) {
       response.status(409).json({ message: '這個時段剛被預約或已不開放，請重新選擇' })
-      return
-    }
-    const blocked = await Availability.exists({
-      caregiverId,
-      date: { $gte: date, $lt: new Date(date.getTime() + 86_400_000) },
-      status: { $in: ['LEAVE', 'UNAVAILABLE'] },
-      hidden: { $ne: true },
-    })
-    if (blocked) {
-      response.status(409).json({ message: '這位居服員當日休假或暫停服務' })
       return
     }
     let createdRequestId: Types.ObjectId | undefined
@@ -200,14 +187,12 @@ bookingRoutes.post(
         throw Object.assign(new Error('請選擇未來週一至週五 09:00–17:00 的有效時段'), {
           statusCode: 400,
         })
-      const overlaps = await Booking.exists({
-        caregiverId,
-        hidden: { $ne: true },
-        status: { $nin: NON_BLOCKING_BOOKING_STATUSES },
-        scheduledStartAt: { $lt: scheduledEndAt },
-        scheduledEndAt: { $gt: scheduledStartAt },
-      })
-      if (overlaps) throw new Error('這位居服員在此時段已有其他服務')
+      const [leave, blocked, overlaps] = await Promise.all([
+        findApprovedLeaveConflict(caregiverId, scheduledStartAt, scheduledEndAt),
+        findAvailabilityConflict(caregiverId, scheduledStartAt, scheduledEndAt),
+        findBookingConflict(caregiverId, scheduledStartAt, scheduledEndAt),
+      ])
+      if (leave || blocked || overlaps.length) throw Object.assign(new Error(leave ? '這位居服員在此時段休假' : blocked ? '這位居服員在此時段暫停服務' : '這位居服員在此時段已有其他服務'), { statusCode: 409 })
       const serviceRequest = await ServiceRequest.create({
         requesterUserId: request.auth?.userId,
         recipientId: recipientId || undefined,

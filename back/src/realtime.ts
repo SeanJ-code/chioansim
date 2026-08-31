@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import { getJwtSecret } from './configs/env'
 import { Booking, CaregiverProfile, CareRecipient, User, UserRecipientRelation, type Role } from './models'
 
-type RealtimeEvent = 'booking:changed' | 'alert:changed' | 'location:changed'
+type RealtimeEvent = 'booking:changed' | 'alert:changed' | 'location:changed' | 'leave:changed'
 let io: Server | undefined
 
 export const userRoom = (userId: unknown): string => `user:${String(userId)}`
@@ -53,4 +53,12 @@ export async function emitBookingRealtime(bookingId: string, event: RealtimeEven
     recipient?.get('accountUserId'),
     ...relations.map((relation) => relation.get('userId')),
   ])
+}
+
+export async function emitLeaveRealtime(caregiverId: unknown): Promise<void> {
+  const [caregiver, admins] = await Promise.all([
+    CaregiverProfile.findById(caregiverId).select('userId'),
+    User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id'),
+  ])
+  emitRealtimeToUsers('leave:changed', [caregiver?.get('userId'), ...admins.map((admin) => admin._id)])
 }

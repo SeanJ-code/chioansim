@@ -1,6 +1,5 @@
 import type { HydratedDocument } from 'mongoose'
 import {
-  Availability,
   Booking,
   CaregiverProfile,
   CareRecipient,
@@ -19,6 +18,7 @@ import {
   type BookingActor,
   type BookingStatus,
 } from '../utils/booking-policy'
+import { findApprovedLeaveConflict, findAvailabilityConflict, findBookingConflict, findPendingLeaveConflict } from '../utils/availability-policy'
 
 // Booking model 目前沿用既有 any schema；Service 只依賴 Mongoose document 的 get 與 _id。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -179,7 +179,15 @@ export async function acceptBooking(bookingId: string, actor: BookingActor, requ
     nextStatus: 'ACCEPTED',
     action: 'BOOKING_ACCEPTED',
     permission: nursePermission(actor),
-    update: { acceptedAt: new Date() },
+    update: async (booking) => {
+      const [approved, pending] = await Promise.all([
+        findApprovedLeaveConflict(booking.get('caregiverId'), booking.get('scheduledStartAt'), booking.get('scheduledEndAt')),
+        findPendingLeaveConflict(booking.get('caregiverId'), booking.get('scheduledStartAt'), booking.get('scheduledEndAt')),
+      ])
+      if (approved) fail(409, 'APPROVED_LEAVE_CONFLICT', '此服務時間與已核准休假重疊，無法承接任務。')
+      if (pending) fail(409, 'PENDING_LEAVE_CONFLICT', '此服務時間與待審請假重疊，請先撤回請假申請或等待審核結果。')
+      return { acceptedAt: new Date() }
+    },
     after: (booking) =>
       Notification.create({
         recipientUserId: booking.get('requesterUserId'),
@@ -474,26 +482,13 @@ export async function rescheduleBooking(
     permission: (booking) => canView(booking, actor),
     update: async (current) => {
       const caregiverId = current.get('caregiverId')
-      const [blocked, overlaps] = await Promise.all([
-        Availability.exists({
-          caregiverId,
-          date: {
-            $gte: schedule.dayStart,
-            $lt: new Date(schedule.dayStart.getTime() + 86_400_000),
-          },
-          status: { $in: ['LEAVE', 'UNAVAILABLE'] },
-          hidden: { $ne: true },
-        }),
-        Booking.exists({
-          _id: { $ne: current._id },
-          caregiverId,
-          status: { $nin: ['CANCELLED', 'ABANDONED', 'COMPLETED'] },
-          scheduledStartAt: { $lt: schedule.scheduledEndAt },
-          scheduledEndAt: { $gt: schedule.scheduledStartAt },
-        }),
+      const [leave, blocked, overlaps] = await Promise.all([
+        findApprovedLeaveConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt),
+        findAvailabilityConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt),
+        findBookingConflict(caregiverId, schedule.scheduledStartAt, schedule.scheduledEndAt, current._id),
       ])
-      if (blocked || overlaps)
-        fail(409, 'CONFLICT', blocked ? '居服員這一天休假或暫停服務' : '居服員在此時段已有其他任務')
+      if (leave || blocked || overlaps.length)
+        fail(409, 'CONFLICT', leave ? '居服員在此時段已有核准休假' : blocked ? '居服員在此時段暫停服務' : '居服員在此時段已有其他任務')
       return {
         scheduledStartAt: schedule.scheduledStartAt,
         scheduledEndAt: schedule.scheduledEndAt,

@@ -19,6 +19,9 @@ import { CaregiverLeaveRequest } from '../models/caregiver-work'
 import { CaregiverCredential } from '../models/caregiver-credential'
 import { Complaint } from '../models/complaint'
 import { QualityAlert } from '../models/quality-alert'
+import { ACTIVE_BOOKING_STATUSES, findBookingConflict } from '../utils/availability-policy'
+import { Notification } from '../models/notification'
+import { emitLeaveRealtime } from '../realtime'
 
 export const adminRoutes = Router()
 // use 套用到本檔全部路由：必須先通過 JWT，再確認角色為 ADMIN。
@@ -128,8 +131,23 @@ adminRoutes.patch(
       return
     }
     const before = await CaregiverLeaveRequest.findById(request.params.id)
+    if (!before || before.get('status') !== 'PENDING') {
+      response.status(409).json({ message: '找不到待審中的請假申請' })
+      return
+    }
+    if (request.body.status === 'APPROVED') {
+      const conflicts = await findBookingConflict(before.get('caregiverId'), before.get('startAt'), before.get('endAt'), undefined, ACTIVE_BOOKING_STATUSES)
+      if (conflicts.length) {
+        response.status(409).json({
+          code: 'LEAVE_BOOKING_CONFLICT',
+          message: '此請假時段與既有照護任務重疊',
+          conflicts: conflicts.map((booking) => ({ _id: booking._id, bookingNumber: booking.get('bookingNumber'), scheduledStartAt: booking.get('scheduledStartAt'), scheduledEndAt: booking.get('scheduledEndAt'), status: booking.get('status') })),
+        })
+        return
+      }
+    }
     const leave = await CaregiverLeaveRequest.findOneAndUpdate(
-      { _id: request.params.id, status: 'PENDING' },
+      { _id: request.params.id, status: 'PENDING', updatedAt: before.get('updatedAt') },
       {
         status: request.body.status,
         adminNote: request.body.adminNote,
@@ -144,12 +162,20 @@ adminRoutes.patch(
     }
     await recordAudit(
       request,
-      'REVIEW_CAREGIVER_LEAVE',
+      request.body.status === 'APPROVED' ? 'CAREGIVER_LEAVE_APPROVED' : 'CAREGIVER_LEAVE_REJECTED',
       'caregiverleaverequests',
       String(request.params.id),
       before?.toObject(),
       leave.toObject(),
     )
+    const caregiver = await CaregiverProfile.findById(leave.get('caregiverId')).select('userId')
+    if (caregiver?.get('userId')) await Notification.create({
+      recipientUserId: caregiver.get('userId'),
+      type: 'SYSTEM',
+      title: request.body.status === 'APPROVED' ? '您的請假已核准' : '您的請假未核准',
+      message: `${new Date(leave.get('startAt')).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} 的請假申請已完成審核。`,
+    })
+    await emitLeaveRealtime(leave.get('caregiverId'))
     response.json(leave)
   }),
 )

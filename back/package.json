@@ -10,6 +10,7 @@
     "check:booking-policy": "ts-node src/utils/booking-policy.check.ts",
     "check:booking-workflow": "ts-node src/utils/booking-workflow.check.ts",
     "check:booking-validation": "ts-node src/utils/booking-validation.check.ts",
+    "check:availability-policy": "ts-node src/utils/availability-policy.check.ts",
     "check:datetime": "ts-node src/utils/datetime.check.ts",
     "check:realtime": "ts-node src/realtime.check.ts",
     "check:ltc": "ts-node src/routes/ltc-routes.check.ts",

@@ -44,6 +44,7 @@
         <q-tab name="quality" :label="`品質警訊 ${dashboard.alerts.length || ''}`" />
         <q-tab name="members" label="成員管理" />
         <q-tab name="services" label="預約動向" />
+        <q-tab name="leaves" :label="`請假審核 ${pendingLeaves.length || ''}`" />
       </q-tabs>
 
       <q-tab-panels v-model="tab" animated class="admin-panels">
@@ -180,6 +181,14 @@
             <div v-if="!filteredBookings.length" class="booking-empty">目前沒有符合搜尋條件的預約。</div>
           </div>
         </q-tab-panel>
+        <q-tab-panel name="leaves">
+          <section class="member-table leave-review-panel">
+            <header class="table-heading"><div><p class="section-kicker">LEAVE REVIEW</p><h2>居服員請假審核</h2></div><q-badge color="deep-orange-8" :label="`${pendingLeaves.length} 件待審`" /></header>
+            <q-banner v-if="leaveConflict" rounded class="booking-progress__warning"><template #avatar><TriangleAlert :size="22" /></template><strong>{{ leaveConflict.message }}</strong><div>請先處理下列 {{ leaveConflict.conflicts.length }} 筆照護任務，再重新核准。</div><q-list dense><q-item v-for="item in leaveConflict.conflicts" :key="item._id"><q-item-section>{{ item.bookingNumber }}・{{ formatFullDate(item.scheduledStartAt) }}</q-item-section><q-item-section side><q-badge :label="bookingStatusLabel(item.status)" /></q-item-section></q-item></q-list></q-banner>
+            <q-list separator><q-item v-for="item in leaves" :key="item._id"><q-item-section><q-item-label class="text-weight-bold">{{ item.caregiverId?.userId?.name || '居服員' }}・{{ item.leaveType }}</q-item-label><q-item-label caption>{{ formatFullDate(item.startAt) }} 至 {{ formatFullDate(item.endAt) }}</q-item-label><q-item-label>{{ item.reason }}</q-item-label></q-item-section><q-item-section side><q-badge :color="item.status === 'PENDING' ? 'orange-8' : item.status === 'APPROVED' ? 'positive' : 'grey-7'" :label="item.status" /></q-item-section><q-item-section v-if="item.status === 'PENDING'" side><div class="row-actions"><q-btn flat no-caps color="negative" label="駁回" @click="reviewLeave(item, 'REJECTED')" /><q-btn unelevated no-caps color="positive" label="核准" @click="reviewLeave(item, 'APPROVED')" /></div></q-item-section></q-item></q-list>
+            <div v-if="!leaves.length" class="booking-empty">目前沒有請假申請。</div>
+          </section>
+        </q-tab-panel>
       </q-tab-panels>
     </main>
 
@@ -308,6 +317,9 @@ type Dashboard = {
 const emptyDashboard = (): Dashboard => ({ generatedAt: '', pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [] });
 const dashboard = reactive<Dashboard>(emptyDashboard());
 const users = ref<PlainObject[]>([]);
+const leaves = ref<PlainObject[]>([]);
+const leaveConflict = ref<PlainObject | null>(null);
+const pendingLeaves = computed(() => leaves.value.filter((item) => item.status === 'PENDING'));
 const tab = ref('overview');
 const search = ref('');
 const bookingSearch = ref('');
@@ -380,13 +392,27 @@ const filteredBookings = computed(() => {
 async function loadDashboard() {
   loading.value = true;
   try {
-    const [{ data }, usersResponse, nursesResponse] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/users'), api.get('/admin/nurses')]);
+    const [{ data }, usersResponse, nursesResponse, leavesResponse] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/users'), api.get('/admin/nurses'), api.get('/admin/nurse-leaves')]);
     Object.assign(dashboard, emptyDashboard(), data);
     const profiles = new Map(nursesResponse.data.map((profile: PlainObject) => [profile.userId?._id, profile]));
     users.value = usersResponse.data.map((user: PlainObject) => ({ ...user, caregiverProfile: profiles.get(user._id) }));
+    leaves.value = leavesResponse.data;
   } catch {
     $q.notify({ type: 'negative', message: '管理資料暫時無法讀取，請確認管理員權限與後端連線。' });
   } finally { loading.value = false; }
+}
+
+async function reviewLeave(leave: PlainObject, status: 'APPROVED' | 'REJECTED') {
+  leaveConflict.value = null;
+  try {
+    await api.patch(`/admin/nurse-leaves/${leave._id}`, { status });
+    $q.notify({ type: 'positive', message: status === 'APPROVED' ? '請假已核准。' : '請假已駁回。' });
+    await loadDashboard();
+    liveSync.notifyChanged();
+  } catch (error: any) {
+    if (error?.response?.data?.code === 'LEAVE_BOOKING_CONFLICT') leaveConflict.value = error.response.data;
+    else $q.notify({ type: 'negative', message: error?.response?.data?.message || '請假審核失敗，請重新整理後再試。' });
+  }
 }
 
 function ratingCount(rating: number) { return dashboard.reviews.distribution.find((item) => item._id === rating)?.count || 0; }

@@ -77,7 +77,7 @@
                   <q-banner v-if="selectedDayAvailability" rounded class="leave-day-banner">
                     <template #avatar><CalendarOff :size="23" /></template>
                     <div class="leave-day-banner__copy">
-                      <strong>{{ selectedDayAvailability.status === 'LEAVE' ? '這一天已安排休假' : '這一天暫停提供服務' }}</strong>
+                      <strong>{{ ['LEAVE', 'APPROVED'].includes(selectedDayAvailability.status) ? '這一天已核准休假' : '這一天暫停提供服務' }}</strong>
                       <span>本日不開放新的照護任務。</span>
                     </div>
                     <template #action><q-badge color="grey-7" text-color="white">不可接案</q-badge></template>
@@ -86,8 +86,8 @@
                   <article v-for="item in filteredAvailabilities" :key="item._id" :class="['availability-row', item.status.toLowerCase()]">
                     <div><strong>09:00－17:00</strong><small>{{ exceptionLabel(item.status) }}</small></div>
                     <span :class="['availability-badge', item.status.toLowerCase()]">{{ exceptionLabel(item.status) }}</span>
-                    <button class="icon-btn" type="button" aria-label="修改時段" @click="openSchedule(item)"><Pencil :size="18" /></button>
-                    <button class="icon-btn danger" type="button" aria-label="隱藏時段" @click="removeAvailability(item._id)"><Trash2 :size="18" /></button>
+                    <button v-if="item.status === 'UNAVAILABLE'" class="icon-btn" type="button" aria-label="修改時段" @click="openSchedule(item)"><Pencil :size="18" /></button>
+                    <button v-if="item.status === 'UNAVAILABLE'" class="icon-btn danger" type="button" aria-label="隱藏時段" @click="removeAvailability(item._id)"><Trash2 :size="18" /></button>
                   </article>
                   <EmptyState v-if="!filteredAvailabilities.length" title="這一天照常提供服務" text="平日 09:00–17:00 預設可預約；只有需要休息時才必須安排。" />
                 </div>
@@ -106,8 +106,8 @@
                 </div>
                 <QCalendarDay ref="calendarRef" v-model="calendarDate" locale="zh-TW" :view="calendarView" :weekdays="[1,2,3,4,5]" :interval-start="16" :interval-count="20" :interval-minutes="30" :interval-height="34" hour24-format animated bordered>
                   <template #day-body="{ scope }">
-                    <button v-for="event in eventsForDay(scope.timestamp.date)" :key="event.bookingId" type="button" :class="['calendar-event', 'tag', `tag-${calendarEventTone(event.bookingId)}`]" :style="calendarEventStyle(event, scope)" :aria-label="`${event.title}，${event.startTime}，開啟任務詳情`" @click="openBookingDetails(event.bookingId)">
-                      <strong>{{ event.startTime }}</strong><span>{{ event.title }}</span>
+                    <button v-for="event in eventsForDay(scope.timestamp.date)" :key="event.id" type="button" :class="['calendar-event', 'tag', `tag-${calendarEventTone(event)}`]" :style="calendarEventStyle(event, scope)" :aria-label="`${event.title}，${event.startTime}`" :disabled="event.kind === 'leave'" @click="event.bookingId && openBookingDetails(event.bookingId)">
+                      <strong>{{ event.startTime }}</strong><span>{{ event.title }}</span><q-badge v-if="event.kind === 'leave'" :color="event.status === 'APPROVED' ? 'grey-7' : 'amber-8'" :label="leaveStatus(event.status!)" />
                     </button>
                   </template>
                 </QCalendarDay>
@@ -178,7 +178,7 @@ import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
 import { useLocationStore } from '@/stores/location-store';
-import { taipeiDateKey, taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
+import { taipeiCalendarTime, taipeiDateKey, taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
 import { toCalendarEvent } from '@/utils/booking-calendar';
 import { QCalendarDay } from '@quasar/quasar-ui-qcalendar';
 import '@quasar/quasar-ui-qcalendar/index.css';
@@ -198,7 +198,7 @@ const $q = useQuasar(); const auth = useAuthStore(); const route = useRoute(); c
 watch(() => route.query.section, (section) => { if (section === 'schedule') activeSection.value = 'schedule'; });
 const bookingView = ref<'list' | 'calendar'>($q.screen.lt.sm ? 'list' : 'calendar'); const calendarDate = ref(taipeiDateKey(new Date())); const calendarRef = ref<any>(null); const calendarView = computed(() => $q.screen.lt.sm ? 'day' : 'week');
 const profileForm = reactive({ name: '', phone: '', email: '', yearsExperience: 0, serviceAreasText: '', introduction: '' }); const scheduleForm = reactive({ date: new Date().toISOString().slice(0, 10), startTime: '09:00', endTime: '17:00', status: 'LEAVE' }); const journalForm = reactive({ title: '', content: '', occurredAt: new Date().toISOString().slice(0, 16), mood: 'STEADY', followUpRequired: false }); const incidentForm = reactive({ category: 'WORKPLACE_BULLYING', priority: 'NORMAL', description: '' }); const leaveForm = reactive({ leaveType: 'PERSONAL', startAt: '', endAt: '', reason: '' }); const reviewForm = reactive({ rating: 5, comment: '' });
-const moodOptions = [{ label: '平穩', value: 'STEADY' }, { label: '有成就感', value: 'FULFILLED' }, { label: '有些疲累', value: 'TIRED' }, { label: '需要關心', value: 'WORRIED' }]; const incidentOptions = [{ label: '職場霸凌', value: 'WORKPLACE_BULLYING' }, { label: '性騷擾', value: 'SEXUAL_HARASSMENT' }, { label: '出勤交通事故', value: 'COMMUTE_ACCIDENT' }, { label: '服務現場事故', value: 'SERVICE_ACCIDENT' }, { label: '其他安全事件', value: 'OTHER_SAFETY' }]; const priorityOptions = [{ label: '一般', value: 'NORMAL' }, { label: '重要', value: 'HIGH' }, { label: '緊急', value: 'URGENT' }]; const leaveOptions = [{ label: '事假', value: 'PERSONAL' }, { label: '病假', value: 'SICK' }, { label: '家庭照顧', value: 'FAMILY' }, { label: '其他', value: 'OTHER' }]; const availabilityStatusOptions = [{ label: '全部休息狀態', value: 'ALL' }, { label: '休假', value: 'LEAVE' }, { label: '暫無提供服務', value: 'UNAVAILABLE' }]; const exceptionStatusOptions = availabilityStatusOptions.slice(1);
+const moodOptions = [{ label: '平穩', value: 'STEADY' }, { label: '有成就感', value: 'FULFILLED' }, { label: '有些疲累', value: 'TIRED' }, { label: '需要關心', value: 'WORRIED' }]; const incidentOptions = [{ label: '職場霸凌', value: 'WORKPLACE_BULLYING' }, { label: '性騷擾', value: 'SEXUAL_HARASSMENT' }, { label: '出勤交通事故', value: 'COMMUTE_ACCIDENT' }, { label: '服務現場事故', value: 'SERVICE_ACCIDENT' }, { label: '其他安全事件', value: 'OTHER_SAFETY' }]; const priorityOptions = [{ label: '一般', value: 'NORMAL' }, { label: '重要', value: 'HIGH' }, { label: '緊急', value: 'URGENT' }]; const leaveOptions = [{ label: '事假', value: 'PERSONAL' }, { label: '病假', value: 'SICK' }, { label: '家庭照顧', value: 'FAMILY' }, { label: '其他', value: 'OTHER' }]; const availabilityStatusOptions = [{ label: '全部休息狀態', value: 'ALL' }, { label: '休假', value: 'LEAVE' }, { label: '暫無提供服務', value: 'UNAVAILABLE' }]; const exceptionStatusOptions = availabilityStatusOptions.filter((item) => item.value === 'UNAVAILABLE');
 const menuItems = [{ value: 'overview' as Section, label: '我的專業資料', caption: '聯絡方式與證照', eyebrow: 'MY PROFILE', description: '維護家庭會看到的專業資料；證照仍由管理員審核。', icon: UserRoundCog }, { value: 'schedule' as Section, label: '預約與工作時間', caption: '任務、服務與歷程', eyebrow: 'MY SCHEDULE', description: '查看即將開始與過去完成的服務任務。', icon: CalendarClock }, { value: 'journal' as Section, label: '工作日誌', caption: '交班與追蹤重點', eyebrow: 'CARE JOURNAL', description: '把值得留意的服務細節好好記下來。', icon: BookOpenText }, { value: 'reviews' as Section, label: '雙向服務評量', caption: '星等與服務回饋', eyebrow: 'CARE FEEDBACK', description: '查看回饋，也能在完成任務後評量服務對象。', icon: MessageSquareHeart }, { value: 'safety' as Section, label: '安全與事故通報', caption: '霸凌、騷擾與事故', eyebrow: 'SAFE REPORT', description: '遇到不舒服或危險的事情，不必獨自承擔。', icon: ShieldAlert }, { value: 'leave' as Section, label: '安心請假', caption: '申請與審核結果', eyebrow: 'REST & RECOVER', description: '提早安排休息，平台會協助確認服務調度。', icon: CalendarOff }];
 const currentMenu = computed(() => menuItems.find((item) => item.value === activeSection.value)!); const greeting = computed(() => new Date().getHours() < 12 ? '早安' : new Date().getHours() < 18 ? '午安' : '晚安');
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -214,10 +214,10 @@ const selectedScheduleDayLabel = computed(() => {
   const [year, month, day] = scheduleDay.value.split('/');
   return `${year} 年 ${month} 月 ${day} 日`;
 });
-const leaveCalendarDates = computed(() => availabilities.value.map((item) => item.date.slice(0, 10).replace(/-/g, '/')));
+const leaveCalendarDates = computed(() => (dashboard.value?.leaves || []).filter((item) => item.status === 'APPROVED').map((item) => taipeiDateKey(new Date(item.startAt)).replace(/-/g, '/')));
 const selectedDayAvailability = computed(() => {
   const date = scheduleDay.value.replace(/\//g, '-');
-  return availabilities.value.find((item) => item.date.slice(0, 10) === date);
+  return (dashboard.value?.leaves || []).find((item) => item.status === 'APPROVED' && taipeiDateKey(new Date(item.startAt)) === date) || availabilities.value.find((item) => item.date.slice(0, 10) === date);
 });
 const filteredAvailabilities = computed(() => {
   const date = scheduleDay.value.replace(/\//g, '-');
@@ -241,15 +241,20 @@ const filteredBookings = computed(() => {
 });
 const journalPreviews = computed(() => (journalPhotos.value || []).map((file) => URL.createObjectURL(file)));
 const exceptionLabel = (value: string) => value === 'LEAVE' ? '休假' : '暫無提供服務';
-const isBookingOnUnavailableDay = (booking: Booking) => availabilities.value.some((item) => item.date.slice(0, 10) === taipeiDateKey(new Date(booking.scheduledStartAt)));
+const overlaps = (startA: string, endA: string, startB: string, endB: string) => new Date(startA) < new Date(endB) && new Date(endA) > new Date(startB);
+const isBookingOnUnavailableDay = (booking: Booking) => (dashboard.value?.leaves || []).some((item) => ['PENDING', 'APPROVED'].includes(item.status) && overlaps(booking.scheduledStartAt, booking.scheduledEndAt || booking.scheduledStartAt, item.startAt, item.endAt));
 const attendanceLabel = (booking: Booking) => booking.status === 'CANCELLED' ? '取消任務' : ({ CHECKED_IN: '已報到', LATE: '遲到・已抵達', OVERDUE: '逾期中', COMPLETED: '完成任務' } as Record<string, string>)[booking.attendanceStatus || ''] || bookingStatus(booking.status);
 const bookingTone = (booking: Booking) => booking.status === 'CANCELLED' || booking.attendanceStatus === 'COMPLETED' ? 'muted' : booking.attendanceStatus === 'OVERDUE' ? 'danger' : ['ACCEPTED', 'ARRIVED', 'IN_SERVICE'].includes(booking.status) || ['CHECKED_IN', 'LATE'].includes(booking.attendanceStatus || '') ? 'success' : 'neutral';
-const calendarEvents = computed(() => filteredBookings.value.filter((booking) => !['CANCELLED', 'ABANDONED'].includes(booking.status)).map(toCalendarEvent));
+type CalendarEvent = ReturnType<typeof toCalendarEvent> & { id: string; kind: 'booking' | 'leave'; status?: string };
+const calendarEvents = computed<CalendarEvent[]>(() => [
+  ...filteredBookings.value.filter((booking) => !['CANCELLED', 'ABANDONED'].includes(booking.status)).map((booking) => ({ ...toCalendarEvent(booking), id: booking._id, kind: 'booking' as const })),
+  ...(dashboard.value?.leaves || []).filter((leave) => ['PENDING', 'APPROVED'].includes(leave.status)).map((leave) => ({ id: `leave-${leave._id}`, bookingId: '', kind: 'leave' as const, status: leave.status, date: taipeiDateKey(new Date(leave.startAt)), startTime: taipeiCalendarTime(new Date(leave.startAt)), durationMinutes: Math.max(30, (new Date(leave.endAt).getTime() - new Date(leave.startAt).getTime()) / 60000), title: `${leaveStatus(leave.status)}・${leaveName(leave.leaveType)}` })),
+]);
 const calendarRangeLabel = computed(() => taipeiDateTime(`${calendarDate.value}T00:00:00+08:00`, { year: 'numeric', month: 'long', day: 'numeric' }));
 const bookingById = (id: string) => dashboard.value?.bookings.find((booking) => booking._id === id);
 const eventsForDay = (date: string) => calendarEvents.value.filter((event) => event.date === date);
-const calendarEventTone = (id: string) => { const booking = bookingById(id); return booking ? bookingTone(booking) : 'muted'; };
-function calendarEventStyle(event: ReturnType<typeof toCalendarEvent>, scope: { timeStartPos: (time: string) => number | false; timeDurationHeight: (minutes: number) => number }) { const top = scope.timeStartPos(event.startTime); return { top: `${top === false ? 0 : top}px`, height: `${Math.max(44, scope.timeDurationHeight(event.durationMinutes))}px` }; }
+const calendarEventTone = (event: CalendarEvent) => event.kind === 'leave' ? (event.status === 'APPROVED' ? 'muted' : 'neutral') : bookingTone(bookingById(event.bookingId)!);
+function calendarEventStyle(event: CalendarEvent, scope: { timeStartPos: (time: string) => number | false; timeDurationHeight: (minutes: number) => number }) { const top = scope.timeStartPos(event.startTime); return { top: `${top === false ? 0 : top}px`, height: `${Math.max(44, scope.timeDurationHeight(event.durationMinutes))}px` }; }
 function openBookingDetails(id: string) { const booking = bookingById(id); if (booking) openBookingConfirm(booking); }
 function openDialog(type: DialogType) { dialogType.value = type; if (type === 'profile' && dashboard.value) Object.assign(profileForm, { name: dashboard.value.user.name, phone: dashboard.value.user.phone || '', email: dashboard.value.user.email || '', yearsExperience: dashboard.value.profile.yearsExperience || 0, serviceAreasText: dashboard.value.profile.serviceAreas?.join('、') || '', introduction: dashboard.value.profile.introduction || '' }); if (type === 'journal') journalPhotos.value = null; if (type === 'leave') leaveProof.value = null; dialogOpen.value = true; } function openProfile() { openDialog('profile'); } function openReview(booking: Booking) { selectedBooking.value = booking; openDialog('review'); } function openBookingConfirm(booking: Booking) { selectedBooking.value = booking; openDialog('booking'); } function openCompletionConfirm(booking: Booking) { selectedBooking.value = booking; openDialog('completion'); }
 function openSchedule(item?: Availability) { editingAvailabilityId.value = item?._id || null; Object.assign(scheduleForm, item ? { date: item.date.slice(0, 10), startTime: '09:00', endTime: '17:00', status: item.status } : { date: scheduleDay.value.replace(/\//g, '-'), startTime: '09:00', endTime: '17:00', status: 'LEAVE' }); openDialog('schedule'); }
