@@ -513,7 +513,6 @@ adminRoutes.get(
       { type: 'CREDENTIAL', filter: 'DOCUMENT_ATTENTION', priority: 'LOW', count: pendingCredentials + expiringCredentials, title: '居服員文件待審或即將到期', description: `${pendingCredentials} 件待審、${expiringCredentials} 件 30 日內到期`, targetTab: 'members' },
     ].filter((item) => item.count > 0)
     response.json({
-      generatedAt: new Date(),
       pulse: {
         roleCounts,
         recipientCount,

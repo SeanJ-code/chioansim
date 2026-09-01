@@ -7,13 +7,6 @@
           <h1>理解每一次照護，及早接住需要</h1>
           <p>把預約、評價與安全通報整理成清楚的行動提醒，讓管理不只是看資料。</p>
         </div>
-        <div class="hero-status" aria-live="polite">
-          <span class="live-dot"></span>
-          <div><strong>資料已同步</strong><small>{{ refreshedAt }}</small></div>
-          <q-btn flat round aria-label="重新整理管理資料" :loading="loading" @click="loadDashboard">
-            <RefreshCw :size="21" />
-          </q-btn>
-        </div>
       </section>
 
       <section class="pulse-grid" aria-label="平台即時摘要">
@@ -296,7 +289,7 @@ import { useQuasar, type QTableColumn } from 'quasar';
 import { useRouter } from 'vue-router';
 import {
   CalendarClock, ChartNoAxesColumnIncreasing, ChevronRight, HeartHandshake, MessageCircleHeart,
-  RefreshCw, Route, Search, ShieldCheck, Star, TriangleAlert, UsersRound,
+  Route, Search, ShieldCheck, Star, TriangleAlert, UsersRound,
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
@@ -309,7 +302,6 @@ type PlainObject = Record<string, any>;
 type AlertItem = PlainObject & { note?: string };
 type AdminMetricAction = 'BOOKINGS' | 'OVERVIEW' | 'CARE_ALERTS' | 'CREDENTIALS';
 type Dashboard = {
-  generatedAt: string;
   pulse: PlainObject;
   reviews: { distribution: { _id: number; count: number }[]; summary: PlainObject; recent: PlainObject[] };
   serviceDemand: { code?: string; name: string; count: number; completedCount: number; uniqueRequesterCount: number; uniqueCaregiverCount: number }[];
@@ -321,7 +313,7 @@ type Dashboard = {
   recentBookings: PlainObject[];
 };
 
-const emptyDashboard = (): Dashboard => ({ generatedAt: '', pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [] });
+const emptyDashboard = (): Dashboard => ({ pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [] });
 const dashboard = reactive<Dashboard>(emptyDashboard());
 const users = ref<PlainObject[]>([]);
 const leaves = ref<PlainObject[]>([]);
@@ -379,7 +371,6 @@ const memberColumns: QTableColumn[] = [
   { name: 'actions', label: '管理', field: '_id', align: 'right' },
 ];
 
-const refreshedAt = computed(() => dashboard.generatedAt ? `更新於 ${new Date(dashboard.generatedAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}` : '準備資料中');
 const reviewAverage = computed(() => Number(dashboard.reviews.summary.average || 0).toFixed(1));
 const positiveRate = computed(() => dashboard.reviews.summary.count ? Math.round((dashboard.reviews.summary.positive / dashboard.reviews.summary.count) * 100) : 0);
 const attentionCount = computed(() => dashboard.attention.reduce((sum, item) => sum + Number(item.count), 0));
@@ -543,8 +534,6 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 .eyebrow, .section-kicker { margin: 0 0 8px; color: #f5b29f; font-size: .75rem; font-weight: 800; letter-spacing: .16em; }
 .admin-hero h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.22; letter-spacing: .04em; }
 .admin-hero p:last-child { max-width: 680px; margin: 15px 0 0; color: #f7e9e3; font-size: 1rem; line-height: 1.8; }
-.hero-status { min-width: 190px; display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; color: #5b463f; background: #fff9f5; border-radius: 17px; }
-.hero-status div { display: grid; flex: 1; }.hero-status strong { font-size: .88rem; }.hero-status small { color: #8b756d; }.live-dot { width: 10px; height: 10px; background: #4f876f; border-radius: 50%; box-shadow: 0 0 0 5px rgb(79 135 111 / 14%); }
 .pulse-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 22px 0; }
 .pulse-card { min-height: 142px; display: flex; align-items: flex-start; gap: 17px; padding: 24px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 22px; box-shadow: 0 12px 30px rgb(78 52 43 / 7%); cursor: pointer; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
 .pulse-card:hover { transform: translateY(-2px); border-color: rgb(184 79 22 / 35%); box-shadow: 0 15px 34px rgb(78 52 43 / 11%); }
@@ -571,5 +560,5 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 .member-row.clickable { cursor: pointer; transition: background-color .2s ease; }
 .member-row.clickable:hover, .member-row.clickable:focus-within { background: #fff4ee; }
 @media (max-width: 900px) { .pulse-grid, .insight-grid, .ranking-grid { grid-template-columns: repeat(2, 1fr); }.review-grid { grid-template-columns: 1fr 1fr; }.member-row { grid-template-columns: 1.1fr .7fr 1fr .5fr; }.member-row > :nth-child(3), .table-label > :nth-child(3) { display: none; } }
-@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.hero-status { width: 100%; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.member-tools :deep(.q-field), .member-tools :deep(.q-select) { width: 100%; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
+@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.member-tools :deep(.q-field), .member-tools :deep(.q-select) { width: 100%; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
 </style>
