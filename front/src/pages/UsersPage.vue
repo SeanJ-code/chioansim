@@ -87,7 +87,7 @@
                   <q-item-section avatar><component :is="item.icon" :size="22" /></q-item-section>
                   <q-item-section>
                     <q-item-label>{{ item.label }}</q-item-label>
-                    <q-item-label v-if="item.caption && item.label !== '查看預約及照護進度'" caption>{{ item.caption }}</q-item-label>
+                    <q-item-label v-if="item.caption" caption>{{ item.label === '查看預約及照護進度' ? (activeBookings.length ? `${activeBookings.length} 筆服務進行中` : '目前沒有進行中的服務') : item.caption }}</q-item-label>
                   </q-item-section>
                   <q-item-section side class="feature-item-side"><q-badge v-if="item.label === '居服員出發與打卡通知' && careUnreadCount" rounded :label="careUnreadCount" /><ChevronRight :size="20" /></q-item-section>
                 </q-item>
@@ -279,30 +279,31 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="bookingDialog">
-      <q-card class="booking-list-dialog">
-        <q-card-section class="detail-dialog__heading"><div><small>預約與照護進度</small><h2>我的安心服務安排</h2></div><button class="detail-dialog__close" type="button" aria-label="關閉預約清單" v-close-popup><X :size="24" /></button></q-card-section>
+    <q-dialog v-model="bookingDialog" transition-show="scale" transition-hide="scale">
+      <q-card class="care-schedule-dialog">
+        <q-card-section class="detail-dialog__heading care-schedule-heading"><div><small>預約與照護進度</small><h2>我的安心服務安排</h2><p>查看當天與接下來的照護行程，也可以從沒有安排的日期開始預約。</p></div><button class="detail-dialog__close" type="button" aria-label="關閉服務安排" v-close-popup><X :size="24" /></button></q-card-section>
         <q-card-section v-if="bookingLoading" class="booking-skeleton"><q-skeleton v-for="item in 3" :key="item" type="rect" height="112px" /></q-card-section>
-        <q-card-section v-if="!bookingLoading && bookings.length" class="booking-filters">
-          <q-input v-model="bookingSearch" outlined dense clearable label="搜尋日期、時段、居服員或受照護者"><template #prepend><Search :size="19" /></template></q-input>
-          <q-select v-model="bookingStatusFilter" :options="bookingStatusOptions" outlined dense emit-value map-options label="任務狀態" />
-        </q-card-section>
-        <q-list v-if="!bookingLoading && visibleBookings.length" separator class="booking-list">
-          <q-item v-for="booking in visibleBookings" :key="booking._id" class="booking-list__item">
-            <q-item-section avatar><span class="booking-date"><strong>{{ bookingDay(booking) }}</strong><small>{{ bookingMonth(booking) }} 月</small></span></q-item-section>
-            <q-item-section>
-              <q-item-label class="booking-list__title">{{ formatBookingDate(booking.scheduledStartAt) }}</q-item-label>
-              <q-item-label caption>受照護者：{{ booking.recipientId?.name || '申請人本人' }}</q-item-label>
-              <q-item-label caption>居服員：{{ bookingCaregiverName(booking) }}・{{ booking.serviceTypeIds?.map(item => item.name).join('、') || '照護服務' }}</q-item-label>
-            </q-item-section>
-            <q-item-section side class="booking-list__side">
-              <q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(booking))" :label="bookingStatusLabel(bookingDisplayStatus(booking))" />
-              <q-btn v-if="booking.status === 'AWAITING_USER_CONFIRMATION'" unelevated no-caps class="completion-confirm" label="確認完成服務" @click.stop="openCompletionConfirm(booking)" />
-            </q-item-section>
-          </q-item>
-        </q-list>
-        <q-card-section v-if="!bookingLoading && !visibleBookings.length" class="booking-empty"><CalendarHeart :size="38" /><h3>{{ bookings.length ? '沒有符合條件的安排' : '目前沒有預約紀錄' }}</h3><p>{{ bookings.length ? '換一個搜尋條件，再找找看。' : '找到合適的照護夥伴後，安排會顯示在這裡。' }}</p></q-card-section>
-        <q-card-actions align="right"><q-btn flat no-caps class="dialog-button" label="安心看完了" v-close-popup /></q-card-actions>
+        <template v-else>
+          <q-card-section class="care-schedule-layout">
+            <aside class="care-calendar-column">
+              <q-date v-model="selectedBookingDay" minimal flat mask="YYYY-MM-DD" color="deep-orange" class="care-mini-calendar" :events="bookingCalendarDates" event-color="grey-7" />
+              <div class="calendar-legend"><span><i class="legend-dot booked" />已有照護安排</span><span><i class="legend-dot selected" />目前查看日期</span></div>
+              <div class="calendar-help"><CalendarHeart :size="22" /><div><strong>想安排新的照護？</strong><span>選擇沒有服務的未來日期，即可開始查找可預約服務。</span></div></div>
+            </aside>
+            <main class="selected-day-panel">
+              <header class="selected-day-heading"><div><small>{{ selectedDayRelativeLabel }}</small><h3>{{ selectedBookingDateLabel }}</h3><p>{{ selectedDayBookings.length ? `這一天共有 ${selectedDayBookings.length} 項照護安排` : '這一天目前沒有照護安排' }}</p></div><q-btn v-if="!selectedDayBookings.length && canBookSelectedDay" unelevated no-caps label="預約這一天" class="new-booking-btn" @click="startBookingForSelectedDay" /></header>
+              <div v-if="selectedDayBookings.length" class="selected-booking-list">
+                <article v-for="booking in selectedDayBookings" :key="booking._id" class="care-booking-card">
+                  <div class="care-booking-time"><strong>{{ bookingTime(booking) }}</strong><small>{{ bookingDurationLabel(booking) }}</small></div>
+                  <div class="care-booking-main"><div class="care-booking-title"><h4>{{ serviceNames(booking) }}</h4><q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(booking))" :label="bookingStatusLabel(bookingDisplayStatus(booking))" /></div><div class="care-booking-meta"><span><UserRound :size="17" />受照護者：{{ booking.recipientId?.name || '申請人本人' }}</span><span><BadgeCheck :size="17" />居服員：{{ bookingCaregiverName(booking) }}</span><span v-if="booking.serviceAddress?.text"><MapPin :size="17" />{{ booking.serviceAddress.text }}</span><span><WalletCards :size="17" />{{ booking.totalAmount == null ? '費用待確認' : `NT$ ${formatMoney(booking.totalAmount)}` }}</span></div><div class="care-booking-actions"><q-btn flat no-caps label="查看照護進度" @click="openBookingProgressFromSchedule(booking)" /><q-btn v-if="booking.status === 'AWAITING_USER_CONFIRMATION'" unelevated no-caps class="completion-confirm" label="確認完成服務" @click="openCompletionConfirm(booking)" /></div></div>
+                </article>
+              </div>
+              <div v-else class="selected-day-empty"><CalendarPlus :size="44" /><h4>這一天還沒有安排</h4><p>{{ canBookSelectedDay ? '有照護需求的話，可以從這一天開始找合適的居服員。' : '過去的日期僅供查看，不能新增預約。' }}</p><q-btn v-if="canBookSelectedDay" unelevated no-caps label="開始安排照護" class="new-booking-btn" @click="startBookingForSelectedDay" /></div>
+            </main>
+          </q-card-section>
+          <q-card-section class="next-seven-days"><div class="section-divider"><span>接下來 7 天</span></div><div class="seven-day-list"><button v-for="day in nextSevenDays" :key="day.date" type="button" class="seven-day-row" :class="{ 'has-booking': day.bookings.length, 'is-selected': day.date === selectedBookingDay }" @click="selectedBookingDay = day.date"><span class="seven-day-date"><strong>{{ day.day }}</strong><small>{{ day.month }} 月</small></span><span class="seven-day-copy"><strong>{{ day.relativeLabel }}</strong><span>{{ day.bookings.length ? `${day.bookings.length} 項照護安排` : '目前沒有安排' }}</span><small>{{ day.bookings.length ? day.bookings.map(item => `${bookingTime(item)} ${serviceNames(item)}`).join(' ・ ') : '可以開始查找可預約服務' }}</small></span><span class="seven-day-action">{{ day.bookings.length ? '查看' : '預約' }}<ChevronRight :size="18" /></span></button></div></q-card-section>
+        </template>
+        <q-card-actions align="right" class="care-schedule-footer"><q-btn flat no-caps class="dialog-button" label="安心看完了" v-close-popup /></q-card-actions>
       </q-card>
     </q-dialog>
 
@@ -711,6 +712,8 @@ import {
   BellRing,
   CalendarClock,
   CalendarHeart,
+  CalendarPlus,
+  BadgeCheck,
   ChevronDown,
   ChevronRight,
   CircleCheckBig,
@@ -724,6 +727,7 @@ import {
   History,
   HouseHeart,
   MapPinned,
+  MapPin,
   MessageCircleHeart,
   PhoneCall,
   ReceiptText,
@@ -740,7 +744,7 @@ import {
 } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLiveSyncStore } from '@/stores/live-sync-store';
-import { taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
+import { taipeiCalendarTime, taipeiDateKey, taipeiDateParts, taipeiDateTime } from '@/utils/datetime';
 import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import { useGeolocation } from '@/composables/useGeolocation';
@@ -783,6 +787,7 @@ const progressTab = ref<'progress'|'notifications'|'service'>('progress');
 const selectedProgressBooking = ref<Booking | null>(null);
 const showAllNotifications = ref(false);
 const bookingLoading = ref(false);
+const selectedBookingDay = ref(taipeiDateKey(new Date()));
 const bookingSearch = ref('');
 const bookingStatusFilter = ref('ALL');
 const bookingStatusOptions = [
@@ -889,6 +894,16 @@ interface CareCombo { key:string; caregiverId:string; caregiverName:string; phot
 const careCombos = ref<CareCombo[]>([]);
 const nextBooking = computed(() => bookings.value.filter((item) => !['COMPLETED','CANCELLED','ABANDONED'].includes(item.status) && new Date(item.scheduledStartAt) >= new Date()).sort((a,b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt))[0]);
 const activeBookings = computed(() => bookings.value.filter((item) => !['COMPLETED','CANCELLED','ABANDONED'].includes(item.status)));
+const bookingCalendarDates = computed(() => [...new Set(bookings.value.filter((booking) => booking.scheduledStartAt).map((booking) => taipeiDateKey(booking.scheduledStartAt)))]);
+const selectedDayBookings = computed(() => bookings.value.filter((booking) => taipeiDateKey(booking.scheduledStartAt) === selectedBookingDay.value).sort((a,b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt)));
+const canBookSelectedDay = computed(() => selectedBookingDay.value >= taipeiDateKey(new Date()));
+const selectedBookingDateLabel = computed(() => taipeiDateTime(`${selectedBookingDay.value}T12:00:00+08:00`, { month:'long', day:'numeric', weekday:'long' }));
+const selectedDayRelativeLabel = computed(() => selectedBookingDay.value === taipeiDateKey(new Date()) ? '今天' : canBookSelectedDay.value ? '未來行程' : '歷史紀錄');
+const nextSevenDays = computed(() => Array.from({ length:7 }, (_, index) => {
+  const date = new Date(); date.setHours(12, 0, 0, 0); date.setDate(date.getDate() + index);
+  const key = taipeiDateKey(date); const parts = taipeiDateParts(date);
+  return { date:key, day:parts.day, month:parts.month, relativeLabel:index === 0 ? '今天' : taipeiDateTime(date, { weekday:'long' }), bookings:bookings.value.filter((booking) => taipeiDateKey(booking.scheduledStartAt) === key).sort((a,b) => +new Date(a.scheduledStartAt) - +new Date(b.scheduledStartAt)) };
+}));
 const careNotifications = computed(() => notifications.value.filter((item) => item.type === 'BOOKING'));
 const careUnreadCount = computed(() => careNotifications.value.filter((item) => item.status !== 'READ').length);
 const bookingNotifications = computed(() => {
@@ -1072,6 +1087,15 @@ function notificationHasDetail(notification:NotificationItem) { return /(確認�
 function formatBookingRange(booking:Booking) { return `${formatBookingDate(booking.scheduledStartAt)}${booking.scheduledEndAt ? `－${taipeiDateTime(booking.scheduledEndAt,{hour:'2-digit',minute:'2-digit'})}` : ''}`; }
 function bookingDay(booking:Booking) { return taipeiDateParts(booking.scheduledStartAt).day; }
 function bookingMonth(booking:Booking) { return taipeiDateParts(booking.scheduledStartAt).month; }
+function bookingTime(booking:Booking) { return taipeiCalendarTime(booking.scheduledStartAt); }
+function bookingDurationLabel(booking:Booking) {
+  if (!booking.scheduledEndAt) return '時間待確認';
+  const minutes = Math.max(0, Math.round((+new Date(booking.scheduledEndAt) - +new Date(booking.scheduledStartAt)) / 60000));
+  return minutes >= 60 ? `${Math.floor(minutes / 60)} 小時${minutes % 60 ? ` ${minutes % 60} 分` : ''}` : `${minutes} 分鐘`;
+}
+function formatMoney(value:number) { return new Intl.NumberFormat('zh-TW').format(value); }
+function startBookingForSelectedDay() { bookingDialog.value = false; void router.push({ path:'/caregivers', query:{ date:selectedBookingDay.value } }); }
+async function openBookingProgressFromSchedule(booking:Booking) { selectedProgressBooking.value = booking; bookingDialog.value = false; await nextTick(); progressTab.value = 'progress'; bookingProgressDialog.value = true; }
 function bookingStatusTone(status:string) { return ['ACCEPTED','ARRIVED','IN_SERVICE'].includes(status) ? 'status-success' : ['PENDING','DEPARTED','WAITING_DECISION','AWAITING_USER_CONFIRMATION'].includes(status) ? 'status-waiting' : ['CANCELLED','ABANDONED','LATE','OVERDUE'].includes(status) ? 'status-warning' : 'status-muted'; }
 function bookingTimeline(booking:Booking) {
   return [
@@ -1509,10 +1533,12 @@ a:focus-visible,button:focus-visible{outline:3px solid #ee9b84;outline-offset:3p
 .service-area-dialog{width:min(760px,calc(100vw - 32px));max-width:min(760px,calc(100vw - 32px))!important;max-height:92dvh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:28px}.service-area-heading{position:sticky;z-index:2;top:0;background:#fffdfb}.service-area-body{display:grid;gap:18px;padding:4px 32px 30px}.service-area-lead{margin:0;color:#6e5750;font-size:1.08rem;line-height:1.75}.locate-button{min-height:76px;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 20px;color:white;background:#a94f27;border:0;border-radius:18px;cursor:pointer;box-shadow:0 10px 22px rgb(169 79 39 / 20%)}.locate-button:disabled{cursor:wait;opacity:.65}.locate-button span{display:grid;text-align:left}.locate-button strong{font-size:1.08rem}.locate-button small{margin-top:2px;color:rgb(255 255 255 / 84%)}.service-area-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;background:#f7eee8;border-radius:17px}.service-area-toolbar>div{display:grid;gap:3px}.service-area-toolbar label{font-size:1rem;font-weight:800}.service-area-toolbar small{color:#765f57}.service-area-toolbar :deep(.q-btn){min-height:46px;padding:0 15px}.service-area-message{display:flex;align-items:flex-start;gap:11px;padding:15px 16px;color:#315e4b;background:#e9f4ee;border-radius:16px}.service-area-message span{display:grid;line-height:1.55}.service-area-message--error{color:#883b31;background:#fbeae7}.service-area-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 18px;color:#725c54;background:#fff6f1;border-radius:18px;text-align:center}.service-area-empty strong{font-size:1.08rem}.nearby-list{overflow:hidden;border-color:#e4d6cf;border-radius:19px}.nearby-item{min-height:148px;padding:18px 16px}.nearby-level{width:50px;height:50px;display:grid;place-items:center;color:#94431f;background:#ffe9dd;border-radius:16px;font-size:1.2rem;font-weight:900}.nearby-name{font-size:1.08rem;font-weight:800;line-height:1.5}.nearby-item :deep(.q-item__label--caption){margin-top:5px;color:#715c54;font-size:.9rem;line-height:1.5}.nearby-item :deep(.q-item__label--caption strong){color:#9b481f}.nearby-service{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}.nearby-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.nearby-actions a{min-height:44px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 15px;color:#7c3d22;background:#fff1e9;border:1px solid #ebc4b1;border-radius:12px;font-weight:800;text-decoration:none}.nearby-actions a:last-child{color:white;background:#6b5a52;border-color:#6b5a52}.show-more-centers{min-height:50px;color:#8d3f20;background:#fff1e9;border-radius:14px;font-weight:800}
 .feature-title{min-width:0;display:flex;flex-direction:column;gap:3px}.feature-title small{color:rgb(255 255 255 / 78%);font-size:.78rem}
 .booking-list-dialog,.cancel-dialog,.journal-dialog{width:min(820px,calc(100vw - 32px));max-width:min(820px,calc(100vw - 32px))!important}
+.care-schedule-dialog{width:min(1040px,calc(100vw - 32px));max-width:min(1040px,calc(100vw - 32px))!important;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:#fffdfb;border-radius:28px}.care-schedule-heading{flex:none;padding-bottom:20px}.care-schedule-heading p{margin:6px 0 0;color:#806a62;line-height:1.55}.care-schedule-layout{min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px;padding:4px 32px 22px}.care-calendar-column{align-self:start;padding:14px;background:#fff7f2;border:1px solid #eadbd3;border-radius:22px}.care-mini-calendar{width:100%;min-width:0;background:transparent}.calendar-legend{display:flex;flex-wrap:wrap;gap:8px 16px;padding:10px 4px 15px;color:#765f57;font-size:.82rem}.calendar-legend span{display:flex;align-items:center;gap:7px}.legend-dot{width:8px;height:8px;background:#777;border-radius:50%}.legend-dot.selected{background:#d65b20}.calendar-help{display:flex;align-items:flex-start;gap:10px;padding:14px;color:#6d5147;background:#fff;border-radius:15px}.calendar-help svg{flex:none;color:#b84f16}.calendar-help div{display:grid;gap:3px}.calendar-help span{color:#806a62;font-size:.82rem;line-height:1.5}.selected-day-panel{min-width:0;padding:20px;background:#fff;border:1px solid #eadbd3;border-radius:22px}.selected-day-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:16px;border-bottom:1px solid #eee1da}.selected-day-heading small{color:#b84f16;font-weight:800}.selected-day-heading h3{margin:4px 0;font-size:1.45rem}.selected-day-heading p{margin:0;color:#806a62}.new-booking-btn{min-height:44px;padding:0 17px;color:#fff;background:#c55418;border-radius:13px;font-weight:800}.selected-booking-list{display:grid;gap:12px;margin-top:16px}.care-booking-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;padding:16px;background:#fff9f5;border:1px solid #eddfd8;border-radius:18px}.care-booking-time{display:flex;flex-direction:column;gap:4px;color:#a44820}.care-booking-time strong{font-size:1.3rem}.care-booking-time small{color:#806a62}.care-booking-main{min-width:0}.care-booking-title{display:flex;align-items:start;justify-content:space-between;gap:12px}.care-booking-title h4{margin:0;font-size:1.08rem}.care-booking-title :deep(.q-badge){flex:none;padding:6px 9px;font-weight:700}.care-booking-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:12px;color:#6e5750;font-size:.88rem}.care-booking-meta span{display:flex;align-items:flex-start;gap:6px;min-width:0}.care-booking-meta svg{flex:none;color:#a44820}.care-booking-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.care-booking-actions :deep(.q-btn){min-height:44px;border-radius:12px;font-weight:800}.selected-day-empty{min-height:255px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;color:#9b5b3e}.selected-day-empty h4{margin:10px 0 5px;color:var(--ink);font-size:1.18rem}.selected-day-empty p{max-width:360px;margin:0 0 16px;color:#806a62}.next-seven-days{min-height:0;padding:0 32px 18px;overflow-y:auto}.section-divider{display:flex;align-items:center;gap:12px;margin:0 0 10px;color:#806a62;font-weight:800}.section-divider::before,.section-divider::after{height:1px;flex:1;background:#eadbd3;content:''}.seven-day-list{display:grid;gap:7px}.seven-day-row{width:100%;min-height:68px;display:grid;grid-template-columns:54px minmax(0,1fr) auto;align-items:center;gap:13px;padding:9px 13px;color:var(--ink);text-align:left;background:#fff;border:1px solid #eadfd9;border-radius:15px;cursor:pointer}.seven-day-row:hover,.seven-day-row.is-selected{background:#fff3ec;border-color:#df9c7e}.seven-day-date{height:48px;display:grid;place-items:center;color:#a44820;background:#fff0e9;border-radius:13px}.seven-day-date strong{font-size:1.12rem;line-height:1}.seven-day-date small{font-size:.72rem}.seven-day-copy{min-width:0;display:grid;gap:1px}.seven-day-copy>span,.seven-day-copy small{overflow:hidden;color:#806a62;text-overflow:ellipsis;white-space:nowrap}.seven-day-copy small{font-size:.78rem}.seven-day-action{display:flex;align-items:center;gap:4px;color:#a44820;font-weight:800}.care-schedule-footer{flex:none;padding:10px 24px 18px;border-top:1px solid #eee1da}
 .booking-filters{display:grid;grid-template-columns:1fr 210px;gap:12px;padding:4px 32px 14px}.booking-filters :deep(.q-field__control),.journal-body :deep(.q-field__control){border-radius:15px}
 .journal-dialog{max-height:90vh;overflow-y:auto;color:var(--ink);background:#fffdfb;border-radius:26px}.journal-body{display:grid;gap:16px;padding:8px 32px 24px}.journal-fixed{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.journal-fixed>div{display:flex;flex-direction:column;gap:4px;padding:14px;background:#fff4ee;border-radius:15px}.journal-fixed>div:last-child{grid-column:1/-1}.journal-fixed span,.journal-rating>span{color:#8a7067;font-size:.85rem}.journal-fixed strong{line-height:1.45}.journal-rating{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;background:#fff7f2;border-radius:15px}.journal-stars{display:flex;gap:4px;color:#e06b24}.journal-stars button{display:grid;padding:3px;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:8px}.journal-stars button:focus-visible{outline:2px solid #d96b27;outline-offset:2px}.journal-locked{display:flex;align-items:flex-start;gap:10px;padding:14px;color:#35604f;background:#eaf4ef;border-radius:15px;line-height:1.55}
 @media(max-width:980px){.overview-grid{grid-template-columns:1fr}.feature-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.booking-filters,.journal-fixed{grid-template-columns:1fr}.journal-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important}.journal-body{padding-left:18px;padding-right:18px}.journal-rating{align-items:flex-start;flex-direction:column}}
+@media(max-width:800px){.care-schedule-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;max-height:94dvh;border-radius:22px}.care-schedule-heading{padding:20px 18px 14px}.care-schedule-heading h2{font-size:1.5rem}.care-schedule-heading p{font-size:.86rem}.care-schedule-layout{display:block;padding:0 14px 16px;overflow-y:auto}.care-calendar-column{padding:8px}.selected-day-panel{margin-top:14px;padding:15px}.selected-day-heading{align-items:stretch;flex-direction:column}.selected-day-heading :deep(.q-btn){width:100%}.care-booking-card{grid-template-columns:1fr}.care-booking-time{flex-direction:row;align-items:baseline}.care-booking-meta{grid-template-columns:1fr}.care-booking-actions{align-items:stretch;flex-direction:column}.next-seven-days{padding:0 14px 14px;overflow:visible}.seven-day-row{grid-template-columns:48px minmax(0,1fr)}.seven-day-action{display:none}.care-schedule-footer{padding:8px 14px 12px}}
 @media(max-width:700px){.member-shell{padding:16px 12px 48px}.member-hero{align-items:flex-start;padding:26px 20px;border-radius:24px}.member-avatar{width:62px!important;height:62px!important}.member-status{display:none}.overview-grid{margin-top:16px}.feature-grid{grid-template-columns:1fr;gap:17px}.features-section{padding-top:48px}.section-heading p{display:none}.section-heading h2{font-size:2rem}.support-banner{align-items:flex-start;flex-wrap:wrap;padding:24px 20px}.support-banner button{width:100%;margin-left:0}.overview-card{padding:18px}.member-profile h1{font-size:1.85rem}.profile-detail,.detail-grid,.reminder-grid,.address-detail,.emergency-detail{grid-template-columns:1fr}.profile-photo{min-height:auto;aspect-ratio:1.35}.emergency-detail__icon{margin-bottom:4px}.detail-dialog,.calculator-dialog,.booking-list-dialog,.booking-progress-dialog,.cancel-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.detail-dialog__heading,.detail-dialog__body,.cancel-dialog__body{padding-left:18px;padding-right:18px}.booking-progress-panels{min-height:330px;max-height:54dvh}.booking-progress-panels :deep(.q-tab-panel){padding:18px 12px}.booking-current-status{grid-template-columns:auto 1fr}.booking-current-status :deep(.q-badge){grid-column:2}.booking-progress-tabs :deep(.q-tab){padding:0 7px;font-size:.88rem}.booking-service-summary :deep(.q-item){align-items:flex-start;padding-inline:12px}.booking-service-summary :deep(.q-item__section--side){padding-left:6px}.notification-detail :deep(.q-card__section){grid-template-columns:1fr;padding-left:72px}.care-notifications__heading p{font-size:.84rem}.booking-list{padding:0 10px}.booking-list__item{align-items:flex-start;flex-wrap:wrap}.booking-list__side{width:100%;flex-direction:row;align-items:center;justify-content:flex-end}.detail-actions,.picker-actions{align-items:stretch;flex-direction:column-reverse;gap:8px}.detail-actions>*{width:100%}.overview-card--selector{align-items:flex-start}.overview-card--selector .overview-card__icon{margin-top:4px}.overview-add{margin-top:6px}}
 @media(max-width:700px){.long-term-care-dialog,.care-faq-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;padding:8px;border-radius:22px}.long-term-care-body,.care-faq-body{padding-left:18px;padding-right:18px}.long-term-care-heading h2,.care-faq-heading h2{font-size:1.5rem}.long-term-care-actions,.care-faq-actions{grid-template-columns:1fr;padding:12px 18px 18px}.care-faq-compare{grid-template-columns:1fr}.care-faq-section-title{align-items:start;flex-direction:column;gap:3px}.care-faq-answer{padding-left:18px}}
 @media(max-width:700px){.service-area-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px)!important;border-radius:22px}.service-area-body{padding:2px 16px 24px}.service-area-heading{padding-left:18px;padding-right:18px}.service-area-heading h2{font-size:1.45rem}.service-area-toolbar{align-items:stretch;flex-direction:column}.service-area-toolbar :deep(.q-btn-group){width:100%}.service-area-toolbar :deep(.q-btn){flex:1;padding:0 9px}.nearby-item{align-items:flex-start;padding:16px 12px}.nearby-item :deep(.q-item__section--avatar){min-width:60px}.nearby-actions{display:grid;grid-template-columns:1fr 1fr}.nearby-actions a{padding:0 10px}}

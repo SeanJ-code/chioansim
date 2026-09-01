@@ -215,7 +215,7 @@
           <div class="booking-section-title booking-grid-wide"><CalendarDays :size="22" /><div><strong>選擇居服員開放的時段</strong><small>未來 14 天；已預約與休假時段不能選擇</small></div></div>
           <div v-if="slotLoading" class="slot-state booking-grid-wide">正在整理可預約時間…</div>
           <q-list v-else-if="groupedAvailability.length" bordered class="slot-accordion booking-grid-wide">
-            <q-expansion-item v-for="(group, index) in groupedAvailability" :key="group.date" :default-opened="index === 0" expand-separator>
+            <q-expansion-item v-for="(group, index) in groupedAvailability" :key="group.date" :default-opened="group.date === requestedBookingDate || (!requestedBookingDate && index === 0)" expand-separator>
               <template #header>
                 <q-item-section avatar><CalendarDays :size="21" /></q-item-section>
                 <q-item-section><q-item-label>{{ slotDate(group.date) }}</q-item-label><q-item-label caption>點開選擇照護時間</q-item-label></q-item-section>
@@ -324,7 +324,7 @@ const groupedAvailability = computed(() => {
     const key = slot.date.slice(0, 10);
     groups.set(key, [...(groups.get(key) || []), slot]);
   });
-  return [...groups.entries()].map(([date, slots]) => ({ date, slots, availableCount: slots.filter((slot) => slot.status === 'AVAILABLE').length }));
+  return [...groups.entries()].map(([date, slots]) => ({ date, slots, availableCount: slots.filter((slot) => slot.status === 'AVAILABLE').length })).sort((a, b) => a.date === requestedBookingDate.value ? -1 : b.date === requestedBookingDate.value ? 1 : a.date.localeCompare(b.date));
 });
 
 const transportOptions = computed(() => [
@@ -336,6 +336,7 @@ const transportOptions = computed(() => [
 ]);
 
 const isRecentMode = computed(() => route.query.recent === '1');
+const requestedBookingDate = computed(() => typeof route.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(route.query.date) ? route.query.date : '');
 const recentCaregiverList = computed(() => recentRecords.value
   .map((record) => caregivers.value.find((caregiver) => caregiver._id === record.caregiverId))
   .filter((caregiver): caregiver is Caregiver => Boolean(caregiver)));
