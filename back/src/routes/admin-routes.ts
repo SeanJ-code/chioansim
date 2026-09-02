@@ -17,11 +17,12 @@ import { AuditLog } from '../models/audit-log'
 import { recordAudit } from '../utils/audit'
 import { CaregiverLeaveRequest } from '../models/caregiver-work'
 import { CaregiverCredential } from '../models/caregiver-credential'
-import { Complaint } from '../models/complaint'
+import { Complaint, type SafeReportStatus } from '../models/complaint'
 import { QualityAlert } from '../models/quality-alert'
 import { ACTIVE_BOOKING_STATUSES, findBookingConflict } from '../utils/availability-policy'
 import { Notification } from '../models/notification'
 import { emitLeaveRealtime, emitRealtimeToUsers } from '../realtime'
+import { normalizeDocumentId } from '../utils/document-id'
 
 export const adminRoutes = Router()
 // use 套用到本檔全部路由：必須先通過 JWT，再確認角色為 ADMIN。
@@ -557,25 +558,35 @@ adminRoutes.patch(
   '/safe-reports/:id/status',
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    const next = String(request.body.status || '')
-    const transitions: Record<string, string[]> = {
+    const reportId = normalizeDocumentId(request.params.id)
+    if (!reportId) { response.status(400).json({ message: '安全事件缺少有效 ID，請重新整理後再試。' }); return }
+    const next = String(request.body.status || '') as SafeReportStatus
+    const transitions: Partial<Record<SafeReportStatus, SafeReportStatus[]>> = {
       SUBMITTED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['RESOLVED'], RESOLVED: ['CLOSED'],
       UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED'], NEED_MORE_INFORMATION: ['IN_PROGRESS'],
     }
-    const report = await Complaint.findById(request.params.id)
-    if (!report || !transitions[report.get('status')]?.includes(next)) { response.status(409).json({ message: '案件狀態已更新，請重新整理後再試' }); return }
+    const report = await Complaint.findById(reportId)
+    if (!report) { response.status(404).json({ message: '找不到安全通報' }); return }
+    if (!transitions[report.get('status') as SafeReportStatus]?.includes(next)) { response.status(409).json({ message: '案件狀態已更新，請重新整理後再試' }); return }
+    const complainantUserId = normalizeDocumentId(report.complainantUserId)
+    if (!complainantUserId) { response.status(500).json({ message: '安全通報的居服員資料格式不正確' }); return }
     const now = new Date()
     report.set('status', next)
     report.set('assignedAdminId', request.auth?.userId)
     if (next === 'ACKNOWLEDGED') { report.set('acknowledgedBy', request.auth?.userId); report.set('acknowledgedAt', now) }
     if (next === 'RESOLVED') report.set('resolvedAt', now)
     const labels: Record<string, string> = { ACKNOWLEDGED: '管理員已確認收到安全通報', IN_PROGRESS: '管理員開始了解並追蹤事件', RESOLVED: '當下風險已排除', CLOSED: '安全通報已正式結案' }
-    report.get('activities').push({ type: next, label: labels[next], actorRole: 'ADMIN', createdAt: now })
+    const label = labels[next] || next
+    report.get('activities').push({ type: next, label, actorRole: 'ADMIN', createdAt: now })
     await report.save()
-    await Notification.create({ recipientUserId: report.get('complainantUserId'), type: 'SAFETY', title: labels[next], message: `${report.get('reportNumber')} 狀態已更新` })
-    emitRealtimeToUsers('safe-report:changed', [report.get('complainantUserId')])
-    await recordAudit(request, 'HANDLE_SAFE_REPORT', 'complaints', report.id, undefined, { status: next })
-    response.json(report)
+    const sideEffects = await Promise.allSettled([
+      Notification.create({ recipientUserId: complainantUserId, type: 'SAFETY', title: label, message: `${report.get('reportNumber')} 狀態已更新` }),
+      Promise.resolve().then(() => emitRealtimeToUsers('safe-report:changed', [complainantUserId])),
+      recordAudit(request, 'HANDLE_SAFE_REPORT', 'complaints', reportId, undefined, { status: next }),
+    ])
+    const warnings = sideEffects.flatMap((result, index) => result.status === 'rejected' ? [['通知', '即時同步', '稽核紀錄'][index]] : [])
+    if (warnings.length) console.error('Safe Report 狀態已保存，但附屬操作失敗：', warnings.join('、'))
+    response.json({ ...report.toObject(), warnings })
   }),
 )
 

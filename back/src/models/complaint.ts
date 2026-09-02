@@ -1,5 +1,28 @@
 import { Schema, model, type Types } from 'mongoose'
 
+export type SafeReportStatus =
+  | 'SUBMITTED'
+  | 'ACKNOWLEDGED'
+  | 'IN_PROGRESS'
+  | 'UNDER_REVIEW'
+  | 'NEED_MORE_INFORMATION'
+  | 'RESOLVED'
+  | 'CLOSED'
+  | 'REJECTED'
+  | 'CANCELLED'
+
+export const safeReportStatuses: SafeReportStatus[] = [
+  'SUBMITTED',
+  'ACKNOWLEDGED',
+  'IN_PROGRESS',
+  'UNDER_REVIEW',
+  'NEED_MORE_INFORMATION',
+  'RESOLVED',
+  'CLOSED',
+  'REJECTED',
+  'CANCELLED',
+]
+
 /** 正式申訴案件；與一般星等評價、緊急求救分開保存。 */
 export interface IComplaint {
   complainantUserId: Types.ObjectId
@@ -9,17 +32,32 @@ export interface IComplaint {
   description: string
   evidenceUrls: string[]
   reportNumber?: string
-  status: 'SUBMITTED' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
+  status: SafeReportStatus
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   assignedAdminId?: Types.ObjectId
   acknowledgedBy?: Types.ObjectId
   acknowledgedAt?: Date
   activities: Array<{ type: string; label: string; actorRole: string; createdAt: Date }>
-  replies: Array<{ authorUserId: Types.ObjectId; authorRole: 'ADMIN' | 'NURSE'; message: string; createdAt: Date }>
+  replies: Array<{
+    authorUserId: Types.ObjectId
+    authorRole: 'ADMIN' | 'NURSE'
+    message: string
+    createdAt: Date
+  }>
   adminDecision?: string
   resolutionNote?: string
   resolvedAt?: Date
 }
+
+const complaintActivitySchema = new Schema(
+  {
+    type: String,
+    label: String,
+    actorRole: String,
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+)
 
 const complaintSchema = new Schema<IComplaint>(
   {
@@ -32,26 +70,26 @@ const complaintSchema = new Schema<IComplaint>(
     evidenceUrls: [String],
     status: {
       type: String,
-      enum: [
-        'SUBMITTED',
-        'ACKNOWLEDGED',
-        'IN_PROGRESS',
-        'UNDER_REVIEW',
-        'NEED_MORE_INFORMATION',
-        'RESOLVED',
-        'CLOSED',
-        'NEED_MORE_INFORMATION',
-        'REJECTED',
-        'CANCELLED',
-      ],
+      enum: safeReportStatuses,
       default: 'SUBMITTED',
     },
-    priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'NORMAL', 'URGENT'], default: 'MEDIUM' },
+    priority: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'NORMAL', 'URGENT'],
+      default: 'MEDIUM',
+    },
     assignedAdminId: { type: Schema.Types.ObjectId, ref: 'User' },
     acknowledgedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     acknowledgedAt: Date,
-    activities: [{ _id: false, type: String, label: String, actorRole: String, createdAt: { type: Date, default: Date.now } }],
-    replies: [{ authorUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true }, authorRole: { type: String, enum: ['ADMIN', 'NURSE'], required: true }, message: { type: String, required: true, trim: true, maxlength: 2000 }, createdAt: { type: Date, default: Date.now } }],
+    activities: [complaintActivitySchema],
+    replies: [
+      {
+        authorUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        authorRole: { type: String, enum: ['ADMIN', 'NURSE'], required: true },
+        message: { type: String, required: true, trim: true, maxlength: 2000 },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     adminDecision: String,
     resolutionNote: String,
     resolvedAt: Date,

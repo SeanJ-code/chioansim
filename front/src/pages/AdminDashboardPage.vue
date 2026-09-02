@@ -18,12 +18,7 @@
 
       </section>
 
-      <q-banner v-if="urgentReports.length" rounded class="safe-report-banner" role="alert">
-        <template #avatar><ShieldAlert :size="25" /></template>
-        <strong>{{ urgentReports.length }} 件高優先安全事件尚未結案</strong>
-        <span>請先確認當事人安全，再補充處理紀錄。</span>
-        <template #action><q-btn flat no-caps label="前往安全事件中心" @click="tab = 'safety'" /></template>
-      </q-banner>
+      <div v-if="urgentReports.length" class="safe-banner-wrap"><q-banner rounded inline-actions class="safe-report-banner" role="alert"><template #avatar><div class="safe-report-banner__icon"><ShieldAlert :size="24" /></div></template><div class="safe-report-banner__content"><strong>{{ urgentReports.length }} 件高優先安全事件尚未結案</strong><span>請先確認當事人安全，再補充處理紀錄。</span></div><template #action><q-btn flat no-caps class="safe-report-banner__action" label="前往安全事件中心" @click="goToUrgentSafeReports" /></template></q-banner></div>
 
       <section class="pulse-grid" aria-label="平台即時摘要">
 
@@ -257,8 +252,9 @@
 
         <q-tab-panel name="safety">
           <section class="quality-heading safe-heading"><div><p class="section-kicker">SAFE REPORT CENTER</p><h2>安全事件中心</h2><p>原始通報與每次追加紀錄皆不可修改；顏色只表示處理優先度。</p></div><div class="quality-count"><ShieldAlert :size="26" /><strong>{{ openSafeReports.length }}</strong><span>件進行中</span></div></section>
-          <q-btn-toggle v-model="safeStatus" no-caps unelevated toggle-color="deep-orange-8" color="brown-1" text-color="brown-8" :options="safeStatusOptions" class="filter-toggle" />
-          <q-list v-if="filteredSafeReports.length" separator class="quality-inbox safe-inbox"><q-item v-for="report in filteredSafeReports" :key="report._id" clickable v-ripple @click="openSafeReport(report)"><q-item-section avatar><q-avatar :class="`severity-${normalizedSeverity(report.priority).toLowerCase()}`"><ShieldAlert :size="20" /></q-avatar></q-item-section><q-item-section><q-item-label class="text-weight-bold">{{ report.reportNumber || 'SAFE REPORT' }}・{{ report.complainantUserId?.name || '居服員' }}</q-item-label><q-item-label caption>{{ incidentLabel(report.category) }}・{{ report.description }}</q-item-label></q-item-section><q-item-section side><q-badge :color="severityColor(report.priority)" :label="severityLabel(report.priority)" /><small>{{ formatDate(report.createdAt) }}</small></q-item-section><q-item-section side><ChevronRight :size="20" /></q-item-section></q-item></q-list>
+          <div class="safe-quick-filters" aria-label="安全事件快速篩選"><button type="button" @click="showCriticalReports"><ShieldAlert :size="18" /><span>立即安全風險</span><strong>{{ criticalOpenReports.length }}</strong></button><button type="button" @click="showUnacknowledgedReports"><BellRing :size="18" /><span>尚待確認</span><strong>{{ unacknowledgedReports.length }}</strong></button><button type="button" @click="showTrackingReports"><Activity :size="18" /><span>處理追蹤中</span><strong>{{ trackingReports.length }}</strong></button></div>
+          <div class="safe-filter-bar"><div class="safe-filter-group safe-filter-group--status"><span class="safe-filter-label">處理狀態</span><q-btn-toggle v-model="safeStatus" no-caps unelevated toggle-color="deep-orange-8" color="brown-1" text-color="brown-8" :options="safeStatusOptions" class="filter-toggle" /></div><div class="safe-filter-group"><span class="safe-filter-label">優先程度</span><q-select v-model="safeSeverity" outlined dense emit-value map-options :options="safeSeverityOptions" label="風險等級" class="safe-filter-select" /></div><div class="safe-filter-group"><span class="safe-filter-label">事件類型</span><q-select v-model="safeCategory" outlined dense emit-value map-options :options="safeCategoryOptions" label="事件分類" class="safe-filter-select" /></div></div>
+          <q-list v-if="filteredSafeReports.length" separator class="quality-inbox safe-inbox"><q-item v-for="report in filteredSafeReports" :key="safeReportId(report)" clickable v-ripple @click="openSafeReport(report)"><q-item-section avatar><q-avatar :class="`severity-${normalizedSeverity(report.priority).toLowerCase()}`"><ShieldAlert :size="20" /></q-avatar></q-item-section><q-item-section><q-item-label class="text-weight-bold safe-report-title">{{ report.reportNumber || 'SAFE REPORT' }}・{{ report.complainantUserId?.name || '居服員' }}</q-item-label><q-item-label caption class="safe-report-meta">{{ incidentLabel(report.category) }}・{{ safeStatusCopy(report.status) }}</q-item-label><q-item-label caption lines="1" class="safe-report-description">{{ report.description }}</q-item-label></q-item-section><q-item-section side class="safe-report-side"><q-badge :color="severityColor(report.priority)" :label="severityLabel(report.priority)" /><small>{{ formatDate(report.createdAt) }}</small></q-item-section><q-item-section side><ChevronRight :size="20" /></q-item-section></q-item></q-list>
           <div v-else class="all-clear"><ShieldCheck :size="44" /><h3>這個分類目前沒有案件</h3><p>新的安全通報會透過即時同步出現在這裡。</p></div>
         </q-tab-panel>
 
@@ -588,7 +584,7 @@ import { useRouter } from 'vue-router';
 
 import {
 
-  CalendarClock, ChartNoAxesColumnIncreasing, ChevronRight, HeartHandshake, MessageCircleHeart, MoreHorizontal,
+  Activity, CalendarClock, ChartNoAxesColumnIncreasing, ChevronRight, HeartHandshake, MessageCircleHeart, MoreHorizontal,
 
   BellRing, History, LockKeyhole, Route, Search, ShieldAlert, ShieldCheck, Star, TriangleAlert, X,
 
@@ -671,7 +667,12 @@ const qualityStatusOptions = [{ label: '待處理', value: 'OPEN' }, { label: '�
 
 const qualityDialog = ref(false);
 const safeStatus = ref('OPEN');
+const safeQuick = ref('ALL');
 const safeStatusOptions = [{ label: '進行中', value: 'OPEN' }, { label: '已排除', value: 'RESOLVED' }, { label: '已結案', value: 'CLOSED' }];
+const safeSeverity = ref('ALL');
+const safeSeverityOptions = [{ label: '全部優先度', value: 'ALL' }, { label: '立即安全風險', value: 'CRITICAL' }, { label: '重要安全事件', value: 'HIGH' }, { label: '需要關注', value: 'MEDIUM' }, { label: '一般紀錄', value: 'LOW' }];
+const safeCategory = ref('ALL');
+const safeCategoryOptions = [{ label: '全部事件', value: 'ALL' }, { label: '職場霸凌', value: 'WORKPLACE_BULLYING' }, { label: '性騷擾', value: 'SEXUAL_HARASSMENT' }, { label: '出勤交通事故', value: 'COMMUTE_ACCIDENT' }, { label: '服務現場事故', value: 'SERVICE_ACCIDENT' }, { label: '其他安全事件', value: 'OTHER_SAFETY' }];
 const safeReportDialog = ref(false);
 const selectedSafeReport = ref<(PlainObject & { evidenceUrls?: string[] }) | null>(null);
 const safeReply = ref('');
@@ -806,7 +807,16 @@ const filteredUsers = computed(() => {
 const filteredAlerts = computed(() => dashboard.alerts.filter((alert) => alert.status === qualityStatus.value));
 const openSafeReports = computed(() => dashboard.safeReports.filter((item) => !['CLOSED', 'REJECTED', 'CANCELLED'].includes(item.status)));
 const urgentReports = computed(() => openSafeReports.value.filter((item) => ['HIGH', 'CRITICAL'].includes(normalizedSeverity(item.priority))));
-const filteredSafeReports = computed(() => dashboard.safeReports.filter((item) => safeStatus.value === 'OPEN' ? !['RESOLVED', 'CLOSED', 'REJECTED', 'CANCELLED'].includes(item.status) : item.status === safeStatus.value));
+const criticalOpenReports = computed(() => openSafeReports.value.filter((item) => normalizedSeverity(item.priority) === 'CRITICAL'));
+const unacknowledgedReports = computed(() => openSafeReports.value.filter((item) => item.status === 'SUBMITTED'));
+const trackingReports = computed(() => openSafeReports.value.filter((item) => ['IN_PROGRESS', 'UNDER_REVIEW', 'NEED_MORE_INFORMATION'].includes(item.status)));
+const filteredSafeReports = computed(() => dashboard.safeReports.filter((item) => {
+  const statusMatched = safeStatus.value === 'OPEN' ? !['RESOLVED', 'CLOSED', 'REJECTED', 'CANCELLED'].includes(item.status) : item.status === safeStatus.value;
+  const severityMatched = safeSeverity.value === 'ALL' || normalizedSeverity(item.priority) === safeSeverity.value;
+  const categoryMatched = safeCategory.value === 'ALL' || item.category === safeCategory.value;
+  const quickMatched = safeQuick.value === 'ALL' || (safeQuick.value === 'UNACKNOWLEDGED' ? item.status === 'SUBMITTED' : ['IN_PROGRESS', 'UNDER_REVIEW', 'NEED_MORE_INFORMATION'].includes(item.status));
+  return statusMatched && severityMatched && categoryMatched && quickMatched;
+}));
 
 const filteredBookings = computed(() => {
 
@@ -1012,6 +1022,12 @@ async function navigateAdminMetric(action: AdminMetricAction) {
 
 async function openAttention(item: PlainObject) { tab.value = item.targetTab; attentionFilter.value = item.filter || ''; if (item.targetStatus) bookingStatus.value = item.targetStatus; if (item.targetTab === 'members') memberRole.value = 'NURSE'; if (item.targetTab === 'quality') qualityStatus.value = 'OPEN'; await nextTick(); const target = item.targetTab === 'members' ? memberTableRef.value?.$el : item.targetTab === 'services' ? bookingSectionRef.value : pageRef.value?.querySelector('.admin-panels') as HTMLElement; await scrollToTarget(target, target); }
 
+async function focusSafeReports(status = 'OPEN', severity = 'ALL') { tab.value = 'safety'; safeStatus.value = status; safeSeverity.value = severity; safeCategory.value = 'ALL'; safeQuick.value = 'ALL'; await nextTick(); await scrollToTarget(pageRef.value?.querySelector('.safe-heading') as HTMLElement, pageRef.value?.querySelector('.safe-heading') as HTMLElement); }
+const goToUrgentSafeReports = () => focusSafeReports('OPEN', 'CRITICAL');
+const showCriticalReports = () => focusSafeReports('OPEN', 'CRITICAL');
+const showUnacknowledgedReports = async () => { tab.value = 'safety'; safeStatus.value = 'OPEN'; safeSeverity.value = 'ALL'; safeCategory.value = 'ALL'; await nextTick(); safeQuick.value = 'UNACKNOWLEDGED'; };
+const showTrackingReports = async () => { tab.value = 'safety'; safeStatus.value = 'OPEN'; safeSeverity.value = 'ALL'; safeCategory.value = 'ALL'; await nextTick(); safeQuick.value = 'TRACKING'; };
+
 function openAlert(alert: AlertItem) { selectedAlert.value = alert; qualityDialog.value = true; }
 
 function normalizedSeverity(value: string) { return ({ NORMAL: 'MEDIUM', URGENT: 'CRITICAL' } as PlainObject)[value] || value || 'MEDIUM'; }
@@ -1021,11 +1037,45 @@ function incidentLabel(value: string) { return ({ WORKPLACE_BULLYING: '職場霸
 function safeStep(status: string) { return ({ SUBMITTED: 1, ACKNOWLEDGED: 2, UNDER_REVIEW: 3, NEED_MORE_INFORMATION: 3, IN_PROGRESS: 3, RESOLVED: 4, CLOSED: 5 } as PlainObject)[status] || 1; }
 function safeStatusCopy(status: string) { return ({ SUBMITTED: '等待管理員確認', ACKNOWLEDGED: '已確認收到，準備介入了解', UNDER_REVIEW: '正在追蹤處理', NEED_MORE_INFORMATION: '等待居服員補充資訊', IN_PROGRESS: '正在追蹤處理', RESOLVED: '當下危險已排除', CLOSED: '事件已正式結案' } as PlainObject)[status] || status; }
 function sortedReplies(report: PlainObject) { return [...(report.replies || [])].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)); }
+function safeReportId(report: PlainObject | null): string {
+  const rawId = report?._id;
+  const id = typeof rawId === 'string' ? rawId : rawId && typeof rawId === 'object' && typeof rawId._id === 'string' ? rawId._id : '';
+  return /^[a-f\d]{24}$/i.test(id) ? id : '';
+}
 function openSafeReport(report: PlainObject) { selectedSafeReport.value = report; safeReply.value = ''; safeReportDialog.value = true; nextTick(() => useCareMotion().feedback('.safe-report-dialog', normalizedSeverity(report.priority) === 'CRITICAL' ? 'serious' : 'calm')); }
-async function advanceSafeReport(status: string) { if (!selectedSafeReport.value) return; safeSaving.value = true; try { const { data } = await api.patch(`/admin/safe-reports/${selectedSafeReport.value._id}/status`, { status }); selectedSafeReport.value = { ...selectedSafeReport.value, ...data }; $q.notify({ type: 'positive', message: status === 'ACKNOWLEDGED' ? '已通知居服員：管理員已收到通報。' : '案件狀態已更新。' }); await loadDashboard(); } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '狀態更新失敗。' }); } finally { safeSaving.value = false; } }
-async function addSafeReply() { if (!selectedSafeReport.value || !safeReply.value.trim()) return; safeSaving.value = true; try { const { data } = await api.post(`/feedback/complaints/${selectedSafeReport.value._id}/replies`, { message: safeReply.value }); selectedSafeReport.value = data; safeReply.value = ''; $q.notify({ type: 'positive', message: '處理紀錄已送出並鎖定。' }); await loadDashboard(); } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '處理紀錄送出失敗。' }); } finally { safeSaving.value = false; } }
+async function refreshSelectedSafeReport(reportId: string) {
+  await loadDashboard();
+  const refreshed = dashboard.safeReports.find((report) => safeReportId(report) === reportId);
+  if (refreshed) selectedSafeReport.value = refreshed;
+}
+async function advanceSafeReport(status: string) {
+  const reportId = safeReportId(selectedSafeReport.value);
+  if (!reportId) { $q.notify({ type: 'negative', message: '安全事件缺少有效 ID，請重新整理後再試。' }); return; }
+  safeSaving.value = true;
+  try {
+    const { data } = await api.patch(`/admin/safe-reports/${encodeURIComponent(reportId)}/status`, { status });
+    selectedSafeReport.value = { ...selectedSafeReport.value, ...data };
+    $q.notify({ type: data.warnings?.length ? 'warning' : 'positive', message: data.warnings?.length ? `狀態已更新，但${data.warnings.join('、')}暫時失敗。` : status === 'ACKNOWLEDGED' ? '已通知居服員：管理員已收到通報。' : '案件狀態已更新。' });
+    await refreshSelectedSafeReport(reportId);
+  } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '狀態更新失敗。' }); }
+  finally { safeSaving.value = false; }
+}
+async function addSafeReply() {
+  const reportId = safeReportId(selectedSafeReport.value);
+  if (!reportId) { $q.notify({ type: 'negative', message: '安全事件缺少有效 ID，請重新整理後再試。' }); return; }
+  if (!safeReply.value.trim()) return;
+  safeSaving.value = true;
+  try {
+    selectedSafeReport.value = (await api.post(`/feedback/complaints/${encodeURIComponent(reportId)}/replies`, { message: safeReply.value })).data;
+    safeReply.value = '';
+    $q.notify({ type: 'positive', message: '處理紀錄已送出並鎖定。' });
+    await refreshSelectedSafeReport(reportId);
+  } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '處理紀錄送出失敗。' }); }
+  finally { safeSaving.value = false; }
+}
 
 const safeReduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+watch([safeStatus, safeSeverity, safeCategory], () => { safeQuick.value = 'ALL'; });
 watch(() => selectedSafeReport.value?.replies?.length, async (count, previous = 0) => { if (safeReduceMotion || !safeReportDialog.value || !count || count <= previous) return; await nextTick(); const newest = adminSafeAuditListRef.value?.querySelector('.audit-reply'); if (newest) gsap.fromTo(newest, { autoAlpha: 0, y: -10 }, { autoAlpha: 1, y: 0, duration: .3, ease: 'power2.out' }); });
 watch(() => selectedSafeReport.value?.status, async (status, previous) => { if (safeReduceMotion || !previous || status === previous) return; await nextTick(); const active = (adminSafeDialogRef.value?.$el || adminSafeDialogRef.value)?.querySelector('.safe-stepper .q-stepper__tab--active'); if (active) gsap.fromTo(active, { scale: .94 }, { scale: 1, duration: .3, ease: 'back.out(1.5)' }); });
 
@@ -1192,6 +1242,9 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 @media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.member-tools :deep(.q-field), .member-tools :deep(.q-select) { width: 100%; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem}.safe-report-banner{align-items:flex-start;flex-direction:column}.safe-report-dialog{width:100%;border-radius:0}.safe-report-head,.safe-report-body{padding-left:18px;padding-right:18px}.safe-report-grid{grid-template-columns:1fr}.safe-stepper :deep(.q-stepper__label){font-size:.66rem}.safe-inbox :deep(.q-item__section--side:last-child){display:none} }
 
 .safe-stepper :deep(.q-stepper__content){display:none}
+
+.admin-hero{margin-bottom:22px}.safe-banner-wrap{margin-bottom:24px}.safe-report-banner{min-height:82px;padding:18px 20px;color:#493833;background:linear-gradient(135deg,#fff8f3,#fffdfb);border:1px solid rgb(200 86 24/.18);border-radius:18px;box-shadow:0 8px 24px rgb(73 56 51/.045)}.safe-report-banner__icon{width:42px;height:42px;display:grid;place-items:center;color:#c85618;background:rgb(200 86 24/.1);border-radius:14px}.safe-report-banner__content{display:grid;gap:4px}.safe-report-banner__content strong{color:#493833;font-size:.95rem}.safe-report-banner__content span{margin:0;color:rgb(73 56 51/.65);font-size:.82rem}.safe-report-banner__action{min-height:42px;padding:0 12px;color:#a84513;font-weight:800}.safe-quick-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.safe-quick-filters button{min-height:64px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:12px 16px;color:#6e5750;text-align:left;background:#fffdfb;border:1px solid rgb(110 87 80/.14);border-radius:16px;cursor:pointer}.safe-quick-filters button:hover,.safe-quick-filters button:focus-visible{color:#a84513;border-color:rgb(200 86 24/.3);outline:none;box-shadow:0 8px 20px rgb(73 56 51/.07)}.safe-quick-filters button strong{min-width:28px;padding:4px 8px;text-align:center;background:#fff0e8;border-radius:999px}.safe-filter-bar{display:grid;grid-template-columns:auto minmax(180px,220px) minmax(200px,260px);align-items:end;gap:16px;margin:18px 0 20px}.safe-filter-group{display:grid;gap:6px}.safe-filter-label{color:rgb(73 56 51/.62);font-size:.75rem;font-weight:800}.safe-filter-bar .filter-toggle{margin:0}.safe-filter-select{background:#fffdfb}.safe-report-meta{margin-top:5px}.safe-report-description{max-width:680px;margin-top:3px}.safe-report-side{gap:6px}.safe-report-side small{color:#876f67}
+@media(max-width:850px){.safe-filter-bar{grid-template-columns:1fr}.safe-filter-group--status{overflow-x:auto}.safe-quick-filters{grid-template-columns:1fr}.safe-report-banner :deep(.q-banner__actions){padding-top:8px}}
 
 .admin-safe-dialog{--safe-paper:#fffdfb;--safe-ink:#493833;--safe-chestnut:#6e5750;--safe-accent:#c85618;width:min(1120px,calc(100vw - 40px));max-width:1120px!important;height:min(860px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);display:flex;flex-direction:column;overflow:hidden;color:var(--safe-chestnut);background:var(--safe-paper);border-top:6px solid #c85618;border-radius:28px;box-shadow:0 30px 90px rgb(73 56 51/.2)}.admin-safe-dialog--critical{border-top-color:#a62620}.admin-safe-dialog__header{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 28px 18px}.admin-safe-dialog__header h2{margin:4px 0;color:var(--safe-ink);font-size:clamp(1.55rem,3vw,2.1rem);line-height:1.15}.admin-safe-dialog__header p{margin:0;color:rgb(73 56 51/.66)}.safe-eyebrow{display:flex;align-items:center;gap:8px;color:var(--safe-accent);font-size:.7rem;font-weight:800;letter-spacing:.15em}.safe-priority-dot{width:8px;height:8px;flex:0 0 auto;background:currentColor;border-radius:50%}.admin-safe-dialog__progress{flex:0 0 auto;padding:8px 24px 0}.admin-safe-dialog__progress .safe-stepper{margin:0}.admin-safe-dialog__scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px 28px 32px}.admin-safe-layout{display:grid;grid-template-columns:minmax(0,.95fr) minmax(360px,1.05fr);gap:32px;align-items:start}.safe-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.safe-section-heading small{color:var(--safe-accent);font-size:.65rem;font-weight:800;letter-spacing:.14em}.safe-section-heading h3{margin:3px 0 0;color:var(--safe-ink);font-size:1.45rem}.immutable-chip{display:flex;align-items:center;gap:5px;padding:7px 10px;color:var(--safe-accent);background:#fff1e9;border-radius:999px;font-size:.76rem;font-weight:800;white-space:nowrap}.safe-original-card{padding:20px;background:linear-gradient(135deg,#fff8f3,#fffdfb);border:1px solid rgb(200 86 24/.16);border-radius:20px}.safe-original-card__meta{display:flex;justify-content:space-between;gap:16px;margin-bottom:14px;color:rgb(73 56 51/.6);font-size:.76rem}.safe-original-card p{margin:0;color:var(--safe-ink);font-size:.95rem;line-height:1.8;white-space:pre-wrap}.safe-photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.safe-photo-grid img{width:100%;aspect-ratio:4/3;display:block;object-fit:cover;border-radius:14px}.safe-timeline-heading{margin-top:26px}.acknowledge-banner{padding:16px 18px;color:var(--safe-ink);background:#fff3ec;border:1px solid rgb(200 86 24/.13)}.acknowledge-banner strong{display:block;margin-bottom:3px}.safe-composer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}.safe-audit-list{display:grid;gap:10px}.safe-empty-audit{min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:rgb(73 56 51/.5);border:1px dashed rgb(110 87 80/.2);border-radius:16px}.admin-safe-dialog__actions{flex:0 0 auto;min-height:76px;padding:14px 24px;background:rgb(255 253 251/.98);box-shadow:0 -10px 30px rgb(73 56 51/.04)}
 @media(max-width:850px){.admin-safe-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);border-radius:22px}.admin-safe-layout{grid-template-columns:1fr}.admin-safe-dialog__scroll{padding:20px}.admin-safe-dialog__header{padding:18px 20px 14px}.admin-safe-dialog__progress{padding-inline:10px}.admin-safe-dialog__actions{padding:10px 14px;min-height:68px}.safe-stepper :deep(.q-stepper__tab){min-width:0;padding:12px 2px}.safe-stepper :deep(.q-stepper__label){font-size:.66rem}}

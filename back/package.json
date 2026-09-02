@@ -12,6 +12,8 @@
     "check:booking-validation": "ts-node src/utils/booking-validation.check.ts",
     "check:availability-policy": "ts-node src/utils/availability-policy.check.ts",
     "check:datetime": "ts-node src/utils/datetime.check.ts",
+    "check:document-id": "ts-node src/utils/document-id.check.ts",
+    "check:safe-report-flow": "ts-node src/scripts/safe-report-flow-check.ts",
     "check:realtime": "ts-node src/realtime.check.ts",
     "check:ltc": "ts-node src/routes/ltc-routes.check.ts",
     "seed:admin-test": "ts-node src/scripts/admin-test-seed.ts",

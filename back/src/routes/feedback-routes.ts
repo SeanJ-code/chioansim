@@ -10,6 +10,7 @@ import { recordAudit } from '../utils/audit'
 import { QualityAlert } from '../models/quality-alert'
 import { Notification } from '../models/notification'
 import { emitRealtimeToUsers } from '../realtime'
+import { normalizeDocumentId } from '../utils/document-id'
 
 export const feedbackRoutes = Router()
 // 評價與求救都屬個人操作，整組路由統一要求登入。
@@ -472,16 +473,18 @@ feedbackRoutes.post(
   authorize('NURSE', 'ADMIN'),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
+    const reportId = normalizeDocumentId(request.params.id)
+    if (!reportId) { response.status(400).json({ message: '安全事件缺少有效 ID，請重新整理後再試。' }); return }
     const message = String(request.body.message || '').trim()
     if (!message || message.length > 2000) { response.status(400).json({ message: '請填寫 1 至 2000 字的處理紀錄' }); return }
-    const filter = request.auth?.role === 'ADMIN' ? { _id: request.params.id } : { _id: request.params.id, complainantUserId: request.auth?.userId }
+    const filter = request.auth?.role === 'ADMIN' ? { _id: reportId } : { _id: reportId, complainantUserId: request.auth?.userId }
     const complaint = await Complaint.findOne(filter)
     if (!complaint) { response.status(404).json({ message: '找不到安全通報' }); return }
     complaint.get('replies').push({ authorUserId: request.auth!.userId, authorRole: request.auth!.role, message, createdAt: new Date() })
     if (request.auth?.role === 'ADMIN' && ['SUBMITTED', 'ACKNOWLEDGED'].includes(complaint.get('status'))) complaint.set('status', 'IN_PROGRESS')
     complaint.get('activities').push({ type: 'REPLY_ADDED', label: `${request.auth?.role === 'ADMIN' ? '管理員' : '居服員'}新增處理紀錄`, actorRole: request.auth?.role, createdAt: new Date() })
     await complaint.save()
-    const recipients = request.auth?.role === 'ADMIN' ? [complaint.get('complainantUserId')] : (await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((item) => item._id)
+    const recipients = (request.auth?.role === 'ADMIN' ? [complaint.get('complainantUserId')] : (await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((item) => item._id)).map(normalizeDocumentId).filter((id): id is string => Boolean(id))
     await Notification.insertMany(recipients.map((recipientUserId) => ({ recipientUserId, type: 'SAFETY', title: '安全通報有新進度', message: `${complaint.get('reportNumber')} 已新增不可修改的處理紀錄` })))
     emitRealtimeToUsers('safe-report:changed', recipients)
     response.status(201).json(await complaint.populate('replies.authorUserId', 'name role'))
