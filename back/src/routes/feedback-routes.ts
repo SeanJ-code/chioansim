@@ -5,7 +5,7 @@ import type { AuthRequest } from '../types/auth'
 import { asyncHandler } from '../utils/http'
 import { Booking, CaregiverProfile, CareRecipient, EmergencyAlert, Review, ServiceRecord, User } from '../models'
 import { Complaint } from '../models/complaint'
-import { journalUpload, upload, validateJournalImages } from '../middlewares/upload'
+import { incidentUpload, journalUpload, upload, validateIncidentImages, validateJournalImages } from '../middlewares/upload'
 import { recordAudit } from '../utils/audit'
 import { QualityAlert } from '../models/quality-alert'
 import { Notification } from '../models/notification'
@@ -405,7 +405,8 @@ feedbackRoutes.delete(
 feedbackRoutes.post(
   '/complaints',
   authorize('USER', 'PATIENT', 'NURSE'),
-  upload.array('evidence', 6),
+  incidentUpload.array('evidence', 3),
+  validateIncidentImages,
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     const description = String(request.body.description || '').trim()
