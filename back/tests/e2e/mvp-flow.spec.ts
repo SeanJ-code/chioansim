@@ -7,6 +7,7 @@ import { Booking, CaregiverProfile, ServiceType, User, UserRecipientRelation } f
 import { QualityAlert } from '../../src/models/quality-alert'
 import { Notification } from '../../src/models/notification'
 import { AuditLog } from '../../src/models/audit-log'
+import { taipeiDateTimeToUtc } from '../../src/utils/datetime'
 
 const suffix = Date.now().toString(36)
 const password = 'E2e安心測試11'
@@ -35,7 +36,7 @@ test.beforeAll(async ({ request }) => {
     { account: `e2euser${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '安心測試家屬', role: 'USER' },
     { account: `e2enurse${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '安心測試居服員', role: 'NURSE' },
     { account: `e2eoutsider${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '只能查看的家屬', role: 'USER' },
-    { account: `e2eoutsidernurse${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '無關居服員', role: 'NURSE' },
+    { account: `e2eon${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '無關居服員', role: 'NURSE' },
     { account: `e2eadmin${suffix}`, passwordHash: await bcrypt.hash(password, 4), name: '安心測試管理員', role: 'ADMIN' },
   ])
   nurseUserId = nurse.id
@@ -154,6 +155,12 @@ test('註冊後核心閉環：預約、接單、GPS、完成、低星警訊', as
 })
 
 test('Workflow 權限、競爭更新與 Audit', async ({ request }) => {
+  expect((await request.get('/nurses/me/availability', { headers: headers(nurseToken) })).status()).toBe(200)
+  const publicSlots = await (await request.get(`/nurses/${caregiverId}/availability`)).json()
+  expect(publicSlots.every((slot: { _id: string }) => {
+    const [, date, startTime] = slot._id.split('|')
+    return Boolean(date && startTime && taipeiDateTimeToUtc(date, startTime) > new Date())
+  })).toBeTruthy()
   const dateText = nextWeekday(20).toISOString().slice(0, 10)
   const created = await request.post('/bookings', {
     headers: headers(userToken),

@@ -74,6 +74,7 @@ import EssentialLink, { type EssentialLinkProps } from '@/components/EssentialLi
 import CareRadialMenu from '@/components/navigation/CareRadialMenu.vue';
 import { LogIn, LogOut, ShieldCheck } from '@lucide/vue';
 import { useAuthStore } from '@/stores/auth-store';
+import { useLiveSyncStore } from '@/stores/live-sync-store';
 import 'boxicons/css/boxicons.min.css';
 import { ScrollTrigger } from '@/composables/useGsap';
 
@@ -127,6 +128,7 @@ const loggingOut = ref(false);
 const headerScrolled = ref(false);
 let headerTrigger: ScrollTrigger | undefined;
 const authStore = useAuthStore();
+const liveSync = useLiveSyncStore();
 const router = useRouter();
 
 function toggleLeftDrawer() {
@@ -136,6 +138,7 @@ function toggleLeftDrawer() {
 async function handleLogout() {
   loggingOut.value = true;
   try {
+    liveSync.stop();
     await authStore.logout();
     leftDrawerOpen.value = false;
     await router.push('/');

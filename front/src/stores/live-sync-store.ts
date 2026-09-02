@@ -42,19 +42,19 @@ export const useLiveSyncStore = defineStore('live-sync', () => {
     document.removeEventListener('visibilitychange', onVisibilityChange);
   }
   function start(callback: () => Promise<void>, intervalMs = 60_000) {
-    stop(); refresh = callback;
+    stop();
     if (typeof window === 'undefined') return;
+    const token = sessionStorage.getItem('chioansim-access-token');
+    if (!token) return;
+    refresh = callback;
     online.value = navigator.onLine;
     window.addEventListener('storage', onStorage);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    const token = sessionStorage.getItem('chioansim-access-token');
-    if (token) {
-      socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
-      for (const event of ['booking:changed', 'alert:changed', 'location:changed', 'leave:changed', 'safe-report:changed']) {
-        socket.on(event, () => void refreshNow());
-      }
+    socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
+    for (const event of ['booking:changed', 'alert:changed', 'location:changed', 'leave:changed', 'safe-report:changed']) {
+      socket.on(event, () => void refreshNow());
     }
     // ponytail: 60 秒輪詢只作斷線保險；Socket 正常時資料由事件立即更新。
     timer = setInterval(() => void refreshNow(), intervalMs);

@@ -411,10 +411,6 @@ nurseRoutes.get(
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
     const profile = await CaregiverProfile.findOne({ userId: request.auth?.userId })
-    if (request.body.status && request.body.status !== 'UNAVAILABLE') {
-      response.status(400).json({ message: '正式請假請使用安心請假提出申請' })
-      return
-    }
     response.json(
       await Availability.find({
         caregiverId: profile?._id,
@@ -537,6 +533,7 @@ nurseRoutes.get(
       Booking.find({ caregiverId: request.params.id, scheduledStartAt: { $lt: end }, scheduledEndAt: { $gt: start }, status: { $in: BLOCKING_BOOKING_STATUSES }, hidden: { $ne: true } }).select('scheduledStartAt scheduledEndAt'),
     ])
     const slots = []
+    const now = new Date()
     for (let offset = 0; offset < 14; offset += 1) {
       const day = new Date(start.getTime() + offset * 86_400_000)
       const key = day.toISOString().slice(0, 10)
@@ -546,6 +543,7 @@ nurseRoutes.get(
         const endTime = `${String(Math.min(hour + 2, 17)).padStart(2, '0')}:00`
         const from = taipeiDateTimeToUtc(key, startTime)
         const to = taipeiDateTimeToUtc(key, endTime)
+        if (from <= now) continue
         const unavailable = exceptions.some((item) => taipeiDateKey(item.get('date')) === key && intervalsOverlap(from, to, taipeiDateTimeToUtc(key, item.get('startTime')), taipeiDateTimeToUtc(key, item.get('endTime'))))
         const onLeave = leaves.some((item) => intervalsOverlap(from, to, item.get('startAt'), item.get('endAt')))
         const booked = bookings.some((item) => intervalsOverlap(from, to, item.get('scheduledStartAt'), item.get('scheduledEndAt')))

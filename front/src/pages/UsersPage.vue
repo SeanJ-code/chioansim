@@ -1568,6 +1568,8 @@ function submitJournal() {
 }
 
 onMounted(async () => {
+  const restored = await authStore.restoreSession();
+  if (!restored || authStore.user?.role !== 'USER') { await router.replace('/login'); return; }
   await Promise.all([loadRecipients(), loadBookings(), loadNotifications()]);
   liveSync.start(async () => { await Promise.all([loadRecipients(), loadBookings(), loadNotifications()]); });
   if (route.query.recipientSaved === '1') openRecipient();
