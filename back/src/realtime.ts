@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import { getJwtSecret } from './configs/env'
 import { Booking, CaregiverProfile, CareRecipient, User, UserRecipientRelation, type Role } from './models'
 
-type RealtimeEvent = 'booking:changed' | 'alert:changed' | 'location:changed' | 'leave:changed'
+type RealtimeEvent = 'booking:changed' | 'alert:changed' | 'location:changed' | 'leave:changed' | 'safe-report:changed'
 let io: Server | undefined
 
 export const userRoom = (userId: unknown): string => `user:${String(userId)}`

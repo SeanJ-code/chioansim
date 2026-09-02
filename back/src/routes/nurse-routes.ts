@@ -102,6 +102,7 @@ nurseRoutes.get(
           .sort({ startAt: -1 })
           .limit(20),
         Complaint.find({ complainantUserId: request.auth?.userId })
+          .populate('replies.authorUserId', 'name role')
           .sort({ createdAt: -1 })
           .limit(20),
         Review.find({ targetUserId: request.auth?.userId, hidden: { $ne: true } })
@@ -126,7 +127,7 @@ nurseRoutes.get(
         completedBookings: bookings.filter((item) => item.get('status') === 'COMPLETED').length,
         pendingLeaves: leaves.filter((item) => item.get('status') === 'PENDING').length,
         pendingReports: complaints.filter((item) =>
-          ['SUBMITTED', 'UNDER_REVIEW', 'NEED_MORE_INFORMATION'].includes(item.get('status')),
+          ['SUBMITTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'UNDER_REVIEW', 'NEED_MORE_INFORMATION', 'RESOLVED'].includes(item.get('status')),
         ).length,
       },
     })

@@ -21,7 +21,7 @@ import { Complaint } from '../models/complaint'
 import { QualityAlert } from '../models/quality-alert'
 import { ACTIVE_BOOKING_STATUSES, findBookingConflict } from '../utils/availability-policy'
 import { Notification } from '../models/notification'
-import { emitLeaveRealtime } from '../realtime'
+import { emitLeaveRealtime, emitRealtimeToUsers } from '../realtime'
 
 export const adminRoutes = Router()
 // use 套用到本檔全部路由：必須先通過 JWT，再確認角色為 ADMIN。
@@ -352,6 +352,7 @@ adminRoutes.get(
       pendingTooLong,
       awaitingConfirmation,
       expiringCredentials,
+      safeReports,
     ] = await Promise.all([
       User.aggregate([
         { $match: { status: { $ne: 'DELETED' } } },
@@ -490,6 +491,11 @@ adminRoutes.get(
         verificationStatus: 'APPROVED',
         expiresAt: { $gte: now, $lte: inThirtyDays },
       }),
+      Complaint.find()
+        .populate('complainantUserId', 'name role phone')
+        .populate('replies.authorUserId', 'name role')
+        .sort({ createdAt: -1 })
+        .limit(50),
     ])
 
     const roleCounts = Object.fromEntries(roles.map((item) => [item._id, item.count]))
@@ -541,7 +547,35 @@ adminRoutes.get(
       attention,
       alerts,
       recentBookings,
+      safeReports,
     })
+  }),
+)
+
+// Safe Report 原文不接受 PATCH；管理員只能推進狀態並留下不可修改的活動紀錄。
+adminRoutes.patch(
+  '/safe-reports/:id/status',
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const next = String(request.body.status || '')
+    const transitions: Record<string, string[]> = {
+      SUBMITTED: ['ACKNOWLEDGED'], ACKNOWLEDGED: ['IN_PROGRESS'], IN_PROGRESS: ['RESOLVED'], RESOLVED: ['CLOSED'],
+      UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED'], NEED_MORE_INFORMATION: ['IN_PROGRESS'],
+    }
+    const report = await Complaint.findById(request.params.id)
+    if (!report || !transitions[report.get('status')]?.includes(next)) { response.status(409).json({ message: '案件狀態已更新，請重新整理後再試' }); return }
+    const now = new Date()
+    report.set('status', next)
+    report.set('assignedAdminId', request.auth?.userId)
+    if (next === 'ACKNOWLEDGED') { report.set('acknowledgedBy', request.auth?.userId); report.set('acknowledgedAt', now) }
+    if (next === 'RESOLVED') report.set('resolvedAt', now)
+    const labels: Record<string, string> = { ACKNOWLEDGED: '管理員已確認收到安全通報', IN_PROGRESS: '管理員開始了解並追蹤事件', RESOLVED: '當下風險已排除', CLOSED: '安全通報已正式結案' }
+    report.get('activities').push({ type: next, label: labels[next], actorRole: 'ADMIN', createdAt: now })
+    await report.save()
+    await Notification.create({ recipientUserId: report.get('complainantUserId'), type: 'SAFETY', title: labels[next], message: `${report.get('reportNumber')} 狀態已更新` })
+    emitRealtimeToUsers('safe-report:changed', [report.get('complainantUserId')])
+    await recordAudit(request, 'HANDLE_SAFE_REPORT', 'complaints', report.id, undefined, { status: next })
+    response.json(report)
   }),
 )
 

@@ -18,6 +18,13 @@
 
       </section>
 
+      <q-banner v-if="urgentReports.length" rounded class="safe-report-banner" role="alert">
+        <template #avatar><ShieldAlert :size="25" /></template>
+        <strong>{{ urgentReports.length }} 件高優先安全事件尚未結案</strong>
+        <span>請先確認當事人安全，再補充處理紀錄。</span>
+        <template #action><q-btn flat no-caps label="前往安全事件中心" @click="tab = 'safety'" /></template>
+      </q-banner>
+
       <section class="pulse-grid" aria-label="平台即時摘要">
 
         <article v-for="item in pulseCards" :key="item.action" class="pulse-card" :class="item.tone" role="button" tabindex="0" :aria-label="`${item.label}：${item.value}，前往處理`" @click="navigateAdminMetric(item.action)" @keydown.enter="navigateAdminMetric(item.action)" @keydown.space.prevent="navigateAdminMetric(item.action)">
@@ -65,6 +72,8 @@
         <q-tab name="overview" label="理解總覽" />
 
         <q-tab name="quality" :label="`品質警訊 ${dashboard.alerts.length || ''}`" />
+
+        <q-tab name="safety" :label="`安全事件 ${openSafeReports.length || ''}`" />
 
         <q-tab name="members" label="成員管理" />
 
@@ -244,6 +253,13 @@
 
           </section>
 
+        </q-tab-panel>
+
+        <q-tab-panel name="safety">
+          <section class="quality-heading safe-heading"><div><p class="section-kicker">SAFE REPORT CENTER</p><h2>安全事件中心</h2><p>原始通報與每次追加紀錄皆不可修改；顏色只表示處理優先度。</p></div><div class="quality-count"><ShieldAlert :size="26" /><strong>{{ openSafeReports.length }}</strong><span>件進行中</span></div></section>
+          <q-btn-toggle v-model="safeStatus" no-caps unelevated toggle-color="deep-orange-8" color="brown-1" text-color="brown-8" :options="safeStatusOptions" class="filter-toggle" />
+          <q-list v-if="filteredSafeReports.length" separator class="quality-inbox safe-inbox"><q-item v-for="report in filteredSafeReports" :key="report._id" clickable v-ripple @click="openSafeReport(report)"><q-item-section avatar><q-avatar :class="`severity-${normalizedSeverity(report.priority).toLowerCase()}`"><ShieldAlert :size="20" /></q-avatar></q-item-section><q-item-section><q-item-label class="text-weight-bold">{{ report.reportNumber || 'SAFE REPORT' }}・{{ report.complainantUserId?.name || '居服員' }}</q-item-label><q-item-label caption>{{ incidentLabel(report.category) }}・{{ report.description }}</q-item-label></q-item-section><q-item-section side><q-badge :color="severityColor(report.priority)" :label="severityLabel(report.priority)" /><small>{{ formatDate(report.createdAt) }}</small></q-item-section><q-item-section side><ChevronRight :size="20" /></q-item-section></q-item></q-list>
+          <div v-else class="all-clear"><ShieldCheck :size="44" /><h3>這個分類目前沒有案件</h3><p>新的安全通報會透過即時同步出現在這裡。</p></div>
         </q-tab-panel>
 
         <q-tab-panel name="members">
@@ -492,6 +508,14 @@
 
     <q-dialog v-model="qualityDialog"><q-card class="booking-detail-dialog" v-if="selectedAlert"><q-card-section class="booking-detail-heading"><div><p class="section-kicker">QUALITY ALERT</p><h2>{{ caregiverAlertName(selectedAlert) }}</h2></div><q-btn flat round v-close-popup aria-label="關閉品質警訊">×</q-btn></q-card-section><q-card-section class="booking-detail-body"><q-banner rounded class="booking-progress__warning">{{ selectedAlert.description }}</q-banner><div class="review-quotes"><blockquote v-for="review in selectedAlert.reviewIds || []" :key="review._id">「{{ review.comment || '未留下文字說明' }}」</blockquote></div><q-input v-model="selectedAlert.note" outlined autogrow label="管理員處置備註" class="note-input" /><div class="alert-actions"><q-btn outline no-caps label="已發出警示" @click="handleAlert(selectedAlert, 'WARNED', 'ACKNOWLEDGED')" /><q-btn outline no-caps label="安排關懷約談" @click="handleAlert(selectedAlert, 'INTERVIEW_REQUIRED', 'ACKNOWLEDGED')" /><q-btn color="negative" outline no-caps label="暫停接案" @click="handleAlert(selectedAlert, 'SUSPEND_RECOMMENDED', 'ACKNOWLEDGED')" /><q-btn unelevated no-caps label="完成處理" class="resolve-button" @click="handleAlert(selectedAlert, 'CLOSED', 'RESOLVED')" /></div></q-card-section></q-card></q-dialog>
 
+    <q-dialog v-model="safeReportDialog" :persistent="Boolean(selectedSafeReport && normalizedSeverity(selectedSafeReport.priority) === 'CRITICAL' && selectedSafeReport.status === 'SUBMITTED')" :maximized="selectedSafeReport ? normalizedSeverity(selectedSafeReport.priority) === 'CRITICAL' && selectedSafeReport.status === 'SUBMITTED' : false">
+      <q-card v-if="selectedSafeReport" class="safe-report-dialog" :class="`safe-report-dialog--${normalizedSeverity(selectedSafeReport.priority).toLowerCase()}`"><q-card-section class="safe-report-head"><div><p>{{ normalizedSeverity(selectedSafeReport.priority) }} PRIORITY · SAFE REPORT</p><h2>{{ selectedSafeReport.reportNumber }}</h2><span>{{ selectedSafeReport.complainantUserId?.name || '居服員' }}・{{ formatFullDate(selectedSafeReport.createdAt) }}</span></div><q-btn v-if="normalizedSeverity(selectedSafeReport.priority) !== 'CRITICAL' || selectedSafeReport.status !== 'SUBMITTED'" flat round v-close-popup aria-label="稍後查看安全事件"><span aria-hidden="true">×</span></q-btn></q-card-section>
+        <q-card-section class="safe-report-body"><q-stepper :model-value="safeStep(selectedSafeReport.status)" flat alternative-labels color="deep-orange-8" class="safe-stepper"><q-step :name="1" title="已送出" prefix="1" :done="safeStep(selectedSafeReport.status)>1" done-icon="1" /><q-step :name="2" title="已確認" prefix="2" :done="safeStep(selectedSafeReport.status)>2" done-icon="2" /><q-step :name="3" title="處理追蹤" prefix="3" :done="safeStep(selectedSafeReport.status)>3" done-icon="3" /><q-step :name="4" title="已排除" prefix="4" :done="safeStep(selectedSafeReport.status)>4" done-icon="4" /><q-step :name="5" title="已結案" prefix="5" /></q-stepper>
+          <div class="safe-report-grid"><section><div class="safe-meta"><q-badge :color="severityColor(selectedSafeReport.priority)" :label="severityLabel(selectedSafeReport.priority)" /><span>{{ incidentLabel(selectedSafeReport.category) }}</span></div><h3>原始通報</h3><div class="immutable-copy"><LockKeyhole :size="18" /><p>{{ selectedSafeReport.description }}</p><small>原始內容已留存，不可修改</small></div><h3>處理時間軸</h3><q-timeline color="deep-orange-8" layout="dense"><q-timeline-entry v-for="activity in [...(selectedSafeReport.activities || [])].reverse()" :key="activity.createdAt" :title="activity.label" :subtitle="formatFullDate(activity.createdAt)" /></q-timeline></section>
+            <section><template v-if="selectedSafeReport.status === 'SUBMITTED'"><q-banner rounded class="acknowledge-banner">確認後將立即通知居服員；這不等同文字回覆。</q-banner><q-btn unelevated no-caps color="deep-orange-8" class="full-width q-mt-md" label="已確認並前往了解" :loading="safeSaving" @click="advanceSafeReport('ACKNOWLEDGED')" /></template><template v-else><h3>新增處理紀錄</h3><q-input v-model="safeReply" outlined type="textarea" autogrow maxlength="2000" counter label="請輸入聯繫、處理或後續安排" /><q-btn unelevated no-caps class="resolve-button full-width q-mt-sm" label="新增不可修改紀錄" :disable="!safeReply.trim()" :loading="safeSaving" @click="addSafeReply" /><div class="safe-status-actions"><q-btn v-if="selectedSafeReport.status === 'ACKNOWLEDGED'" outline no-caps label="開始處理追蹤" @click="advanceSafeReport('IN_PROGRESS')" /><q-btn v-if="selectedSafeReport.status === 'IN_PROGRESS'" outline no-caps color="positive" label="標記危險已排除" @click="advanceSafeReport('RESOLVED')" /><q-btn v-if="selectedSafeReport.status === 'RESOLVED'" outline no-caps color="grey-8" label="正式結案" @click="advanceSafeReport('CLOSED')" /></div></template><h3>事件追蹤紀錄</h3><article v-for="reply in sortedReplies(selectedSafeReport)" :key="reply._id || reply.createdAt" class="audit-reply"><header><strong>{{ reply.authorRole === 'ADMIN' ? '管理員' : '居服員' }}</strong><time>{{ formatFullDate(reply.createdAt) }}</time></header><p>{{ reply.message }}</p><small><LockKeyhole :size="13" /> 已送出・不可修改</small></article><p v-if="!selectedSafeReport.replies?.length" class="empty-copy">尚無追加紀錄。</p></section></div>
+        </q-card-section></q-card>
+    </q-dialog>
+
     <q-dialog v-model="caregiverDialog"><q-card class="booking-detail-dialog"><q-card-section class="booking-detail-heading"><div><p class="section-kicker">CAREGIVER PROFILE</p><h2>{{ caregiverOverview.caregiver?.userId?.name || '居服員資料' }}</h2></div><q-btn flat round v-close-popup aria-label="關閉居服員資料">×</q-btn></q-card-section><q-card-section class="booking-detail-body"><q-skeleton v-if="caregiverLoading" type="rect" height="240px" /><template v-else><q-tabs v-model="caregiverTab" dense no-caps align="left" class="detail-tabs"><q-tab name="basic" label="基本資料" /><q-tab name="credentials" :label="`資格與證照 ${caregiverOverview.credentials?.length || ''}`" /><q-tab name="leaves" label="請假紀錄" /><q-tab name="services" label="服務紀錄" /><q-tab name="quality" label="品質與管理" /></q-tabs><q-tab-panels v-model="caregiverTab" animated class="detail-panels"><q-tab-panel name="basic"><div class="booking-detail-grid"><div><span>電話</span><strong>{{ caregiverOverview.caregiver?.userId?.phone || '未填' }}</strong></div><div><span>評分</span><strong>{{ caregiverOverview.caregiver?.ratingAverage?.toFixed?.(1) || '0.0' }}</strong></div></div></q-tab-panel><q-tab-panel name="credentials"><q-list separator><q-item v-for="item in caregiverOverview.credentials" :key="item._id"><q-item-section><q-item-label>{{ item.name }}</q-item-label><q-item-label caption>{{ item.expiresAt ? `${formatDate(item.expiresAt)} 到期` : '無到期日' }}</q-item-label></q-item-section><q-item-section side><q-badge :color="item.verificationStatus === 'APPROVED' ? 'positive' : 'orange-8'" :label="item.verificationStatus" /></q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="leaves"><q-list separator><q-item v-for="item in caregiverOverview.leaves" :key="item._id"><q-item-section><q-item-label>{{ item.reason }}</q-item-label><q-item-label caption>{{ formatDate(item.startAt) }}</q-item-label></q-item-section><q-item-section side><q-badge :label="item.status" /></q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="services"><q-list separator><q-item v-for="item in caregiverOverview.bookings" :key="item._id"><q-item-section><q-item-label>{{ item.bookingNumber }}</q-item-label><q-item-label caption>{{ serviceNames(item) }}</q-item-label></q-item-section><q-item-section side>{{ bookingStatusLabel(item.status) }}</q-item-section></q-item></q-list></q-tab-panel><q-tab-panel name="quality"><q-expansion-item :label="`品質警訊 ${caregiverOverview.alerts?.length || 0}`"><q-list><q-item v-for="item in caregiverOverview.alerts" :key="item._id"><q-item-section>{{ item.title }}</q-item-section></q-item></q-list></q-expansion-item><q-expansion-item :label="`管理操作紀錄 ${caregiverOverview.auditLogs?.length || 0}`"><q-list separator><q-item v-for="log in caregiverOverview.auditLogs" :key="log._id"><q-item-section><q-item-label>{{ log.action }}</q-item-label><q-item-label caption>{{ log.adminUserId?.name || '系統管理員' }}・{{ formatDate(log.createdAt) }}</q-item-label></q-item-section></q-item></q-list></q-expansion-item></q-tab-panel></q-tab-panels></template></q-card-section></q-card></q-dialog>
 
     <q-dialog v-model="editDialog">
@@ -562,7 +586,7 @@ import {
 
   CalendarClock, ChartNoAxesColumnIncreasing, ChevronRight, HeartHandshake, MessageCircleHeart, MoreHorizontal,
 
-  Route, Search, ShieldCheck, Star, TriangleAlert,
+  LockKeyhole, Route, Search, ShieldAlert, ShieldCheck, Star, TriangleAlert,
 
 } from '@lucide/vue';
 
@@ -603,10 +627,11 @@ type Dashboard = {
   alerts: AlertItem[];
 
   recentBookings: PlainObject[];
+  safeReports: PlainObject[];
 
 };
 
-const emptyDashboard = (): Dashboard => ({ pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [] });
+const emptyDashboard = (): Dashboard => ({ pulse: {}, reviews: { distribution: [], summary: {}, recent: [] }, serviceDemand: [], caregiverFrequency: [], journey: {}, performance: {}, attention: [], alerts: [], recentBookings: [], safeReports: [] });
 
 const dashboard = reactive<Dashboard>(emptyDashboard());
 
@@ -641,6 +666,12 @@ const memberRoleOptions = [{ label: '全部', value: 'ALL' }, { label: '使用�
 const qualityStatusOptions = [{ label: '待處理', value: 'OPEN' }, { label: '已關注', value: 'ACKNOWLEDGED' }, { label: '已完成', value: 'RESOLVED' }];
 
 const qualityDialog = ref(false);
+const safeStatus = ref('OPEN');
+const safeStatusOptions = [{ label: '進行中', value: 'OPEN' }, { label: '已排除', value: 'RESOLVED' }, { label: '已結案', value: 'CLOSED' }];
+const safeReportDialog = ref(false);
+const selectedSafeReport = ref<PlainObject | null>(null);
+const safeReply = ref('');
+const safeSaving = ref(false);
 
 const selectedAlert = ref<AlertItem | null>(null);
 
@@ -705,6 +736,8 @@ const memberSectionRef = ref<HTMLElement | null>(null);
 const memberTableRef = ref<any>(null);
 
 let motionContext: gsap.Context | undefined;
+const seenSafeReports = new Set<string>();
+let safeReportsLoaded = false;
 
 const memberColumns: QTableColumn[] = [
 
@@ -765,6 +798,9 @@ const filteredUsers = computed(() => {
 });
 
 const filteredAlerts = computed(() => dashboard.alerts.filter((alert) => alert.status === qualityStatus.value));
+const openSafeReports = computed(() => dashboard.safeReports.filter((item) => !['CLOSED', 'REJECTED', 'CANCELLED'].includes(item.status)));
+const urgentReports = computed(() => openSafeReports.value.filter((item) => ['HIGH', 'CRITICAL'].includes(normalizedSeverity(item.priority))));
+const filteredSafeReports = computed(() => dashboard.safeReports.filter((item) => safeStatus.value === 'OPEN' ? !['RESOLVED', 'CLOSED', 'REJECTED', 'CANCELLED'].includes(item.status) : item.status === safeStatus.value));
 
 const filteredBookings = computed(() => {
 
@@ -797,6 +833,13 @@ async function loadDashboard() {
     const [{ data }, usersResponse, nursesResponse, leavesResponse] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/users'), api.get('/admin/nurses'), api.get('/admin/nurse-leaves')]);
 
     Object.assign(dashboard, emptyDashboard(), data);
+    const unseen = dashboard.safeReports.filter((item) => !seenSafeReports.has(item._id));
+    dashboard.safeReports.forEach((item) => seenSafeReports.add(item._id));
+    const incoming = safeReportsLoaded ? unseen : dashboard.safeReports;
+    const urgent = incoming.find((item) => item.status === 'SUBMITTED' && ['CRITICAL', 'HIGH'].includes(normalizedSeverity(item.priority)));
+    if (urgent && !safeReportDialog.value) openSafeReport(urgent);
+    else if (safeReportsLoaded && unseen.length) $q.notify({ type: 'warning', position: 'top-right', message: `收到 ${unseen.length} 件新的安全事件。`, actions: [{ label: '查看', handler: () => { tab.value = 'safety'; } }] });
+    safeReportsLoaded = true;
 
     const profiles = new Map(nursesResponse.data.map((profile: PlainObject) => [profile.userId?._id, profile]));
 
@@ -962,6 +1005,16 @@ async function openAttention(item: PlainObject) { tab.value = item.targetTab; at
 
 function openAlert(alert: AlertItem) { selectedAlert.value = alert; qualityDialog.value = true; }
 
+function normalizedSeverity(value: string) { return ({ NORMAL: 'MEDIUM', URGENT: 'CRITICAL' } as PlainObject)[value] || value || 'MEDIUM'; }
+function severityLabel(value: string) { return ({ LOW: '一般紀錄', MEDIUM: '需要關注', HIGH: '重要安全事件', CRITICAL: '立即安全風險' } as PlainObject)[normalizedSeverity(value)]; }
+function severityColor(value: string) { return ({ LOW: 'grey-7', MEDIUM: 'orange-8', HIGH: 'deep-orange-9', CRITICAL: 'negative' } as PlainObject)[normalizedSeverity(value)]; }
+function incidentLabel(value: string) { return ({ WORKPLACE_BULLYING: '職場霸凌', SEXUAL_HARASSMENT: '性騷擾', COMMUTE_ACCIDENT: '出勤交通事故', SERVICE_ACCIDENT: '服務現場事故', OTHER_SAFETY: '其他安全事件' } as PlainObject)[value] || value; }
+function safeStep(status: string) { return ({ SUBMITTED: 1, ACKNOWLEDGED: 2, UNDER_REVIEW: 3, NEED_MORE_INFORMATION: 3, IN_PROGRESS: 3, RESOLVED: 4, CLOSED: 5 } as PlainObject)[status] || 1; }
+function sortedReplies(report: PlainObject) { return [...(report.replies || [])].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)); }
+function openSafeReport(report: PlainObject) { selectedSafeReport.value = report; safeReply.value = ''; safeReportDialog.value = true; nextTick(() => useCareMotion().feedback('.safe-report-dialog', normalizedSeverity(report.priority) === 'CRITICAL' ? 'serious' : 'calm')); }
+async function advanceSafeReport(status: string) { if (!selectedSafeReport.value) return; safeSaving.value = true; try { const { data } = await api.patch(`/admin/safe-reports/${selectedSafeReport.value._id}/status`, { status }); selectedSafeReport.value = { ...selectedSafeReport.value, ...data }; $q.notify({ type: 'positive', message: status === 'ACKNOWLEDGED' ? '已通知居服員：管理員已收到通報。' : '案件狀態已更新。' }); await loadDashboard(); } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '狀態更新失敗。' }); } finally { safeSaving.value = false; } }
+async function addSafeReply() { if (!selectedSafeReport.value || !safeReply.value.trim()) return; safeSaving.value = true; try { const { data } = await api.post(`/feedback/complaints/${selectedSafeReport.value._id}/replies`, { message: safeReply.value }); selectedSafeReport.value = data; safeReply.value = ''; $q.notify({ type: 'positive', message: '處理紀錄已送出並鎖定。' }); await loadDashboard(); } catch (error: any) { $q.notify({ type: 'negative', message: error?.response?.data?.message || '處理紀錄送出失敗。' }); } finally { safeSaving.value = false; } }
+
 async function openCaregiver(user: PlainObject) { const id = user.caregiverProfile?._id; if (!id) { $q.notify({ type: 'warning', message: '這位居服員尚未建立完整專業資料。' }); return; } caregiverDialog.value = true; caregiverLoading.value = true; caregiverTab.value = attentionFilter.value === 'DOCUMENT_ATTENTION' ? 'credentials' : 'basic'; try { Object.assign(caregiverOverview, { caregiver: null, credentials: [], leaves: [], bookings: [], alerts: [], auditLogs: [] }, (await api.get(`/admin/nurses/${id}/overview`)).data); } catch { $q.notify({ type: 'negative', message: '居服員詳細資料暫時無法載入。' }); } finally { caregiverLoading.value = false; } }
 
 function bookingAnomaly(booking: PlainObject) { const now = Date.now(); const elapsed = (value?: string) => value ? now - new Date(value).getTime() : 0; if (booking.status === 'PENDING' && elapsed(booking.createdAt) >= 7200000) return `此任務等待居服員承接已 ${Math.floor(elapsed(booking.createdAt) / 3600000)} 小時 ${Math.floor(elapsed(booking.createdAt) % 3600000 / 60000)} 分鐘`; if (booking.status === 'AWAITING_USER_CONFIRMATION' && elapsed(booking.completionRequestedAt) >= 86400000) return '使用者等待確認完成已超過 24 小時'; if (booking.status === 'DEPARTED' && elapsed(booking.departedAt) >= 7200000) return '居服員出發較久仍未抵達，建議主動確認'; return ''; }
@@ -1112,6 +1165,7 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 .quality-inbox { overflow: hidden; margin-bottom: 28px; background: #fffdfb; border: 1px solid rgb(110 87 80 / 12%); border-radius: 20px; box-shadow: 0 10px 28px rgb(78 52 43 / 6%); }
 
 .quality-inbox .q-item { min-height: 76px; padding: 13px 20px; }
+.safe-report-banner{display:flex;align-items:center;gap:8px;margin:0 0 20px;color:#7c2822;background:#fff0eb;border:1px solid #edb2a7}.safe-report-banner span{margin-left:8px;color:#805f57}.safe-report-banner :deep(.q-banner__avatar){color:#b52d24}.safe-inbox :deep(.q-item__label--caption){max-width:720px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.severity-low,.severity-medium,.severity-high,.severity-critical{color:#fff}.severity-low{background:#77706c}.severity-medium{background:#c66a22}.severity-high{background:#b6452d}.severity-critical{background:#a52323}.safe-report-dialog{width:min(1040px,calc(100vw - 28px));max-width:1040px!important;color:#6e5750;background:#fffdfb;border-radius:24px;border-top:6px solid #c96a35}.safe-report-dialog--critical{max-width:1120px!important;margin:auto;border-top-color:#b3261e}.safe-report-head{display:flex;align-items:flex-start;justify-content:space-between;padding:26px 30px 20px;border-bottom:1px solid #eee1da}.safe-report-head p{margin:0 0 5px;color:#a43a2f;font-size:.76rem;font-weight:800;letter-spacing:.14em}.safe-report-head h2{margin:0;color:#493833;font-size:1.75rem}.safe-report-head span{display:block;margin-top:6px}.safe-report-body{padding:0 30px 30px}.safe-stepper{margin-bottom:18px;background:transparent}.safe-report-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:26px}.safe-report-grid h3{margin:22px 0 10px;color:#493833}.safe-meta{display:flex;align-items:center;gap:10px}.immutable-copy{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;padding:18px;color:#493833;background:#fff5f0;border:1px solid #efd9cf;border-radius:16px}.immutable-copy svg{color:#a44d38}.immutable-copy p{margin:0;white-space:pre-wrap;line-height:1.7}.immutable-copy small{grid-column:2;color:#8a7067}.acknowledge-banner{color:#775249;background:#fff1e9}.safe-status-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.audit-reply{margin:10px 0;padding:15px;background:#fff8f4;border:1px solid #ecddd6;border-radius:14px}.audit-reply header{display:flex;justify-content:space-between;gap:10px}.audit-reply time{color:#8c746c;font-size:.8rem}.audit-reply p{margin:10px 0;white-space:pre-wrap;line-height:1.65}.audit-reply small{display:flex;align-items:center;gap:5px;color:#947e76}
 
 .quality-inbox small { margin-top: 6px; color: #8a7067; }
 
@@ -1121,6 +1175,7 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 
 @media (max-width: 900px) { .pulse-grid, .insight-grid, .ranking-grid { grid-template-columns: repeat(2, 1fr); }.review-grid { grid-template-columns: 1fr 1fr; }.member-row { grid-template-columns: 1.1fr .7fr 1fr .5fr; }.member-row > :nth-child(3), .table-label > :nth-child(3) { display: none; } }
 
-@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.member-tools :deep(.q-field), .member-tools :deep(.q-select) { width: 100%; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem} }
+@media (max-width: 650px) { .admin-shell { width: min(100% - 20px, 1180px); padding-top: 20px; }.admin-hero { align-items: flex-start; flex-direction: column; padding: 28px 23px; border-radius: 22px; }.pulse-grid { grid-template-columns: repeat(2, 1fr); }.insight-grid, .ranking-grid, .review-grid { grid-template-columns: 1fr; }.pulse-card { min-height: 132px; padding: 18px 14px; flex-direction: column; gap: 12px; }.pulse-card > svg { padding: 9px; }.pulse-card strong { font-size: 1.55rem; }.attention-card > header { align-items: flex-start; padding: 20px 18px 10px; }.attention-item { padding: 12px 14px; }.attention-item :deep(.q-item__section--side:last-child) { display: none; }.admin-tabs { position: sticky; top: 68px; z-index: 5; }.insight-card { padding: 22px 18px; }.rating-summary { gap: 14px; }.rating-summary > strong { font-size: 3.3rem; }.performance-list > div { grid-template-columns: 82px 1fr 38px; gap: 8px; }.demand-list > div { grid-template-columns: 1fr auto; }.demand-list strong{text-align:left}.journey-flow { grid-template-columns: repeat(5, minmax(62px, 1fr)); overflow-x: auto; padding-bottom: 8px; }.quality-heading, .table-heading, .member-tools { align-items: stretch; flex-direction: column; padding: 22px; }.member-tools :deep(.q-field), .member-tools :deep(.q-select) { width: 100%; }.booking-tools{grid-template-columns:1fr;max-width:none}.quality-count { width: 100%; }.alert-card { flex-direction: column; padding: 20px 16px; }.alert-title { flex-direction: column; }.review-quotes { grid-template-columns: 1fr; }.member-table { overflow-x: auto; }.member-row { min-width: 650px; }.booking-list article { grid-template-columns: 48px 1fr; }.booking-list time, .booking-list .q-badge { justify-self: start; grid-column: 2; }.booking-detail-heading,.booking-detail-body{padding-left:18px;padding-right:18px}.booking-detail-grid,.booking-progress-grid{grid-template-columns:1fr}.booking-detail-grid .wide{grid-column:auto}.booking-progress{padding:15px}.booking-progress :deep(.q-stepper__tab){min-width:92px;padding:12px 4px}.booking-progress :deep(.q-stepper__header){overflow-x:auto;flex-wrap:nowrap}.booking-progress :deep(.q-stepper__label){font-size:.72rem}.safe-report-banner{align-items:flex-start;flex-direction:column}.safe-report-dialog{width:100%;border-radius:0}.safe-report-head,.safe-report-body{padding-left:18px;padding-right:18px}.safe-report-grid{grid-template-columns:1fr}.safe-stepper :deep(.q-stepper__label){font-size:.66rem}.safe-inbox :deep(.q-item__section--side:last-child){display:none} }
 
+.safe-stepper :deep(.q-stepper__content){display:none}
 </style>

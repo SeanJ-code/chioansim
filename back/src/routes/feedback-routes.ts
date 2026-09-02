@@ -8,6 +8,8 @@ import { Complaint } from '../models/complaint'
 import { journalUpload, upload, validateJournalImages } from '../middlewares/upload'
 import { recordAudit } from '../utils/audit'
 import { QualityAlert } from '../models/quality-alert'
+import { Notification } from '../models/notification'
+import { emitRealtimeToUsers } from '../realtime'
 
 export const feedbackRoutes = Router()
 // 評價與求救都屬個人操作，整組路由統一要求登入。
@@ -406,7 +408,9 @@ feedbackRoutes.post(
   upload.array('evidence', 6),
   asyncHandler(async (rawRequest, response) => {
     const request = rawRequest as AuthRequest
-    if (!request.body.category || !request.body.description) {
+    const description = String(request.body.description || '').trim()
+    const priority = ({ NORMAL: 'MEDIUM', URGENT: 'CRITICAL' } as Record<string, string>)[request.body.priority] || request.body.priority || 'MEDIUM'
+    if (!request.body.category || !description || description.length > 3000 || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) {
       response.status(400).json({ message: '申訴 category 與 description 為必填' })
       return
     }
@@ -416,10 +420,17 @@ feedbackRoutes.post(
       targetUserId: request.body.targetUserId || undefined,
       bookingId: request.body.bookingId || undefined,
       category: request.body.category,
-      description: request.body.description,
+      description,
       evidenceUrls: files?.map((file) => `/uploads/${file.filename}`) || [],
-      priority: request.body.priority || 'NORMAL',
+      priority,
+      activities: [{ type: 'SUBMITTED', label: '居服員已送出安全通報', actorRole: 'NURSE' }],
     })
+    const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }).replaceAll('-', '')
+    complaint.set('reportNumber', `SAFE-${date}-${complaint.id.slice(-6).toUpperCase()}`)
+    await complaint.save()
+    const admins = await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')
+    await Notification.insertMany(admins.map((admin) => ({ recipientUserId: admin._id, type: 'SAFETY', title: priority === 'CRITICAL' ? '立即安全風險通報' : '新的安全事件', message: `${complaint.get('reportNumber')} 等待確認` })))
+    emitRealtimeToUsers('safe-report:changed', admins.map((admin) => admin._id))
     response.status(201).json(complaint)
   }),
 )
@@ -434,6 +445,7 @@ feedbackRoutes.get(
       await Complaint.find(filter)
         .populate('complainantUserId', 'name role')
         .populate('targetUserId', 'name role')
+        .populate('replies.authorUserId', 'name role')
         .sort({ createdAt: -1 }),
     )
   }),
@@ -448,8 +460,30 @@ feedbackRoutes.get(
       request.auth?.role === 'ADMIN'
         ? { _id: request.params.id }
         : { _id: request.params.id, complainantUserId: request.auth?.userId }
-    const complaint = await Complaint.findOne(filter)
+    const complaint = await Complaint.findOne(filter).populate('complainantUserId', 'name role').populate('replies.authorUserId', 'name role')
     response.status(complaint ? 200 : 404).json(complaint || { message: '找不到申訴案件' })
+  }),
+)
+
+// 追加紀錄不可修改；案件本人與管理員共用同一條稽核對話。
+feedbackRoutes.post(
+  '/complaints/:id/replies',
+  authorize('NURSE', 'ADMIN'),
+  asyncHandler(async (rawRequest, response) => {
+    const request = rawRequest as AuthRequest
+    const message = String(request.body.message || '').trim()
+    if (!message || message.length > 2000) { response.status(400).json({ message: '請填寫 1 至 2000 字的處理紀錄' }); return }
+    const filter = request.auth?.role === 'ADMIN' ? { _id: request.params.id } : { _id: request.params.id, complainantUserId: request.auth?.userId }
+    const complaint = await Complaint.findOne(filter)
+    if (!complaint) { response.status(404).json({ message: '找不到安全通報' }); return }
+    complaint.get('replies').push({ authorUserId: request.auth!.userId, authorRole: request.auth!.role, message, createdAt: new Date() })
+    if (request.auth?.role === 'ADMIN' && ['SUBMITTED', 'ACKNOWLEDGED'].includes(complaint.get('status'))) complaint.set('status', 'IN_PROGRESS')
+    complaint.get('activities').push({ type: 'REPLY_ADDED', label: `${request.auth?.role === 'ADMIN' ? '管理員' : '居服員'}新增處理紀錄`, actorRole: request.auth?.role, createdAt: new Date() })
+    await complaint.save()
+    const recipients = request.auth?.role === 'ADMIN' ? [complaint.get('complainantUserId')] : (await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((item) => item._id)
+    await Notification.insertMany(recipients.map((recipientUserId) => ({ recipientUserId, type: 'SAFETY', title: '安全通報有新進度', message: `${complaint.get('reportNumber')} 已新增不可修改的處理紀錄` })))
+    emitRealtimeToUsers('safe-report:changed', recipients)
+    response.status(201).json(await complaint.populate('replies.authorUserId', 'name role'))
   }),
 )
 

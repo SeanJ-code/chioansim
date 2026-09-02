@@ -52,7 +52,7 @@ export const useLiveSyncStore = defineStore('live-sync', () => {
     const token = sessionStorage.getItem('chioansim-access-token');
     if (token) {
       socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
-      for (const event of ['booking:changed', 'alert:changed', 'location:changed', 'leave:changed']) {
+      for (const event of ['booking:changed', 'alert:changed', 'location:changed', 'leave:changed', 'safe-report:changed']) {
         socket.on(event, () => void refreshNow());
       }
     }
