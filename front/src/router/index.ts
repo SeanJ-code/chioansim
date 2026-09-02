@@ -4,8 +4,10 @@ import {
   createRouter,
   createWebHashHistory,
   createWebHistory,
+  START_LOCATION,
 } from 'vue-router';
 import routes from './routes';
+import { useAuthStore } from '@/stores/auth-store';
 
 /*
 * If not building with SSR mode, you can
@@ -15,7 +17,7 @@ import routes from './routes';
 * async/await or return a Promise which resolves
 * with the Router instance.
 */
-export default defineRouter((/* { store, ssrContext } */) => {
+export default defineRouter(({ store }) => {
   const createHistory = import.meta.env.QUASAR_SERVER
     ? createMemoryHistory
     : (import.meta.env.QUASAR_VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
@@ -26,17 +28,18 @@ export default defineRouter((/* { store, ssrContext } */) => {
     history: createHistory(import.meta.env.QUASAR_VUE_ROUTER_BASE),
   });
 
-  Router.beforeEach((to) => {
-    try {
-      const user = JSON.parse(localStorage.getItem('chioansim-user') || 'null') as { role?: string } | null;
-      const isGeneralPage = to.path === '/' || ['/users', '/caregivers', '/organizations'].some((path) => to.path.startsWith(path));
+  Router.beforeEach(async (to, from) => {
+    if (import.meta.env.QUASAR_SERVER || from === START_LOCATION) return true;
 
-      if (user?.role === 'ADMIN' && isGeneralPage) return { name: 'admin-dashboard' };
-      if (user?.role === 'NURSE' && (isGeneralPage || to.path.startsWith('/admin'))) return { name: 'nurse-workspace' };
-      if (user?.role === 'USER' && (to.path === '/' || to.path.startsWith('/organizations'))) return { name: 'users' };
-    } catch {
-      // 無法讀取舊登入資料時，交由原本的頁面權限判斷處理。
-    }
+    const auth = useAuthStore(store);
+    await auth.restoreSession();
+    const user = auth.user;
+    const isGeneralPage = to.path === '/' || ['/users', '/caregivers', '/organizations'].some((path) => to.path.startsWith(path));
+
+    if (to.meta.requiresAuth && (!user || (to.meta.role && user.role !== to.meta.role))) return { name: 'login' };
+    if (user?.role === 'ADMIN' && isGeneralPage) return { name: 'admin-dashboard' };
+    if (user?.role === 'NURSE' && (isGeneralPage || to.path.startsWith('/admin'))) return { name: 'nurse-workspace' };
+    if (user?.role === 'USER' && (to.path === '/' || to.path.startsWith('/organizations'))) return { name: 'users' };
 
     return true;
   });

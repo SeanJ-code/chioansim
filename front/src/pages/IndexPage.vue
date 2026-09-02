@@ -67,7 +67,7 @@ import OpeningExperience from '@/components/opening/OpeningExperience.vue';
 import { gsap, ScrollTrigger } from '@/composables/useGsap';
 
 interface Caregiver { _id: string; userId?: { name?: string } | string; profilePhotoUrl?: string; yearsExperience?: number; serviceAreas?: string[] }
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const homePage = ref<HTMLElement>(), hero = ref<HTMLElement>(), needs = ref<HTMLElement>(), journey = ref<HTMLElement>(), homeReady = ref(false), caregivers = ref<Caregiver[]>([]), caregiverLoading = ref(true), caregiverError = ref(false), lineDialog = ref(false);
 let motionContext: gsap.Context | undefined, media: gsap.MatchMedia | undefined, motionStarted = false;
 const services = [{ title: '日常照顧', description: '洗澡、穿衣與生活協助', icon: markRaw(UserRoundCheck) }, { title: '陪同就醫', description: '陪您看診、取藥', icon: markRaw(Stethoscope) }, { title: '備餐代購', description: '準備餐點與日常採買', icon: markRaw(ShoppingBasket) }, { title: '陪伴關懷', description: '聊天、散步與日常陪伴', icon: markRaw(MessagesSquare) }];

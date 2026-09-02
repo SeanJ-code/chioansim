@@ -183,9 +183,9 @@ const loading = ref(false);
 const errorMessage = ref('');
 const rememberAccount = ref(false);
 const showLoginPassword = ref(false);
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const reduceMotion = ref(false);
 const loginForm = reactive({
-  account: localStorage.getItem('chioansim-remembered-account') || '',
+  account: '',
   password: '',
 });
 
@@ -220,7 +220,7 @@ async function switchMode(nextMode: Mode) {
   const movingStoryContent = storyContent.value;
 
   if (mobileLayout) {
-    if (reduceMotion.matches) {
+    if (reduceMotion.value) {
       isSwitching.value = false;
       return;
     }
@@ -256,7 +256,7 @@ async function switchMode(nextMode: Mode) {
     return;
   }
 
-  if (reduceMotion.matches) {
+  if (reduceMotion.value) {
     gsap.set(storyPanel.value, { xPercent: registering ? -100 : 0 });
     gsap.set(loginPanel.value, {
       autoAlpha: registering ? 0 : 1,
@@ -345,8 +345,10 @@ async function openRoleRegistration() {
 }
 
 onMounted(() => {
+  loginForm.account = localStorage.getItem('chioansim-remembered-account') || '';
+  reduceMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   rememberAccount.value = Boolean(loginForm.account);
-  if (reduceMotion.matches || !authCard.value) return;
+  if (reduceMotion.value || !authCard.value) return;
   gsap.from(authCard.value, { autoAlpha: 0, y: 28, duration: 0.7, ease: 'power3.out' });
   gsap.from('.brand-bar', { autoAlpha: 0, y: -14, duration: 0.45, delay: 0.15 });
 });

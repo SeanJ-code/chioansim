@@ -7,8 +7,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "quasar dev",
-    "build": "quasar build",
+    "dev": "quasar dev -m ssr",
+    "build": "quasar build -m ssr",
     "typecheck": "vue-tsc --noEmit",
     "check:recent-caregivers": "node --experimental-strip-types src/composables/recent-caregivers.check.ts",
     "check:leave-calendar": "node --experimental-strip-types src/utils/leave-calendar.check.ts",

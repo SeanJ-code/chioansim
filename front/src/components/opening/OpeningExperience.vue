@@ -106,6 +106,7 @@ const forceOpening = import.meta.env.DEV;
 */
 const staticDebug =
   import.meta.env.DEV &&
+  typeof location !== 'undefined' &&
   new URLSearchParams(location.search).has('opening-static');
 
 

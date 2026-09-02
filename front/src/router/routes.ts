@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
       { path: '', name: 'home', component: () => import('@/pages/IndexPage.vue'), meta: { radialMenu: false } },
-      { path: 'users', name: 'users', component: () => import('@/pages/UsersPage.vue') },
+      { path: 'users', name: 'users', component: () => import('@/pages/UsersPage.vue'), meta: { requiresAuth: true, role: 'USER' } },
       {
         path: 'users/recipients/new',
         name: 'recipient-create',
@@ -45,11 +45,6 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'organizations', name: 'organizations', component: () => import('@/pages/OrganizationsPage.vue') },
     ],
-  },
-  {
-    path: '/:catchAll(.*)*',
-    component: () => import('@/pages/ErrorNotFound.vue'),
-    meta: { radialMenu: false },
   },
 ];
 

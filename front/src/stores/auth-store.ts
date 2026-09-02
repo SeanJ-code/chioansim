@@ -27,7 +27,7 @@ type RegisterPayload = {
   patientProfile?: Record<string, unknown>;
 };
 
-function readStoredUser() {
+function readStoredUser(): AuthUser | null {
   const storedUser = localStorage.getItem('chioansim-user');
   if (!storedUser) return null;
 
@@ -48,15 +48,19 @@ function isAccessTokenUsable(token: string) {
   }
 }
 
+let restorePromise: Promise<boolean> | undefined;
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    accessToken: sessionStorage.getItem('chioansim-access-token') || '',
-    user: readStoredUser() as AuthUser | null,
+    accessToken: '',
+    user: null as AuthUser | null,
+    initialized: false,
   }),
   actions: {
     clearSession() {
       this.accessToken = '';
       this.user = null;
+      this.initialized = true;
       sessionStorage.removeItem('chioansim-access-token');
       localStorage.removeItem('chioansim-user');
       delete api.defaults.headers.common.Authorization;
@@ -65,6 +69,7 @@ export const useAuthStore = defineStore('auth', {
     saveSession(result: AuthResponse) {
       this.accessToken = result.accessToken;
       this.user = result.user;
+      this.initialized = true;
       sessionStorage.setItem('chioansim-access-token', result.accessToken);
       localStorage.setItem('chioansim-user', JSON.stringify(result.user));
       api.defaults.headers.common.Authorization = `Bearer ${result.accessToken}`;
@@ -87,18 +92,30 @@ export const useAuthStore = defineStore('auth', {
       return data;
     },
     async restoreSession() {
-      if (this.user && isAccessTokenUsable(this.accessToken)) {
-        api.defaults.headers.common.Authorization = `Bearer ${this.accessToken}`;
-        return true;
-      }
-      try {
-        const { data } = await api.post<AuthResponse>('/auth/refresh');
-        this.saveSession(data);
-        return true;
-      } catch {
-        this.clearSession();
-        return false;
-      }
+      if (import.meta.env.QUASAR_SERVER) return false;
+      if (this.initialized) return Boolean(this.user);
+      if (restorePromise) return restorePromise;
+
+      restorePromise = (async () => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const storedToken = sessionStorage.getItem('chioansim-access-token') || '';
+        const storedUser = readStoredUser();
+        if (storedUser && isAccessTokenUsable(storedToken)) {
+          this.saveSession({ accessToken: storedToken, user: storedUser });
+          return true;
+        }
+
+        try {
+          const { data } = await api.post<AuthResponse>('/auth/refresh');
+          this.saveSession(data);
+          return true;
+        } catch {
+          this.clearSession();
+          return false;
+        }
+      })().finally(() => { restorePromise = undefined; });
+
+      return restorePromise;
     },
     async logout() {
       clearRecentCaregivers(this.user?.id);

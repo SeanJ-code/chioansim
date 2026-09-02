@@ -144,13 +144,18 @@ async function handleLogout() {
   }
 }
 
-onMounted(() => {
-  authStore.restoreSession();
+onMounted(async () => {
   headerTrigger = ScrollTrigger.create({
     start: 24,
     end: 'max',
     onUpdate: (self) => { headerScrolled.value = self.scroll() > 24; },
   });
+  await authStore.restoreSession();
+  const path = router.currentRoute.value.path;
+  const isGeneralPage = path === '/' || ['/users', '/caregivers', '/organizations'].some((item) => path.startsWith(item));
+  if (authStore.user?.role === 'ADMIN' && isGeneralPage) await router.replace('/admin');
+  else if (authStore.user?.role === 'NURSE' && (isGeneralPage || path.startsWith('/admin'))) await router.replace('/nurse/workspace');
+  else if (authStore.user?.role === 'USER' && (path === '/' || path.startsWith('/organizations'))) await router.replace('/users');
 });
 onBeforeUnmount(() => headerTrigger?.kill());
 </script>

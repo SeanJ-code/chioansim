@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport v-if="hydrated" to="body">
     <div v-if="shouldShowMenu" class="care-radial-layer" :class="{ 'is-open': opened }">
       <button ref="backdropRef" class="care-radial-backdrop" type="button" aria-label="關閉照護快捷選單" @click="closeMenu" />
       <nav class="care-radial-menu" aria-label="照護快捷選單">
@@ -62,6 +62,7 @@ const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const opened = ref(false);
+const hydrated = ref(false);
 const actionRefs = ref<HTMLButtonElement[]>([]);
 const triggerRef = ref<HTMLButtonElement>();
 const backdropRef = ref<HTMLButtonElement>();
@@ -119,7 +120,7 @@ function onKeydown(event: KeyboardEvent) { if (event.key === 'Escape') closeMenu
 
 watch(() => route.fullPath, closeMenu);
 watch(radius, () => { if (opened.value) void openMenu(); });
-onMounted(() => window.addEventListener('keydown', onKeydown));
+onMounted(() => { hydrated.value = true; window.addEventListener('keydown', onKeydown); });
 onBeforeUnmount(() => { timeline?.kill(); window.removeEventListener('keydown', onKeydown); });
 </script>
 

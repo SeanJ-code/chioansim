@@ -26,7 +26,7 @@ export default defineConfig(() => {
         vueShim: true
       },
 
-      vueRouterMode: 'hash'
+      vueRouterMode: 'history'
     },
 
     devServer: {

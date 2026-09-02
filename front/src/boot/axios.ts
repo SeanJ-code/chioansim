@@ -8,9 +8,6 @@ const api = axios.create({
   withCredentials: true,
 });
 
-const accessToken = sessionStorage.getItem('chioansim-access-token');
-if (accessToken) api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
 export default defineBoot(({ app }) => {
   app.config.globalProperties.$axios = axios;
   app.config.globalProperties.$api = api;
