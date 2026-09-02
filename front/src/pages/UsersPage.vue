@@ -65,7 +65,6 @@
         <section class="features-section" aria-labelledby="feature-title">
           <div class="section-heading">
             <div><span>常用功能</span><h2 id="feature-title">照護大小事，一次整理好</h2></div>
-            <p>大卡片、大文字，找功能更輕鬆。</p>
           </div>
 
           <div class="feature-grid">
