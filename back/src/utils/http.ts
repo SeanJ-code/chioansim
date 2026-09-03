@@ -66,14 +66,17 @@ export function errorHandler(
     const message =
       error.code === 'LIMIT_FILE_SIZE'
         ? '上傳檔案超過大小限制。'
-      : error.code === 'LIMIT_FILE_COUNT'
+        : error.code === 'LIMIT_FILE_COUNT'
           ? '上傳檔案數量超過限制。'
           : '檔案上傳失敗，請檢查檔案數量與格式。'
     response.status(400).json({ message })
     return
   }
 
-  if (error instanceof Error && error.message.startsWith('只允許上傳')) {
+  if (
+    error instanceof Error &&
+    (error.message.startsWith('只允許上傳') || error.message.startsWith('人物照片只允許'))
+  ) {
     response.status(400).json({ message: error.message })
     return
   }

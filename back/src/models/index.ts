@@ -114,6 +114,7 @@ const caregiverSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     // 公開媒合頁使用的本人近照；新申請者必須提供，讓家庭能安心辨識服務人員。
     profilePhotoUrl: { type: String, required: true },
+    profilePhotoPublicId: String,
     introduction: String,
     yearsExperience: { type: Number, default: 0 },
     serviceAreas: [String],
@@ -153,7 +154,11 @@ const availabilitySchema = new Schema(
     date: { type: Date, required: true },
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
-    status: { type: String, enum: ['AVAILABLE', 'BOOKED', 'LEAVE', 'UNAVAILABLE'], default: 'LEAVE' },
+    status: {
+      type: String,
+      enum: ['AVAILABLE', 'BOOKED', 'LEAVE', 'UNAVAILABLE'],
+      default: 'LEAVE',
+    },
     hidden: { type: Boolean, default: false },
     hiddenAt: Date,
     hiddenByUserId: { type: Schema.Types.ObjectId, ref: 'User' },

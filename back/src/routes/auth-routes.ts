@@ -9,7 +9,7 @@ import {
   verifyPasswordRecovery,
 } from '../controllers/auth-controller'
 import { authenticate } from '../middlewares/auth'
-import { upload } from '../middlewares/upload'
+import { nurseRegistrationUpload, upload } from '../middlewares/upload'
 import { asyncHandler } from '../utils/http'
 
 /**
@@ -29,7 +29,7 @@ authRoutes.post('/password-recovery/reset', asyncHandler(resetPassword))
 authRoutes.delete('/logout', asyncHandler(logout))
 authRoutes.post(
   '/register-nurse',
-  upload.fields([
+  nurseRegistrationUpload.fields([
     { name: 'certificate', maxCount: 1 },
     { name: 'profilePhoto', maxCount: 1 },
   ]),

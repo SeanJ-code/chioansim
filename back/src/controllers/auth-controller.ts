@@ -1,4 +1,7 @@
 import bcrypt from 'bcrypt'
+import { randomUUID } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import type { Request, Response } from 'express'
 import mongoose from 'mongoose'
 import * as yup from 'yup'
@@ -11,6 +14,8 @@ import {
   type Role,
 } from '../models'
 import { CaregiverCredential } from '../models/caregiver-credential'
+import { uploadDirectory } from '../middlewares/upload'
+import { deleteProfilePhoto, uploadProfilePhoto } from '../services/profile-photo.service'
 import type { AuthRequest } from '../types/auth'
 
 const accountRule = yup
@@ -354,59 +359,86 @@ export async function registerNurse(request: Request, response: Response): Promi
     return
   }
 
+  let profilePhoto: Awaited<ReturnType<typeof uploadProfilePhoto>>
+  try {
+    profilePhoto = await uploadProfilePhoto(profilePhotoFile.buffer)
+  } catch {
+    response.status(502).json({ message: '本人近照上傳失敗，尚未建立帳號，請稍後再試' })
+    return
+  }
+
+  const certificateExtension: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'application/pdf': '.pdf',
+  }
+  const certificateFilename = `${randomUUID()}${certificateExtension[certificateFile.mimetype]}`
+  const certificatePath = path.join(uploadDirectory, certificateFilename)
+
   let user!: InstanceType<typeof User>
   let nurse!: InstanceType<typeof CaregiverProfile>
-  await mongoose.connection.transaction(async (session) => {
-    ;[user] = await User.create(
-      [
-        {
-          account,
-          passwordHash: await bcrypt.hash(input.password, 12),
-          name: input.name.trim(),
-          phone: normalizedOptional(input.phone),
-          email: normalizedOptional(input.email)?.toLowerCase(),
-          role: 'NURSE',
-          // 帳號立即可登入；是否能承接工作由居服員 Profile 審核狀態控制。
-          status: 'ACTIVE',
-        },
-      ],
-      { session },
-    )
-    ;[nurse] = await CaregiverProfile.create(
-      [
-        {
-          userId: user._id,
-          profilePhotoUrl: `/uploads/${profilePhotoFile.filename}`,
-          certificateNumber: input.certificateNumber.trim(),
-          certificateFileUrl: `/uploads/${certificateFile.filename}`,
-          certificateExpiresAt: normalizedOptional(input.certificateExpiresAt),
-          introduction: normalizedOptional(input.introduction),
-          yearsExperience: Number(input.yearsExperience || 0),
-          serviceAreas:
-            input.serviceAreas
-              ?.split(',')
-              .map((item) => item.trim())
-              .filter(Boolean) || [],
-          transportation: normalizedOptional(input.transportation),
-        },
-      ],
-      { session },
-    )
-    await CaregiverCredential.create(
-      [
-        {
-          caregiverId: nurse._id,
-          kind: 'CERTIFICATE',
-          name: normalizedOptional(input.certificateName) || '中華民國技術士證',
-          number: input.certificateNumber.trim(),
-          issuingAuthority: normalizedOptional(input.issuingAuthority),
-          expiresAt: normalizedOptional(input.certificateExpiresAt),
-          fileUrl: `/uploads/${certificateFile.filename}`,
-        },
-      ],
-      { session },
-    )
-  })
+  try {
+    await fs.promises.writeFile(certificatePath, certificateFile.buffer, { flag: 'wx' })
+    await mongoose.connection.transaction(async (session) => {
+      ;[user] = await User.create(
+        [
+          {
+            account,
+            passwordHash: await bcrypt.hash(input.password, 12),
+            name: input.name.trim(),
+            phone: normalizedOptional(input.phone),
+            email: normalizedOptional(input.email)?.toLowerCase(),
+            role: 'NURSE',
+            // 帳號立即可登入；是否能承接工作由居服員 Profile 審核狀態控制。
+            status: 'ACTIVE',
+          },
+        ],
+        { session },
+      )
+      ;[nurse] = await CaregiverProfile.create(
+        [
+          {
+            userId: user._id,
+            profilePhotoUrl: profilePhoto.url,
+            profilePhotoPublicId: profilePhoto.publicId,
+            certificateNumber: input.certificateNumber.trim(),
+            certificateFileUrl: `/uploads/${certificateFilename}`,
+            certificateExpiresAt: normalizedOptional(input.certificateExpiresAt),
+            introduction: normalizedOptional(input.introduction),
+            yearsExperience: Number(input.yearsExperience || 0),
+            serviceAreas:
+              input.serviceAreas
+                ?.split(',')
+                .map((item) => item.trim())
+                .filter(Boolean) || [],
+            transportation: normalizedOptional(input.transportation),
+          },
+        ],
+        { session },
+      )
+      await CaregiverCredential.create(
+        [
+          {
+            caregiverId: nurse._id,
+            kind: 'CERTIFICATE',
+            name: normalizedOptional(input.certificateName) || '中華民國技術士證',
+            number: input.certificateNumber.trim(),
+            issuingAuthority: normalizedOptional(input.issuingAuthority),
+            expiresAt: normalizedOptional(input.certificateExpiresAt),
+            fileUrl: `/uploads/${certificateFilename}`,
+          },
+        ],
+        { session },
+      )
+    })
+  } catch (error) {
+    await Promise.allSettled([
+      deleteProfilePhoto(profilePhoto.publicId),
+      fs.promises.unlink(certificatePath),
+    ])
+    throw error
+  }
 
   await establishSession(request, user.id, 'NURSE')
   response.status(201).json({

@@ -11,4 +11,7 @@ export function validateEnvironment(): void {
     throw new Error('MONGODB_URI 未設定，請建立 .env')
   }
   getSessionSecret()
+  for (const name of ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']) {
+    if (!process.env[name]?.trim()) throw new Error(`${name} 未設定`)
+  }
 }

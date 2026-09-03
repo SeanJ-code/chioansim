@@ -46,6 +46,30 @@ export const upload = multer({
   },
 })
 
+// Nurse 註冊的檔案先留在記憶體；本人近照由後端上傳 Cloudinary。
+export const nurseRegistrationUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 2 },
+  fileFilter: (_request, file, callback) => {
+    const imageTypes = ['image/jpeg', 'image/png', 'image/webp']
+    const allowed =
+      file.fieldname === 'profilePhoto'
+        ? imageTypes.includes(file.mimetype)
+        : [...imageTypes, 'application/pdf'].includes(file.mimetype)
+    if (!allowed) {
+      callback(
+        new Error(
+          file.fieldname === 'profilePhoto'
+            ? '人物照片只允許上傳 JPG、PNG 或 WebP 圖片。'
+            : '只允許上傳 JPG、PNG、WebP 圖片或 PDF。',
+        ),
+      )
+      return
+    }
+    callback(null, true)
+  },
+})
+
 // 照護日誌只接受圖片，且依產品規格限制為 5 張、單張 5 MB。
 export const journalUpload = multer({
   storage,
@@ -74,8 +98,11 @@ export const incidentUpload = multer({
 
 function hasImageSignature(buffer: Buffer): boolean {
   const jpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
-  const png = buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-  const webp = buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP'
+  const png = buffer
+    .subarray(0, 8)
+    .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  const webp =
+    buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP'
   return jpeg || png || webp
 }
 
@@ -93,7 +120,11 @@ export const validateJournalImages: RequestHandler = async (request, _response, 
     next()
   } catch (error) {
     await Promise.all(files.map((file) => fs.promises.unlink(file.path).catch(() => undefined)))
-    next(Object.assign(error instanceof Error ? error : new Error('圖片驗證失敗'), { statusCode: 400 }))
+    next(
+      Object.assign(error instanceof Error ? error : new Error('圖片驗證失敗'), {
+        statusCode: 400,
+      }),
+    )
   }
 }
 
