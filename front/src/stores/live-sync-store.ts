@@ -11,8 +11,7 @@ let socket: Socket | undefined;
 
 export function setRealtimeAccessToken(token?: string) {
   if (!socket) return;
-  if (!token) { socket.disconnect(); return; }
-  socket.auth = { token };
+  socket.auth = token ? { token } : {};
   socket.disconnect().connect();
 }
 
@@ -45,14 +44,17 @@ export const useLiveSyncStore = defineStore('live-sync', () => {
     stop();
     if (typeof window === 'undefined') return;
     const token = sessionStorage.getItem('chioansim-access-token');
-    if (!token) return;
     refresh = callback;
     online.value = navigator.onLine;
     window.addEventListener('storage', onStorage);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    socket = io(realtimeBaseUrl || undefined, { auth: { token }, reconnectionAttempts: 2 });
+    socket = io(realtimeBaseUrl || undefined, {
+      auth: token ? { token } : {},
+      withCredentials: true,
+      reconnectionAttempts: 2,
+    });
     for (const event of ['booking:changed', 'alert:changed', 'location:changed', 'leave:changed', 'safe-report:changed']) {
       socket.on(event, () => void refreshNow());
     }

@@ -85,14 +85,15 @@ export const listen = defineSsrListen(
       return https.createServer(devHttpsOptions, app).listen(port);
     }
 
-    const [{ createServer }, { startRealtime }, { getSessionSecret }] = await Promise.all([
+    const [{ createServer }, { startRealtime }, { getSessionSecret }, { getSessionMiddleware }] = await Promise.all([
       import("node:http"),
       import("../../back/src/realtime"),
-      import("../../back/src/configs/env")
+      import("../../back/src/configs/env"),
+      import("./middlewares/api")
     ]);
     getSessionSecret();
     const server = createServer(app);
-    startRealtime(server);
+    startRealtime(server, getSessionMiddleware());
     return server.listen(port, () => {
       if (import.meta.env.QUASAR_PROD) {
         console.log(`🚀 Server listening at port ${port}`);

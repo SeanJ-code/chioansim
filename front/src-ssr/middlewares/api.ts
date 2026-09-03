@@ -1,7 +1,15 @@
 import path from "node:path";
 import { config } from "dotenv";
 import { defineSsrMiddleware } from "#q-app";
+import type { RequestHandler } from "express";
 import type { AuthRequest } from "../../../back/src/types/auth";
+
+let sessionMiddleware: RequestHandler | undefined;
+
+export function getSessionMiddleware(): RequestHandler {
+  if (!sessionMiddleware) throw new Error("Session middleware 尚未初始化");
+  return sessionMiddleware;
+}
 
 export default defineSsrMiddleware(async ({ app }) => {
   const backendRoot = path.resolve(
@@ -44,7 +52,7 @@ export default defineSsrMiddleware(async ({ app }) => {
   }
 
   app.set("trust proxy", 1);
-  app.use(session({
+  sessionMiddleware = session({
     name: process.env.SESSION_COOKIE_NAME || "chioansim.sid",
     secret: getSessionSecret(),
     proxy: true,
@@ -63,7 +71,8 @@ export default defineSsrMiddleware(async ({ app }) => {
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7
     }
-  }));
+  });
+  app.use(sessionMiddleware);
   app.use(resolveSessionAuth);
   app.use((req, res, next) => {
     const auth = (req as AuthRequest).auth;

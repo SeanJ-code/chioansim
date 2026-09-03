@@ -1,4 +1,5 @@
-import type { Server as HttpServer } from 'node:http'
+import type { IncomingMessage, Server as HttpServer } from 'node:http'
+import type { RequestHandler } from 'express'
 import jwt from 'jsonwebtoken'
 import { Server } from 'socket.io'
 import { getJwtSecret } from './configs/env'
@@ -11,11 +12,22 @@ export const userRoom = (userId: unknown): string => `user:${String(userId)}`
 export const userRooms = (userIds: unknown[]): string[] => [...new Set(userIds.filter(Boolean).map(userRoom))]
 
 /** Socket 只傳「哪類資料已改變」，完整資料仍由原本有權限的 API 重新取得。 */
-export function startRealtime(server: HttpServer): void {
+type SessionRequest = IncomingMessage & { session?: { userId?: string } }
+
+export function startRealtime(server: HttpServer, sessionMiddleware?: RequestHandler): void {
   const origins = (process.env.CORS_ORIGIN || 'http://localhost:9000').split(',').map((item) => item.trim()).filter(Boolean)
   io = new Server(server, { cors: { origin: origins, credentials: true } })
+  if (sessionMiddleware) io.engine.use(sessionMiddleware)
   io.use(async (socket, next) => {
     try {
+      const sessionUserId = (socket.request as SessionRequest).session?.userId
+      if (sessionUserId) {
+        const user = await User.findOne({ _id: sessionUserId, status: 'ACTIVE' }).select('role')
+        if (!user) throw new Error()
+        socket.data.auth = { userId: sessionUserId, role: user.get('role') as Role }
+        next()
+        return
+      }
       const payload = jwt.verify(String(socket.handshake.auth.token || ''), getJwtSecret()) as {
         userId: string
         role: Role
