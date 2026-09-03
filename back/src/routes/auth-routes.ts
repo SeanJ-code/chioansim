@@ -3,7 +3,6 @@ import {
   login,
   logout,
   me,
-  refresh,
   register,
   registerNurse,
   resetPassword,
@@ -27,7 +26,6 @@ authRoutes.post(
 authRoutes.post('/login', asyncHandler(login))
 authRoutes.post('/password-recovery/verify', asyncHandler(verifyPasswordRecovery))
 authRoutes.post('/password-recovery/reset', asyncHandler(resetPassword))
-authRoutes.post('/refresh', asyncHandler(refresh))
 authRoutes.delete('/logout', asyncHandler(logout))
 authRoutes.post(
   '/register-nurse',

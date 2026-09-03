@@ -25,7 +25,7 @@ import { emitLeaveRealtime, emitRealtimeToUsers } from '../realtime'
 import { normalizeDocumentId } from '../utils/document-id'
 
 export const adminRoutes = Router()
-// use 套用到本檔全部路由：必須先通過 JWT，再確認角色為 ADMIN。
+// use 套用到本檔全部路由：必須先通過 Session 驗證，再確認角色為 ADMIN。
 adminRoutes.use(authenticate, authorize('ADMIN'))
 
 const createUserSchema = yup.object({

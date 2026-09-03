@@ -27,18 +27,16 @@ export default defineSsrMiddleware(async ({ app }) => {
 
   const [
     { default: mongoose },
-    { default: session },
-    { default: MongoStore },
-    { getSessionSecret, validateEnvironment },
+    { validateEnvironment },
+    { createSessionMiddleware },
     { ensureServiceCatalog },
     { resolveSessionAuth },
     { app: apiApp }
   ] =
     await Promise.all([
       import("mongoose"),
-      import("express-session"),
-      import("connect-mongo"),
       import("../../../back/src/configs/env"),
+      import("../../../back/src/configs/session"),
       import("../../../back/src/configs/service-catalog"),
       import("../../../back/src/middlewares/auth"),
       import("../../../back/src/configs/app")
@@ -52,27 +50,9 @@ export default defineSsrMiddleware(async ({ app }) => {
   }
 
   app.set("trust proxy", 1);
-  sessionMiddleware = session({
-    name: process.env.SESSION_COOKIE_NAME || "chioansim.sid",
-    secret: getSessionSecret(),
-    proxy: true,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      client: mongoose.connection.getClient() as unknown as NonNullable<
-        Parameters<typeof MongoStore.create>[0]["client"]
-      >,
-      ttl: 60 * 60 * 24 * 7
-    }),
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: (process.env["NODE_ENV"] ?? "production") === "production",
-      path: "/",
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    }
-  });
-  app.use(sessionMiddleware);
+  const middleware = createSessionMiddleware();
+  sessionMiddleware = middleware;
+  app.use(middleware);
   app.use(resolveSessionAuth);
   app.use((req, res, next) => {
     const auth = (req as AuthRequest).auth;

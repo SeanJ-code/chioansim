@@ -1,16 +1,18 @@
 import 'dotenv/config'
 import { createServer } from 'node:http'
+import express from 'express'
 import mongoose from 'mongoose'
 import { app } from './configs/app'
 import { validateEnvironment } from './configs/env'
+import { createSessionMiddleware } from './configs/session'
 import { ensureServiceCatalog } from './configs/service-catalog'
+import { resolveSessionAuth } from './middlewares/auth'
 import { startRealtime } from './realtime'
 
 /** 程式進入點：讀取 .env、連線 MongoDB，成功後才開始接收 HTTP 請求。 */
 const port = Number(process.env.PORT || 3000)
 
 async function start(): Promise<void> {
-  // 啟動前一次檢查必要設定；缺少 JWT 密鑰時直接停止，不能退回已知預設值。
   validateEnvironment()
   const mongoUri = process.env.MONGODB_URI as string
 
@@ -20,8 +22,11 @@ async function start(): Promise<void> {
   await ensureServiceCatalog()
   console.log('MongoDB connected')
 
-  const server = createServer(app)
-  startRealtime(server)
+  const rootApp = express()
+  const sessionMiddleware = createSessionMiddleware()
+  rootApp.use(sessionMiddleware, resolveSessionAuth, app)
+  const server = createServer(rootApp)
+  startRealtime(server, sessionMiddleware)
   server.listen(port, () => {
     console.log(`照安心 API running at http://localhost:${port}`)
   })

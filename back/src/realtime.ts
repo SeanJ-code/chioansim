@@ -1,8 +1,6 @@
 import type { IncomingMessage, Server as HttpServer } from 'node:http'
 import type { RequestHandler } from 'express'
-import jwt from 'jsonwebtoken'
 import { Server } from 'socket.io'
-import { getJwtSecret } from './configs/env'
 import { Booking, CaregiverProfile, CareRecipient, User, UserRecipientRelation, type Role } from './models'
 
 type RealtimeEvent = 'booking:changed' | 'alert:changed' | 'location:changed' | 'leave:changed' | 'safe-report:changed'
@@ -21,19 +19,10 @@ export function startRealtime(server: HttpServer, sessionMiddleware?: RequestHan
   io.use(async (socket, next) => {
     try {
       const sessionUserId = (socket.request as SessionRequest).session?.userId
-      if (sessionUserId) {
-        const user = await User.findOne({ _id: sessionUserId, status: 'ACTIVE' }).select('role')
-        if (!user) throw new Error()
-        socket.data.auth = { userId: sessionUserId, role: user.get('role') as Role }
-        next()
-        return
-      }
-      const payload = jwt.verify(String(socket.handshake.auth.token || ''), getJwtSecret()) as {
-        userId: string
-        role: Role
-      }
-      if (!(await User.exists({ _id: payload.userId, status: 'ACTIVE' }))) throw new Error()
-      socket.data.auth = payload
+      if (!sessionUserId) throw new Error()
+      const user = await User.findOne({ _id: sessionUserId, status: 'ACTIVE' }).select('role')
+      if (!user) throw new Error()
+      socket.data.auth = { userId: sessionUserId, role: user.get('role') as Role }
       next()
     } catch {
       next(new Error('未授權的即時連線'))

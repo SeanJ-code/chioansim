@@ -31,13 +31,13 @@ const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9000')
 app.use(
   cors({
     origin: corsOrigins,
-    // 允許瀏覽器跨來源攜帶 HttpOnly Refresh Token Cookie。
+    // 允許瀏覽器跨來源攜帶 HttpOnly Session Cookie。
     credentials: true,
   }),
 )
 // 將 JSON 請求轉成 request.body，1 MB 限制可避免超大 JSON 占用記憶體。
 app.use(express.json({ limit: '1mb' }))
-// 將 Cookie 解析到 request.cookies，Refresh Token 更新與登出會用到。
+// 將 Cookie 解析到 request.cookies。
 app.use(cookieParser())
 
 // 將本機 uploads 資料夾公開為 /uploads/... 網址。
@@ -59,8 +59,7 @@ app.get('/', (_request, response) => {
   response.json({
     service: '照安心 API',
     message: '可直接使用下列網址；POST/PATCH/DELETE 請以 Postman 手動選擇 Method 與 Body。',
-    accessToken: '15 分鐘',
-    refreshToken: 'HttpOnly Cookie，7 天並於每次 refresh 輪替',
+    auth: 'HttpOnly Session Cookie',
     routes: {
       health: 'GET /health',
       auth: '/auth',

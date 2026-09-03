@@ -1,10 +1,7 @@
 import bcrypt from 'bcrypt'
 import type { Request, Response } from 'express'
-import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import * as yup from 'yup'
-import { getJwtSecret } from '../configs/env'
-import { signToken } from '../middlewares/auth'
 import {
   CareRecipient,
   CaregiverProfile,
@@ -14,14 +11,7 @@ import {
   type Role,
 } from '../models'
 import { CaregiverCredential } from '../models/caregiver-credential'
-import { RefreshToken } from '../models/refresh-token'
 import type { AuthRequest } from '../types/auth'
-import {
-  hashRefreshToken,
-  issueRefreshToken,
-  refreshCookieName,
-  refreshCookieOptions,
-} from '../utils/refresh-token'
 
 const accountRule = yup
   .string()
@@ -110,7 +100,6 @@ const recoveryVerifySchema = yup
 
 const recoveryResetSchema = yup
   .object({
-    resetToken: yup.string().typeError('重設憑證格式錯誤').required('重設憑證為必填'),
     newPassword: passwordRule,
   })
   .noUnknown()
@@ -153,10 +142,8 @@ async function validate<T extends yup.AnyObjectSchema>(
 const normalizedAccount = (account: string) => account.trim().toLowerCase()
 const normalizedOptional = (value?: string) => value?.trim() || undefined
 
-function authResult(user: InstanceType<typeof User>, role: Role, accessToken: string) {
+function authResult(user: InstanceType<typeof User>, role: Role) {
   return {
-    accessToken,
-    token: accessToken,
     user: { id: user.id, account: user.get('account'), name: user.get('name'), role },
   }
 }
@@ -256,9 +243,7 @@ export async function register(request: Request, response: Response): Promise<vo
   })
 
   await establishSession(request, user.id, role)
-  await issueRefreshToken(response, user.id)
-  const accessToken = signToken(user.id, role)
-  response.status(201).json(authResult(user, role, accessToken))
+  response.status(201).json(authResult(user, role))
 }
 
 export async function login(request: Request, response: Response): Promise<void> {
@@ -282,9 +267,7 @@ export async function login(request: Request, response: Response): Promise<void>
 
   const role = user.get('role') as Role
   await establishSession(request, user.id, role)
-  await issueRefreshToken(response, user.id)
-  const accessToken = signToken(user.id, role)
-  response.json(authResult(user, role, accessToken))
+  response.json(authResult(user, role))
 }
 
 export async function verifyPasswordRecovery(request: Request, response: Response): Promise<void> {
@@ -306,73 +289,46 @@ export async function verifyPasswordRecovery(request: Request, response: Respons
     return
   }
 
-  const resetToken = jwt.sign(
-    {
-      userId: user.id,
-      purpose: 'PASSWORD_RESET',
-      accountVersion: new Date(user.get('updatedAt')).getTime(),
-    },
-    getJwtSecret(),
-    { expiresIn: '10m' },
+  if (!request.session) {
+    response.status(500).json({ message: 'Session 尚未初始化' })
+    return
+  }
+  request.session.passwordRecovery = {
+    userId: user.id,
+    accountVersion: new Date(user.get('updatedAt')).getTime(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  }
+  await new Promise<void>((resolve, reject) =>
+    request.session.save((error) => (error ? reject(error) : resolve())),
   )
-  response.json({ resetToken, message: '資料核對完成，請設定新的登入密碼' })
+  response.json({ message: '資料核對完成，請設定新的登入密碼' })
 }
 
 export async function resetPassword(request: Request, response: Response): Promise<void> {
   const input = await validate(recoveryResetSchema, request.body)
+  const recovery = request.session?.passwordRecovery
+  delete request.session?.passwordRecovery
+  if (!recovery || recovery.expiresAt < Date.now()) {
+    response.status(400).json({ message: '重設流程已失效，請重新核對帳號資料' })
+    return
+  }
   try {
-    const payload = jwt.verify(input.resetToken, getJwtSecret()) as {
-      userId: string
-      purpose?: string
-      accountVersion?: number
-    }
-    if (payload.purpose !== 'PASSWORD_RESET') throw new Error('invalid purpose')
-
-    const user = await User.findOne({ _id: payload.userId, status: 'ACTIVE' }).select(
+    const user = await User.findOne({ _id: recovery.userId, status: 'ACTIVE' }).select(
       '+passwordHash',
     )
-    if (!user || new Date(user.get('updatedAt')).getTime() !== payload.accountVersion) {
+    if (!user || new Date(user.get('updatedAt')).getTime() !== recovery.accountVersion) {
       response.status(400).json({ message: '帳號不存在或目前無法重設密碼' })
       return
     }
     user.set('passwordHash', await bcrypt.hash(input.newPassword, 12))
     await user.save()
-    await RefreshToken.deleteMany({ userId: user._id })
     response.json({ message: '密碼已更新，請返回登入頁使用新密碼登入' })
   } catch {
     response.status(400).json({ message: '重設連結已失效，請重新核對帳號資料' })
   }
 }
 
-export async function refresh(request: Request, response: Response): Promise<void> {
-  const rawToken = request.cookies?.[refreshCookieName]
-  if (!rawToken || typeof rawToken !== 'string') {
-    response.status(401).json({ message: '缺少 Refresh Token Cookie' })
-    return
-  }
-
-  const storedToken = await RefreshToken.findOneAndDelete({ tokenHash: hashRefreshToken(rawToken) })
-  const user = storedToken
-    ? await User.findOne({ _id: storedToken.get('userId'), status: 'ACTIVE' })
-    : null
-  if (!user) {
-    response.clearCookie(refreshCookieName, refreshCookieOptions)
-    response.status(401).json({ message: 'Refresh Token 無效或已過期' })
-    return
-  }
-
-  await issueRefreshToken(response, user.id)
-  const role = user.get('role') as Role
-  const accessToken = signToken(user.id, role)
-  response.json(authResult(user, role, accessToken))
-}
-
 export async function logout(request: Request, response: Response): Promise<void> {
-  const rawToken = request.cookies?.[refreshCookieName]
-  if (typeof rawToken === 'string') {
-    await RefreshToken.findOneAndDelete({ tokenHash: hashRefreshToken(rawToken) })
-  }
-  response.clearCookie(refreshCookieName, refreshCookieOptions)
   if (request.session) {
     await new Promise<void>((resolve, reject) =>
       request.session.destroy((error) => (error ? reject(error) : resolve())),
@@ -453,10 +409,8 @@ export async function registerNurse(request: Request, response: Response): Promi
   })
 
   await establishSession(request, user.id, 'NURSE')
-  await issueRefreshToken(response, user.id)
-  const accessToken = signToken(user.id, 'NURSE')
   response.status(201).json({
-    ...authResult(user, 'NURSE', accessToken),
+    ...authResult(user, 'NURSE'),
     message: '帳號建立完成；證照審核通過後即可查看並承接工作',
     caregiverProfile: nurse,
   })

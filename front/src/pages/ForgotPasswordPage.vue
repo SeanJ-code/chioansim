@@ -113,7 +113,6 @@ const method = ref<'EMAIL' | 'PHONE'>('EMAIL');
 const account = ref('');
 const email = ref('');
 const phone = ref('');
-const resetToken = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const showPassword = ref(false);
@@ -151,11 +150,10 @@ async function verifyIdentity() {
   loading.value = true;
   errorMessage.value = '';
   try {
-    const { data } = await api.post<{ resetToken: string }>('/auth/password-recovery/verify', {
+    await api.post('/auth/password-recovery/verify', {
       account: account.value,
       ...(method.value === 'EMAIL' ? { email: email.value } : { phone: phone.value }),
     });
-    resetToken.value = data.resetToken;
     step.value = 'RESET';
   } catch (error) {
     errorMessage.value = readableError(error);
@@ -169,7 +167,6 @@ async function resetPassword() {
   errorMessage.value = '';
   try {
     await api.post('/auth/password-recovery/reset', {
-      resetToken: resetToken.value,
       newPassword: newPassword.value,
     });
     step.value = 'DONE';
