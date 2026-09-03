@@ -240,8 +240,30 @@
   </q-page>
 </template>
 
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { definePreFetch } from '#q-app';
+import { useCaregiverStore as useCaregiverPrefetchStore } from '@/stores/caregiver-store';
+
+export default defineComponent({
+  preFetch: definePreFetch(({ store, ssrContext }) => {
+    let baseURL: string | undefined;
+    if (ssrContext) {
+      const request = ssrContext.req;
+      const forwardedProtocol = request.headers['x-forwarded-proto'];
+      const forwardedHost = request.headers['x-forwarded-host'];
+      const protocol = (Array.isArray(forwardedProtocol) ? forwardedProtocol[0] : forwardedProtocol)?.split(',')[0] || request.protocol;
+      const host = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost)?.split(',')[0] || request.get('host');
+      if (host) baseURL = `${protocol}://${host}/api`;
+    }
+    return useCaregiverPrefetchStore(store).fetchCaregivers(baseURL);
+  }),
+});
+</script>
+
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';
 import {
   ArrowRight,
@@ -265,30 +287,14 @@ import {
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
 import { useAuthStore } from '@/stores/auth-store';
+import { useCaregiverStore, type Caregiver } from '@/stores/caregiver-store';
 import { useRoute, useRouter } from 'vue-router';
 import { addRecentCaregiver, clearRecentCaregivers, loadRecentCaregivers, type RecentCaregiverRecord } from '@/composables/recent-caregivers';
 
 type Transportation = 'CAR' | 'MOTORCYCLE' | 'TRANSIT' | string;
 
-interface Caregiver {
-  _id: string;
-  userId?: { name?: string } | string;
-  profilePhotoUrl?: string;
-  introduction?: string;
-  yearsExperience?: number;
-  serviceAreas: string[];
-  transportation?: Transportation;
-  ratingAverage?: number;
-  ratingCount?: number;
-  isFavorite?: boolean;
-  serviceTypeIds?: Array<{ name: string }>;
-  myPreviousJobs?: Array<{ _id: string; scheduledStartAt: string; serviceTypeIds?: Array<{ name: string }> }>;
-  reviews?: Array<{ _id: string; rating: number; comment?: string }>;
-}
-
-const caregivers = ref<Caregiver[]>([]);
-const loading = ref(true);
-const errorMessage = ref('');
+const caregiverStore = useCaregiverStore();
+const { caregivers, loading, errorMessage } = storeToRefs(caregiverStore);
 const keyword = ref('');
 const transportation = ref('ALL');
 const detailsOpen = ref(false);
@@ -417,9 +423,6 @@ function openFavoriteDetails(caregiver: Caregiver) {
   openDetails(caregiver);
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
-
 function assetUrl(path?: string) {
   if (!path) return '/chioansimicon.svg';
 
@@ -428,10 +431,6 @@ function assetUrl(path?: string) {
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-  if (normalizedPath.startsWith('/uploads/')) {
-    return `${backendBaseUrl}${normalizedPath}`;
-  }
 
   return normalizedPath;
 }
@@ -527,21 +526,12 @@ function clearFilters() {
 }
 
 async function loadCaregivers() {
-  loading.value = true;
-  errorMessage.value = '';
-  try {
-    const { data } = await api.get<Caregiver[]>('/nurses');
-    caregivers.value = data.map((caregiver) => ({ ...caregiver, serviceAreas: caregiver.serviceAreas || [] }));
-    await loadFavorites();
-  } catch {
-    errorMessage.value = '請確認後端服務與資料庫已啟動，再重新整理一次。';
-  } finally {
-    loading.value = false;
-  }
+  await caregiverStore.fetchCaregivers(undefined, true);
+  await loadFavorites();
 }
 
 onMounted(async () => {
-  await loadCaregivers();
+  await loadFavorites();
   recentRecords.value = loadRecentCaregivers(authStore.user?.id);
   if (route.query.favorites === '1' && authStore.user) await openFavorites();
 });

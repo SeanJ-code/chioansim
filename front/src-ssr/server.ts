@@ -8,6 +8,7 @@
  */
 
 import express from "express";
+import { randomBytes } from "node:crypto";
 import type { Application, Request, Response } from "express";
 import type { Server } from "node:http";
 import {
@@ -36,7 +37,17 @@ export const create = defineSsrCreate(async (/* { ... } */) => {
 
   if (import.meta.env.QUASAR_PROD) {
     const { default: helmet } = await import("helmet");
-    app.use(helmet());
+    app.use((_req, res, next) => {
+      res.locals.cspNonce = randomBytes(16).toString("base64");
+      next();
+    });
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          scriptSrc: ["'self'", (_req, res) => `'nonce-${(res as Response).locals.cspNonce}'`]
+        }
+      }
+    }));
 
     const { default: compression } = await import("compression");
     app.use(compression());

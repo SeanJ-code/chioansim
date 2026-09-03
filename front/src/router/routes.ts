@@ -8,7 +8,7 @@ const routes: RouteRecordRaw[] = [
     meta: { radialMenu: false },
   },
   {
-    path: '/register/:role(user|patient|nurse)',
+    path: '/register/:role(user|patient|nurse)?',
     name: 'register',
     component: () => import('@/pages/RegisterPage.vue'),
     meta: { radialMenu: false },

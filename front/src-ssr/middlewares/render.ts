@@ -36,7 +36,7 @@ export default defineSsrMiddleware(({ app, resolve, render, serve }) => {
        * We hand over to Vue to render our page
        */
       const renderedHtml = await render(
-        /* the ssrContext: */ { req, res }
+        /* the ssrContext: */ { req, res, nonce: res.locals.cspNonce }
       );
       res.send(renderedHtml);
     } catch (err) {

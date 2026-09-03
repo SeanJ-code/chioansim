@@ -8,6 +8,8 @@ export default defineConfig(() => {
     // App boot files (/src/boot)
     boot: ['axios'],
 
+    preFetch: true,
+
     // Global CSS
     css: [
       'app.css'
@@ -59,6 +61,7 @@ export default defineConfig(() => {
 
       plugins: [
         'Dialog',
+        'Meta',
         'Notify'
       ]
     },
