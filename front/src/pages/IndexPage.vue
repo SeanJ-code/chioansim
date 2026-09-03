@@ -75,7 +75,7 @@ const progressSteps = [{ label: '承接任務', icon: markRaw(CheckCircle2) }, {
 function caregiverName(c: Caregiver) { return typeof c.userId === 'object' ? c.userId.name || '照安心夥伴' : '照安心夥伴'; }
 function experienceLabel(c: Caregiver) { return c.yearsExperience ? `${c.yearsExperience} 年服務經驗` : '新進照護夥伴'; }
 function areaLabel(c: Caregiver) { return c.serviceAreas?.slice(0, 2).join('、') || '服務地區洽談'; }
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api', backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api', backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
 function assetUrl(path?: string) { if (!path) return '/chioansimicon.svg'; if (/^https?:\/\//.test(path)) return path; const p = path.startsWith('/') ? path : `/${path}`; return p.startsWith('/uploads/') ? `${backendBaseUrl}${p}` : p; }
 function useFallbackPhoto(event: Event) { const image = event.currentTarget as HTMLImageElement; image.src = '/chioansimicon.svg'; image.classList.add('is-fallback'); }
 function scrollToSection(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }); }

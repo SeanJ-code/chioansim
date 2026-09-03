@@ -70,7 +70,7 @@ export default defineConfig(() => {
     animations: [],
 
     ssr: {
-      prodPort: 3000,
+      prodPort: Number(process.env.PORT) || 3000,
 
       middlewares: [
         'api',
