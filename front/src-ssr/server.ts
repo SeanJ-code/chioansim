@@ -7,11 +7,9 @@
  * anything you import here.
  */
 
-import { lstatSync } from "node:fs";
-import { Hono } from "hono";
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
+import express from "express";
+import type { Application, Request, Response } from "express";
+import type { Server } from "node:http";
 import {
   defineSsrClose,
   defineSsrCreate,
@@ -21,19 +19,12 @@ import {
   defineSsrServeStaticContent
 } from "#q-app";
 
-interface NodeEnv {
-  Bindings: {
-    incoming: IncomingMessage;
-    outgoing: ServerResponse;
-  };
-}
-
 declare module "#q-app" {
   interface SsrDriver {
-    app: Hono<NodeEnv>;
-    listenResult: ReturnType<typeof serve>;
-    request: IncomingMessage;
-    response: ServerResponse;
+    app: Application;
+    listenResult: Server;
+    request: Request;
+    response: Response;
   }
 }
 
@@ -41,11 +32,14 @@ declare module "#q-app" {
  * Create your webserver and return its instance.
  */
 export const create = defineSsrCreate(async (/* { ... } */) => {
-  const app = new Hono<NodeEnv>();
+  const app = express();
 
   if (import.meta.env.QUASAR_PROD) {
-    const { compress } = await import("hono/compress");
-    app.use(compress());
+    const { default: helmet } = await import("helmet");
+    app.use(helmet());
+
+    const { default: compression } = await import("compression");
+    app.use(compression());
   }
 
   return app;
@@ -61,55 +55,7 @@ export const create = defineSsrCreate(async (/* { ... } */) => {
 export const injectDevMiddleware = defineSsrInjectDevMiddleware(
   ({ app }) =>
     middleware => {
-      app.use("*", async (c, next) => {
-        const req = c.env.incoming;
-        const res = c.env.outgoing;
-
-        const { promise, resolve, reject } = Promise.withResolvers<boolean>();
-
-        const onDone = () => {
-          resolve(false);
-        };
-        res.once("finish", onDone);
-        res.once("close", onDone);
-
-        middleware(req, res, err => {
-          res.off("finish", onDone);
-          res.off("close", onDone);
-
-          if (err) reject(err);
-          else resolve(true);
-        });
-
-        const passed: boolean = await promise;
-
-        if (passed) {
-          /**
-           * Vite skipped the request, so we let Hono continue down the chain
-           */
-          return next();
-        }
-
-        /**
-         * Vite handled the request natively!
-         *
-         * Monkey-patch the native Node.js response methods.
-         * The Hono Node adapter will still try to write headers and end the stream
-         * when we return the dummy response. We neutralize these methods
-         * so it silently does nothing instead of crashing.
-         */
-        const noop = () => res;
-        res.writeHead = noop;
-        res.setHeader = noop;
-        res.end = noop;
-
-        /**
-         * Return a dummy Response.
-         * This satisfies Hono's strict requirement that every branch
-         * either returns a Response or calls `await next()`.
-         */
-        return new Response(null);
-      });
+      app.use(middleware);
     }
 );
 
@@ -126,11 +72,6 @@ export const injectDevMiddleware = defineSsrInjectDevMiddleware(
  */
 export const listen = defineSsrListen(
   async ({ app, devHttpsOptions, port }) => {
-    const opts: Parameters<typeof serve>[0] = {
-      fetch: app.fetch,
-      port
-    };
-
     /**
      * For production HTTPS you can use the /src-ssr/server-assets folder
      * to place your certificates and then read them here to create the server.
@@ -140,17 +81,21 @@ export const listen = defineSsrListen(
      */
 
     if (import.meta.env.QUASAR_DEV && devHttpsOptions) {
-      const { createServer } = await import("node:https");
-      opts.createServer = createServer;
-      opts.serverOptions = { ...devHttpsOptions };
-    } else {
-      const { createServer } = await import("node:http");
-      opts.createServer = createServer;
+      const https = await import("node:https");
+      return https.createServer(devHttpsOptions, app).listen(port);
     }
 
-    return serve(opts, info => {
+    const [{ createServer }, { startRealtime }, { getSessionSecret }] = await Promise.all([
+      import("node:http"),
+      import("../../back/src/realtime"),
+      import("../../back/src/configs/env")
+    ]);
+    getSessionSecret();
+    const server = createServer(app);
+    startRealtime(server);
+    return server.listen(port, () => {
       if (import.meta.env.QUASAR_PROD) {
-        console.log(`🚀 Server listening at port ${info.port}`);
+        console.log(`🚀 Server listening at port ${port}`);
       }
     });
   }
@@ -180,40 +125,9 @@ const maxAge = import.meta.env.QUASAR_DEV ? 0 : 1000 * 60 * 60 * 24 * 30;
  * Can return an async function: return async ({ urlPath = '/', pathToServe = '.', opts = {} }) => {
  */
 export const serveStaticContent = defineSsrServeStaticContent(
-  ({ app, resolve, publicPath }) =>
+  ({ app, resolve }) =>
     ({ urlPath, pathToServe, opts = {} }) => {
-      const pubPath = resolve.public(pathToServe);
-      const isDir = lstatSync(pubPath).isDirectory();
-
-      const resolvedUrlPath = resolve.urlPath(urlPath);
-      const routePath = isDir
-        ? resolvedUrlPath.endsWith("*")
-          ? resolvedUrlPath
-          : `${resolvedUrlPath}*`
-        : resolvedUrlPath;
-
-      const { maxAge: maxAgeOpt, ...serveOpts } = opts;
-      const cacheAge = maxAgeOpt !== void 0 ? maxAgeOpt : maxAge;
-
-      if (cacheAge > 0) {
-        app.get(routePath, async (c, next) => {
-          c.header("Cache-Control", `public, max-age=${cacheAge}`);
-          await next();
-        });
-      }
-
-      const staticOpts: Parameters<typeof serveStatic>[0] = { ...serveOpts };
-      if (isDir) {
-        staticOpts.root = pubPath;
-      } else {
-        staticOpts.path = pubPath;
-      }
-
-      if (publicPath !== "/") {
-        staticOpts.rewriteRequestPath = p => p.replace(publicPath, "/");
-      }
-
-      app.use(routePath, serveStatic(staticOpts));
+      app.use(resolve.urlPath(urlPath), express.static(resolve.public(pathToServe), { maxAge, ...opts }));
     }
 );
 

@@ -7,7 +7,7 @@ import { asyncHandler } from '../utils/http'
 
 const DATA_URL = process.env.LTC_DATA_URL || 'https://ltcpap.mohw.gov.tw/publish/abc.csv'
 const CACHE_MS = 24 * 60 * 60 * 1000
-const SNAPSHOT_PATH = path.resolve(__dirname, '../../data/ltc-abc.csv.gz')
+const SNAPSHOT_PATH = path.resolve(process.env.LTC_SNAPSHOT_PATH || 'data/ltc-abc.csv.gz')
 const unzip = promisify(gunzip)
 
 export type LtcCenter = {

@@ -1,4 +1,3 @@
-import path from 'node:path'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import express from 'express'
@@ -14,6 +13,7 @@ import { serviceRoutes } from '../routes/service-routes'
 import { notificationRoutes } from '../routes/notification-routes'
 import { favoriteRoutes } from '../routes/favorite-routes'
 import { ltcRoutes } from '../routes/ltc-routes'
+import { uploadDirectory } from '../middlewares/upload'
 
 /**
  * Express 應用程式的「組裝中心」。
@@ -41,7 +41,7 @@ app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
 // 將本機 uploads 資料夾公開為 /uploads/... 網址。
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
+app.use('/uploads', express.static(uploadDirectory))
 
 // 健康檢查不需登入，用於確認 API 活著且 MongoDB 已連線。
 const healthHandler = (_request: express.Request, response: express.Response) => {

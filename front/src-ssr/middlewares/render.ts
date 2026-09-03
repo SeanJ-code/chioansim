@@ -26,32 +26,35 @@ function isRouteNotFoundError(
  */
 export default defineSsrMiddleware(({ app, resolve, render, serve }) => {
   /**
-   * We capture any other Hono route and hand it
+   * We capture any other Express route and hand it
    * over to Vue and Vue Router to render our page
    */
-  app.get(resolve.urlPath("/*"), async c => {
+  app.get(resolve.urlPath("{*path}"), async (req, res) => {
+    res.setHeader("Content-Type", "text/html");
     try {
       /**
        * We hand over to Vue to render our page
        */
       const renderedHtml = await render(
-        /* the ssrContext: */ { req: c.env.incoming, res: c.env.outgoing }
+        /* the ssrContext: */ { req, res }
       );
-      return c.html(renderedHtml);
+      res.send(renderedHtml);
     } catch (err) {
       if (isRouteNotFoundError(err)) {
         /**
          * Hmm, Vue Router could not find the requested route
          * and it does not have a "catch-all" route
          */
-        return c.html("404 | Page Not Found", 404);
+        res.status(404).send("404 | Page Not Found");
+        return;
       }
 
       if (isRedirectError(err)) {
         /**
          * We were told to redirect to another URL
          */
-        return c.redirect(err.redirectUrl, err.redirectHttpStatusCode);
+        res.redirect(err.redirectHttpStatusCode, err.redirectUrl);
+        return;
       }
 
       if (import.meta.env.QUASAR_DEV) {
@@ -65,9 +68,10 @@ export default defineSsrMiddleware(({ app, resolve, render, serve }) => {
          */
         const { errorHtml, errorHeaders } = serve.devError({
           err,
-          req: c.env.incoming
+          req
         });
-        return c.html(errorHtml, 500, errorHeaders);
+        res.set(errorHeaders).status(500).send(errorHtml);
+        return;
       }
 
       if (import.meta.env.QUASAR_DEBUG) {
@@ -81,7 +85,7 @@ export default defineSsrMiddleware(({ app, resolve, render, serve }) => {
        * alternatively, create a route (/src/routes) for an error page and redirect to it
        * (just make sure that route won't crash too, otherwise you'll end up in an infinite loop!)
        */
-      return c.html("500 | Internal Server Error", 500);
+      res.status(500).send("500 | Internal Server Error");
     }
   });
 });

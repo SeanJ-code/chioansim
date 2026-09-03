@@ -70,6 +70,7 @@ export default defineConfig(() => {
       prodPort: 3000,
 
       middlewares: [
+        'api',
         'render'
       ]
     },

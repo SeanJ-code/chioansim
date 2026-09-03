@@ -161,6 +161,18 @@ function authResult(user: InstanceType<typeof User>, role: Role, accessToken: st
   }
 }
 
+async function establishSession(request: Request, userId: string, role: Role): Promise<void> {
+  if (!request.session) return
+  await new Promise<void>((resolve, reject) =>
+    request.session.regenerate((error) => (error ? reject(error) : resolve())),
+  )
+  request.session.userId = userId
+  request.session.role = role
+  await new Promise<void>((resolve, reject) =>
+    request.session.save((error) => (error ? reject(error) : resolve())),
+  )
+}
+
 export async function register(request: Request, response: Response): Promise<void> {
   const rawBody = { ...request.body }
   if (typeof rawBody.patientProfile === 'string') {
@@ -243,6 +255,7 @@ export async function register(request: Request, response: Response): Promise<vo
     }
   })
 
+  await establishSession(request, user.id, role)
   await issueRefreshToken(response, user.id)
   const accessToken = signToken(user.id, role)
   response.status(201).json(authResult(user, role, accessToken))
@@ -268,6 +281,7 @@ export async function login(request: Request, response: Response): Promise<void>
   }
 
   const role = user.get('role') as Role
+  await establishSession(request, user.id, role)
   await issueRefreshToken(response, user.id)
   const accessToken = signToken(user.id, role)
   response.json(authResult(user, role, accessToken))
@@ -359,6 +373,12 @@ export async function logout(request: Request, response: Response): Promise<void
     await RefreshToken.findOneAndDelete({ tokenHash: hashRefreshToken(rawToken) })
   }
   response.clearCookie(refreshCookieName, refreshCookieOptions)
+  if (request.session) {
+    await new Promise<void>((resolve, reject) =>
+      request.session.destroy((error) => (error ? reject(error) : resolve())),
+    )
+  }
+  response.clearCookie(process.env.SESSION_COOKIE_NAME || 'chioansim.sid', { path: '/' })
   response.json({ message: '已登出' })
 }
 
@@ -432,6 +452,7 @@ export async function registerNurse(request: Request, response: Response): Promi
     )
   })
 
+  await establishSession(request, user.id, 'NURSE')
   await issueRefreshToken(response, user.id)
   const accessToken = signToken(user.id, 'NURSE')
   response.status(201).json({

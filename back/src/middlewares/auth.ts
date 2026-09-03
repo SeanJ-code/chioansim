@@ -5,6 +5,31 @@ import { User } from '../models'
 import type { AuthRequest } from '../types/auth'
 import { getJwtSecret } from '../configs/env'
 
+export async function resolveSessionAuth(
+  request: AuthRequest,
+  _response: Response,
+  next: NextFunction,
+): Promise<void> {
+  const userId = request.session?.userId
+  if (!userId) {
+    next()
+    return
+  }
+
+  const user = await User.findOne({ _id: userId, status: 'ACTIVE' }).select('role')
+  if (!user) {
+    delete request.session.userId
+    delete request.session.role
+    next()
+    return
+  }
+
+  const role = user.get('role') as Role
+  request.session.role = role
+  request.auth = { userId, role }
+  next()
+}
+
 /**
  * 身分驗證（Authentication）：確認「你是誰」。
  * 前端登入後會在 Authorization 標頭傳入 Bearer JWT，此中介軟體驗證簽章與期限。
@@ -14,6 +39,10 @@ export async function authenticate(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
+  if (request.auth) {
+    next()
+    return
+  }
   // replace 只移除開頭的 Bearer，不分大小寫，留下真正的 JWT 字串。
   const token = request.headers.authorization?.replace(/^Bearer\s+/i, '')
   if (!token) {

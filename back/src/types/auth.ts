@@ -1,5 +1,6 @@
 import type { Request } from 'express'
 import type { Role } from '../models'
+import './session'
 
 /**
  * Express 原生 Request 沒有登入資料；AuthRequest 增加 auth，
@@ -8,4 +9,3 @@ import type { Role } from '../models'
 export interface AuthRequest extends Request {
   auth?: { userId: string; role: Role }
 }
-

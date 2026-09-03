@@ -8,7 +8,7 @@ import type { RequestHandler } from 'express'
  * Multer 檔案上傳共用設定。
  * MVP 先存在本機 uploads；正式部署可再改成雲端物件儲存服務。
  */
-const uploadDirectory = path.resolve(process.cwd(), 'uploads')
+export const uploadDirectory = path.resolve(process.env.UPLOAD_DIRECTORY || 'uploads')
 // recursive: true 代表資料夾不存在就建立，已存在也不會報錯。
 fs.mkdirSync(uploadDirectory, { recursive: true })
 
