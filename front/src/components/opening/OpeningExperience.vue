@@ -36,7 +36,7 @@
     <button
       class="opening__skip"
       type="button"
-      @click="finish"
+      @click="finish(true)"
     >
       skip
     </button>
@@ -82,6 +82,7 @@ const brand = ref<HTMLElement>();
 ========================================================= */
 
 let timeline: gsap.core.Timeline | undefined;
+let finished = false;
 
 
 
@@ -115,7 +116,9 @@ const staticDebug =
    Finish
 ========================================================= */
 
-function finish() {
+function complete() {
+  if (finished) return;
+  finished = true;
   timeline?.kill();
 
   sessionStorage.setItem(
@@ -130,6 +133,16 @@ function finish() {
   visible.value = false;
 
   emit('finished');
+}
+
+function finish(skipped = false, instant = false) {
+  if (finished || !opening.value || instant) return complete();
+  timeline?.kill();
+  timeline = gsap.timeline({ onComplete: complete }).to(opening.value, {
+    clipPath: 'inset(0 0 100% 0)',
+    duration: skipped ? 0.45 : 1.2,
+    ease: 'power3.inOut',
+  });
 }
 
 
@@ -246,7 +259,7 @@ async function start() {
       'chioansim-opening-played',
     ) === 'true'
   ) {
-    return finish();
+    return finish(false, true);
   }
 
 
@@ -258,7 +271,7 @@ async function start() {
     !artwork.value ||
     !brand.value
   ) {
-    return finish();
+    return finish(false, true);
   }
 
 
@@ -281,7 +294,7 @@ async function start() {
 
 
   if (!paths.length) {
-    return finish();
+    return finish(false, true);
   }
 
 
@@ -340,7 +353,7 @@ async function start() {
 
     timeline = gsap
       .timeline({
-        onComplete: finish,
+        onComplete: complete,
       })
 
       /*
@@ -349,7 +362,7 @@ async function start() {
       .to(
         {},
         {
-          duration: 5,
+          duration: 1,
         },
       )
 
@@ -359,8 +372,9 @@ async function start() {
       .to(
         opening.value,
         {
-          autoAlpha: 0,
-          duration: 0.5,
+          clipPath: 'inset(0 0 100% 0)',
+          duration: 0.55,
+          ease: 'power2.inOut',
         },
       );
 
@@ -431,7 +445,7 @@ async function start() {
       ease: 'power2.inOut',
     },
 
-    onComplete: finish,
+    onComplete: complete,
   });
 
 
@@ -529,30 +543,40 @@ async function start() {
 
 
     /* -----------------------------------------------------
-       ⑤ 完整 Opening 停留 5 秒
+       ⑤ 情緒停留與手部呼吸
     ----------------------------------------------------- */
 
     .to(
       {},
       {
-        duration: 5,
+        duration: 1.25,
       },
+    )
+
+    .to(
+      artwork.value,
+      {
+        scale: 1.012,
+        duration: 0.65,
+        yoyo: true,
+        repeat: 1,
+        ease: 'sine.inOut',
+      },
+      '<',
     )
 
 
 
     /* -----------------------------------------------------
-       ⑥ Opening 淡出
+       ⑥ Curtain 揭露 Hero
     ----------------------------------------------------- */
 
     .to(
       opening.value,
       {
-        autoAlpha: 0,
-
-        duration: 0.65,
-
-        ease: 'power2.inOut',
+        clipPath: 'inset(0 0 100% 0)',
+        duration: 1.2,
+        ease: 'power3.inOut',
       },
     );
 }
