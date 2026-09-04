@@ -3,6 +3,7 @@
     v-if="visible"
     ref="opening"
     class="opening"
+    style="position:fixed;inset:0;z-index:9999;overflow:hidden;width:100vw;height:100dvh;background:#fff9f5;clip-path:inset(0)"
     role="dialog"
     aria-label="照安心首頁開場動畫"
   >
