@@ -3,7 +3,7 @@
     <div class="needs-story__wash" aria-hidden="true"></div>
     <div class="needs-copy">
       <p class="needs-kicker">生活裡的大小事，<br>都有人一起。</p>
-      <h2 id="needs-title">今天，<br>需要哪一種<span>幫忙？</span></h2>
+      <h2 id="needs-title">今天，<br>需要哪一種<span>幫忙</span>？</h2>
       <p class="needs-intro">照顧不只是一件事，<br>而是生活裡的每一個日常。<br>無論是備餐、陪伴、家務，<br>還是外出，我們都在。</p>
       <div class="needs-controls">
         <p class="needs-count" aria-live="polite"><span ref="activeLabel">{{ slides[activeIndex]?.id }}</span><i aria-hidden="true"></i><span class="needs-count__total">04</span></p>
@@ -20,6 +20,7 @@
         </div>
         <div class="needs-scene__caption"><b>{{ slide.id }}</b><h3>{{ slide.title }}</h3><p v-for="line in slide.description" :key="line">{{ line }}</p></div>
       </article>
+      <div ref="transitionLayer" class="needs-transition" aria-hidden="true"><p ref="transitionCopy">從相遇開始，<br>把日常一點一滴變得更好。</p></div>
       <div class="needs-dots" aria-label="選擇照護場景">
         <button v-for="(slide,index) in slides" :key="slide.id" type="button" :class="{ 'is-active': index === activeIndex }" :aria-label="`切換至 ${slide.title}`" :aria-current="index === activeIndex ? 'true' : undefined" :disabled="locked" @click.stop="activateScene(index)"></button>
       </div>
@@ -42,7 +43,7 @@ const slides = [
   { id:'03',title:'簡單家務',description:['整理家裡的整潔，','也讓生活更輕鬆舒適。'],image:houseworkImage,ambient:['cloth','plant'] },
   { id:'04',title:'陪同外出',description:['一起走出家門，','去曬曬太陽，看看更大的世界。'],image:outingImage,ambient:['sunlight','bag'] },
 ];
-const root=ref<HTMLElement>(),activeLabel=ref<HTMLElement>(),activeIndex=ref(0),locked=ref(false);
+const root=ref<HTMLElement>(),activeLabel=ref<HTMLElement>(),transitionLayer=ref<HTMLElement|null>(null),transitionCopy=ref<HTMLElement|null>(null),activeIndex=ref(0),locked=ref(false);
 const sceneElements:HTMLElement[]=[];
 let context:gsap.Context|undefined,media:gsap.MatchMedia|undefined,pointerStart:number|null=null;
 
@@ -55,7 +56,8 @@ function activateScene(index:number){
   const newImage=newScene?.querySelector<HTMLElement>('.needs-scene__image');
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const direction=index>activeIndex.value?1:-1;
-  const targets=[oldScene,newScene,oldImage,newImage,activeLabel.value].filter(Boolean);
+  const isSceneOneToTwo=activeIndex.value===0&&index===1;
+  const targets=[oldScene,newScene,oldImage,newImage,activeLabel.value,transitionLayer.value,transitionCopy.value].filter(Boolean);
   locked.value=true;gsap.killTweensOf(targets);
   const timeline=gsap.timeline({defaults:{ease:'care-soft'},onComplete:()=>{gsap.set(targets,{clearProps:'all'});locked.value=false}});
   if(newScene)gsap.set(newScene,{autoAlpha:0,pointerEvents:'none'});
@@ -63,6 +65,22 @@ function activateScene(index:number){
     if(oldScene)timeline.to(oldScene,{autoAlpha:0,duration:.25},0);
     timeline.call(()=>{activeIndex.value=index},undefined,.12);
     if(newScene)timeline.to(newScene,{autoAlpha:1,duration:.3},.12);
+    return;
+  }
+  if(isSceneOneToTwo){
+    if(transitionLayer.value)gsap.set(transitionLayer.value,{yPercent:100,autoAlpha:0});
+    if(transitionCopy.value)gsap.set(transitionCopy.value,{y:24,autoAlpha:0});
+    if(newScene)gsap.set(newScene,{yPercent:10});
+    if(newImage)gsap.set(newImage,{scale:1.03});
+    if(oldScene)timeline.to(oldScene,{yPercent:-8,scale:1.012,autoAlpha:.52,duration:.85,ease:'none'},0);
+    if(oldImage)timeline.to(oldImage,{yPercent:-3,duration:.85,ease:'none'},0);
+    if(transitionLayer.value)timeline.to(transitionLayer.value,{yPercent:0,autoAlpha:1,duration:.62,ease:'none'},.16);
+    if(transitionCopy.value)timeline.to(transitionCopy.value,{y:0,autoAlpha:1,duration:.3,ease:'care-soft'},.36);
+    timeline.call(()=>{activeIndex.value=1},undefined,.55);
+    if(newScene)timeline.to(newScene,{yPercent:0,autoAlpha:1,duration:.85,ease:'none'},.5);
+    if(newImage)timeline.to(newImage,{scale:1,duration:.85,ease:'none'},.5);
+    if(transitionCopy.value)timeline.to(transitionCopy.value,{y:-12,autoAlpha:0,duration:.2,ease:'care-soft'},.98);
+    if(transitionLayer.value)timeline.to(transitionLayer.value,{autoAlpha:0,duration:.2,ease:'none'},1.08);
     return;
   }
   if(activeLabel.value)timeline.to(activeLabel.value,{y:-8,opacity:0,duration:.35},0);
@@ -98,9 +116,11 @@ onBeforeUnmount(()=>{media?.revert();context?.revert();gsap.killTweensOf(sceneEl
 .needs-scenes{position:relative;min-width:0;height:min(68vw,48rem);min-height:35rem;overflow:hidden;touch-action:pan-y}.needs-scenes::before{content:"";position:absolute;z-index:10;inset:0 auto 0 0;width:clamp(110px,18vw,300px);pointer-events:none;background:linear-gradient(90deg,#fff9f5 0%,rgba(255,249,245,.96) 12%,rgba(255,249,245,.72) 38%,rgba(255,249,245,.32) 68%,transparent 100%)}
 .needs-scene{position:absolute;inset:0;overflow:hidden;color:#fffdfb;opacity:0;visibility:hidden;pointer-events:none}.needs-scene.is-active{z-index:1;opacity:1;visibility:visible;pointer-events:auto}.needs-scene::after{content:"";position:absolute;z-index:2;inset:auto 0 0;height:45%;background:linear-gradient(to top,rgba(65,43,34,.48),rgba(65,43,34,.12) 58%,transparent);pointer-events:none}
 .needs-scene__asset{position:absolute;inset:0;background:#f1dfd2}.needs-scene__image{width:100%;height:100%;object-fit:cover;object-position:center;display:block;will-change:transform,filter}
+.needs-transition{position:absolute;z-index:15;inset:0;display:grid;place-items:center;background:#fff9f5;pointer-events:none;opacity:0}.needs-transition p{margin:0;color:var(--chestnut);font-size:clamp(1rem,1.5vw,1.35rem);line-height:1.8;letter-spacing:.08em;text-align:center}
 .needs-scene__caption{position:absolute;z-index:12;left:clamp(2rem,7vw,7rem);bottom:clamp(3rem,6vw,6rem);max-width:320px;color:#fffdfb;text-shadow:0 2px 14px rgba(40,20,12,.18)}.needs-scene__caption b{display:block;margin-bottom:.35rem;font-size:1rem;font-weight:600;letter-spacing:.08em}.needs-scene__caption h3{margin:0 0 .75rem;font-size:clamp(2rem,3.2vw,3.5rem);line-height:1;font-weight:500}.needs-scene__caption p{margin:.15rem 0;font-size:clamp(.95rem,1.1vw,1.08rem);line-height:1.65}
 .needs-dots{position:absolute;z-index:20;right:clamp(2rem,5vw,5rem);bottom:clamp(1.25rem,3vw,2.5rem);display:flex}.needs-dots button{width:44px;height:44px;display:grid;place-items:center;padding:0;background:transparent;border:0;cursor:pointer}.needs-dots button::before{content:"";width:12px;height:12px;background:#fffdfb;border-radius:50%;opacity:.4;transform:scale(.72);transition:opacity .35s ease,transform .35s ease}.needs-dots button.is-active::before{opacity:1;transform:scale(1)}.needs-dots button:disabled{cursor:default}.needs-swipe-hint{position:absolute;right:clamp(1.5rem,5vw,6rem);bottom:2rem;margin:0;color:var(--chestnut);font-size:.8rem;letter-spacing:.08em;opacity:.65}
 .needs-dots button:focus-visible,.needs-buttons button:focus-visible,.needs-story:focus-visible{outline:3px solid var(--persimmon);outline-offset:4px}
+@media(min-width:901px){.needs-story{min-height:100dvh;padding-top:0;padding-bottom:0}.needs-scenes{height:100dvh;min-height:100dvh;border-radius:0}.needs-scene,.needs-scene__asset,.needs-scene__image{border-radius:0}}
 @media(max-width:900px){.needs-story{grid-template-columns:1fr;gap:2.5rem;min-height:auto;padding:5rem 0 5rem clamp(1.5rem,5vw,3rem)}.needs-copy{display:grid;grid-template-columns:1fr 1fr;gap:1rem 3rem;padding-right:clamp(1.5rem,5vw,3rem)}.needs-kicker{grid-column:1/-1;margin-bottom:1rem}.needs-intro{margin-top:1rem}.needs-controls{grid-column:1/-1;margin-top:1rem}.needs-scenes{height:min(78vw,38rem);min-height:28rem}.needs-scenes::before{width:clamp(60px,12vw,110px)}.needs-swipe-hint{position:static;grid-column:1/-1;padding-right:clamp(1.5rem,5vw,3rem);text-align:center}}
 @media(max-width:599px){.needs-story{display:flex;flex-direction:column;align-items:stretch;gap:1.75rem;padding:4.5rem 1.125rem}.needs-copy{display:contents}.needs-kicker{order:0;margin:0 0 .75rem}.needs-copy h2{order:1;font-size:clamp(2.65rem,13vw,4rem)}.needs-intro{order:2;margin:0}.needs-scenes{order:3;width:calc(100% + 1.125rem);height:clamp(19rem,76vw,25rem);min-height:0}.needs-scenes::before{display:none}.needs-scene{inset:0 -1.125rem 0 0;border-radius:1.5rem 0 0 1.5rem}.needs-scene__caption{left:1.5rem;right:1.5rem;bottom:4.25rem;max-width:20rem}.needs-scene__caption h3{font-size:clamp(1.8rem,9vw,2.7rem)}.needs-scene__caption p{font-size:.95rem}.needs-controls{order:4;display:flex;align-items:center;justify-content:space-between;margin:0}.needs-count{margin:0}.needs-buttons button{width:48px;height:48px}.needs-dots{right:1rem;bottom:.75rem}.needs-swipe-hint{order:5;padding:0;text-align:left}}
 @media(prefers-reduced-motion:reduce){.needs-scene__image,.needs-dots button,.needs-buttons button,.needs-buttons span{transition:none!important}}

@@ -3,11 +3,13 @@
     <main ref="homePage" class="home-main">
       <HomeHero ref="homeHero" @journey="scrollToSection('home-journey')" />
 
-      <HomeNeedsStory />
+      <HomeCareDayStory />
+
+      <HomeServiceBridge />
 
       <section class="caregivers scene story-panel story-panel--paper" data-panel="bottom-left" aria-labelledby="care-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <header data-reveal><span class="chapter-number">03</span><h2 id="care-title">找到值得信任的<br>居服員</h2><p>資格、經驗與服務地區，都清楚呈現。</p><router-link class="text-link" to="/caregivers">查看全部居服員 <ArrowRight :size="19" /></router-link></header>
+        <header data-reveal><span class="eyebrow">適合的照護夥伴</span><h2 id="care-title">找到值得信任的<br>居服員</h2><p>資格、經驗與服務地區，都清楚呈現。</p><router-link class="text-link" to="/caregivers">查看全部居服員 <ArrowRight :size="19" /></router-link></header>
         <div v-if="caregiverLoading" class="caregiver-row" aria-label="正在載入居服員"><q-skeleton v-for="n in 4" :key="n" type="rect" class="skeleton" /></div>
         <div v-else-if="caregiverError" class="state" role="status"><WifiOff /><div><strong>暫時讀不到居服員資料</strong><span>請稍後再試一次。</span></div><button type="button" @click="loadCaregivers">重新整理</button></div>
         <div v-else class="caregiver-row" aria-label="已認證且可接案的居服員" data-stagger><router-link v-for="c in caregivers.slice(0,3)" :key="c._id" to="/caregivers" class="caregiver-card"><div class="photo"><img :src="assetUrl(c.profilePhotoUrl)" :alt="`${caregiverName(c)}的居服員近照`" loading="lazy" @error="useFallbackPhoto"><span><BadgeCheck :size="17" /> 已認證</span></div><div class="body"><h3>{{ caregiverName(c) }}</h3><p><BriefcaseBusiness :size="17" /> {{ experienceLabel(c) }}</p><p><MapPin :size="17" /> {{ areaLabel(c) }}</p><b>查看介紹 <ChevronRight :size="17" /></b></div></router-link></div>
@@ -16,7 +18,7 @@
 
       <section id="home-journey" ref="journey" class="booking-story story-panel story-panel--oat" data-panel="center" aria-labelledby="journey-title">
         <div class="panel-reveal" aria-hidden="true"></div>
-        <header class="booking-story__heading"><span class="chapter-number">04</span><h2 id="journey-title">預約，<br>其實可以很簡單。</h2><p>四個步驟，就有人來陪你。</p></header>
+        <header class="booking-story__heading"><span class="eyebrow">線上預約</span><h2 id="journey-title">預約，<br>其實可以很簡單。</h2><p>四個步驟，就有人來陪你。</p></header>
         <div class="booking-stage" aria-label="預約流程：告訴需求、找到居服員、選擇時間、安心開始">
           <div class="booking-stage__path" aria-hidden="true"><span class="booking-path-line"></span></div>
           <div class="booking-node booking-node--need"><span>01</span><MessagesSquare :size="36" /><strong>告訴我們需求</strong></div>
@@ -27,11 +29,11 @@
         </div>
       </section>
 
-      <section class="progress-story scene story-panel story-panel--blue" data-panel="left" aria-labelledby="progress-title"><div class="panel-reveal" aria-hidden="true"></div><header data-reveal><span class="chapter-number">05</span><h2 id="progress-title">照顧正在進行中</h2><p>從出發到抵達，家人都知道照顧正在發生。</p></header><div class="progress-route" data-progress-route><div class="route-person"><UserRoundCheck :size="48" /><span>居服員</span></div><div class="route-line"><i></i><span class="route-dot"></span></div><div class="route-home"><HouseHeart :size="50" /><span>家</span></div></div><ol class="progress-steps" data-stagger><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="27" /><span>{{ item.label }}</span></li></ol></section>
+      <section class="progress-story scene story-panel story-panel--blue" data-panel="left" aria-labelledby="progress-title"><div class="panel-reveal" aria-hidden="true"></div><header data-reveal><span class="eyebrow">即時進度</span><h2 id="progress-title">照顧正在進行中</h2><p>從出發到抵達，家人都知道照顧正在發生。</p></header><div class="progress-route" data-progress-route><div class="route-person"><UserRoundCheck :size="48" /><span>居服員</span></div><div class="route-line"><i></i><span class="route-dot"></span></div><div class="route-home"><HouseHeart :size="50" /><span>家</span></div></div><ol class="progress-steps" data-stagger><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="27" /><span>{{ item.label }}</span></li></ol></section>
 
       <section id="subsidy" class="estimate scene story-panel story-panel--chestnut" data-panel="center" aria-labelledby="estimate-title"><div class="panel-reveal" aria-hidden="true"></div><div data-reveal><span class="eyebrow">簡單試算</span><h2 id="estimate-title">長照費用，先算算看</h2><p>完成四個選擇，就能看到預估費用。</p><aside><ShieldCheck :size="22" /> 試算僅供參考，實際補助依主管機關核定。</aside></div><div class="calculator" data-reveal><CareCostCalculator compact /></div></section>
 
-      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy"><span class="chapter-number">06</span><HouseHeart :size="54" /><h2 id="ending-title">照顧的路上，<br>有人陪你一起。</h2><p>照顧不孤單，我們一直都在。</p><span class="cta-motion"><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></span><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
+      <section class="ending story-panel story-panel--green" data-panel="right" aria-labelledby="ending-title"><div class="panel-reveal" aria-hidden="true"></div><div class="ending-photo" aria-hidden="true"><img src="/images/home/care-hands-watercolor-v2.png" alt=""></div><div class="ending-copy"><span class="eyebrow">一直都在</span><HouseHeart :size="54" /><h2 id="ending-title">照顧的路上，<br>有人陪你一起。</h2><p>照顧不孤單，我們一直都在。</p><span class="cta-motion"><router-link class="primary" to="/caregivers">找居服員 <ArrowRight :size="21" /></router-link></span><button type="button" @click="handleFeatureItem('LINE 專人服務')">不熟悉網站？請 LINE 專人協助</button></div></section>
     </main>
     <OpeningExperience @finished="handleOpeningFinished" />
     <q-dialog v-model="lineDialog"><q-card class="line-dialog"><q-card-section class="line-dialog__mark"><MessageCircleHeart :size="42" /></q-card-section><q-card-section class="line-dialog__copy"><button type="button" aria-label="關閉 LINE 專人服務" v-close-popup><X :size="22" /></button><small>照安心 LINE 官方帳號</small><h2>需要時，我們就在 LINE 裡陪您</h2><p>官方 LINE ID</p><strong>@690hzupc</strong><a href="https://line.me/R/ti/p/@690hzupc" target="_blank" rel="noopener noreferrer">開啟 LINE 加好友 <ArrowRight :size="20" /></a></q-card-section><q-card-actions align="center"><q-btn flat no-caps label="稍後再說" v-close-popup /></q-card-actions></q-card></q-dialog>
@@ -45,7 +47,8 @@ import { api } from '@/boot/axios';
 import CareCostCalculator from '@/components/CareCostCalculator.vue';
 import OpeningExperience from '@/components/opening/OpeningExperience.vue';
 import HomeHero from '@/components/home/HomeHero.vue';
-import HomeNeedsStory from '@/components/home/HomeNeedsStory.vue';
+import HomeCareDayStory from '@/components/home/story/HomeCareDayStory.vue';
+import HomeServiceBridge from '@/components/home/HomeServiceBridge.vue';
 import { gsap, ScrollTrigger } from '@/composables/useGsap';
 
 interface Caregiver { _id: string; userId?: { name?: string } | string; profilePhotoUrl?: string; yearsExperience?: number; serviceAreas?: string[] }
@@ -130,7 +133,7 @@ onBeforeUnmount(() => { media?.revert(); motionContext?.revert(); });
 @media(max-width:599px){.journey h2{font-size:2.35rem}}
 
 /* Full-bleed scroll story: chapters are the page, not framed cards. */
-.home-page,.home-page main{padding:0;overflow:clip}.scene,.journey,.ending{width:100%;max-width:none;margin:0}.story-panel,.caregivers,.panel-reveal{border-radius:0}.caregivers,.progress-story,.booking,.estimate,.ending{min-height:100dvh;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));margin:0}.journey{padding:0}.journey-stage{width:100%;min-height:100dvh;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));border-radius:0}.estimate,.ending{padding-block:clamp(70px,9vw,110px)}
+.home-page,.home-page main{padding:0;overflow:clip}.scene,.journey,.ending{width:100%;max-width:none;margin:0}.story-panel,.caregivers,.panel-reveal{border-radius:0}.caregivers,.progress-story,.booking,.estimate,.ending{min-height:auto;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));margin:0}.journey{padding:0}.journey-stage{width:100%;min-height:auto;padding-inline:max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));border-radius:0}.estimate,.ending{padding-block:clamp(70px,9vw,110px)}
 @media(max-width:900px){.home-page main{padding:0}.caregivers,.progress-story,.booking,.estimate,.ending,.journey-stage{padding-inline:clamp(22px,6vw,54px)}}
 @media(max-width:599px){.home-page main{padding:0}.caregivers,.progress-story,.booking,.estimate,.ending,.journey-stage{min-height:auto;padding-inline:18px}.caregivers,.progress-story,.booking,.estimate,.ending{padding-block:72px}.journey-stage{padding-block:72px}.caregivers,.story-panel{border-radius:0}}
 
@@ -138,7 +141,7 @@ onBeforeUnmount(() => { media?.revert(); motionContext?.revert(); });
 @media(max-width:1023px){.journey-step{transform:none}.cta-motion{max-width:100%}}
 @media(prefers-reduced-motion:reduce){.cta-motion,.ending-copy,.ending-photo img{will-change:auto!important}}
 
-.booking-story{width:100%;min-height:100dvh;padding:clamp(72px,9vw,120px) max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));display:grid;align-content:center;gap:clamp(56px,8vw,100px)}
+.booking-story{width:100%;min-height:auto;padding:clamp(72px,9vw,120px) max(clamp(24px,5vw,96px),calc((100vw - 1440px)/2));display:grid;align-content:center;gap:clamp(56px,8vw,100px)}
 .booking-story__heading{max-width:760px}.booking-story__heading h2{margin:12px 0 16px;font-size:clamp(2.4rem,5vw,4.1rem);line-height:1.15}.booking-story__heading p{margin:0;color:var(--chestnut);font-size:1.08rem}
 .booking-stage{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;gap:clamp(18px,3vw,48px);min-height:280px}
 .booking-stage__path{position:absolute;left:9%;right:9%;top:50%;height:5px;overflow:hidden;background:#fffdfb;border-radius:99px}.booking-path-line{display:block;width:100%;height:100%;background:var(--persimmon)}
