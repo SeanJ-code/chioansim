@@ -1,11 +1,10 @@
 <template>
   <section class="service-bridge" aria-labelledby="service-bridge-title">
-    <p>故事走到這裡，服務從這裡開始。</p>
-    <h2 id="service-bridge-title">一天的陪伴，<br>從找到適合的人開始。</h2>
-    <router-link to="/caregivers">找居服員 <ArrowRight :size="20" /></router-link>
+    <div class="service-bridge__copy"><p>故事走到這裡，服務從這裡開始。</p><h2 id="service-bridge-title">一天的陪伴，<br>從找到適合的人開始。</h2><router-link to="/caregivers">找居服員 <ArrowRight :size="20" /></router-link></div>
+    <ul aria-label="照安心服務特色"><li>照護資格</li><li>線上預約</li><li>服務進度</li><li>費用試算</li></ul>
   </section>
 </template>
 <script setup lang="ts">import { ArrowRight } from '@lucide/vue';</script>
 <style scoped>
-.service-bridge{display:grid;justify-items:center;padding:clamp(80px,10vw,140px) 24px;text-align:center;background:#fff9f5}.service-bridge p{margin:0 0 14px;color:#6e5750;letter-spacing:.12em}.service-bridge h2{margin:0;color:#493833;font-size:clamp(2.2rem,5vw,4.5rem);line-height:1.15}.service-bridge a{min-height:52px;display:inline-flex;align-items:center;gap:8px;margin-top:34px;padding:0 25px;color:#fff;background:#c85618;border-radius:999px;text-decoration:none;font-weight:800;box-shadow:0 12px 28px #c8561830}.service-bridge a:focus-visible{outline:3px solid #eb9079;outline-offset:4px}@media(max-width:599px){.service-bridge{padding-block:72px}.service-bridge a{width:100%;justify-content:center}}
+.service-bridge{display:grid;grid-template-columns:.9fr 1.1fr;align-items:center;gap:clamp(48px,8vw,120px);max-width:1440px;margin:auto;padding:clamp(80px,10vw,140px) 24px;background:#fff9f5}.service-bridge p{margin:0 0 14px;color:#6e5750;letter-spacing:.12em}.service-bridge h2{margin:0;color:#493833;font-size:clamp(2.2rem,4vw,4rem);line-height:1.15}.service-bridge a{min-height:52px;display:inline-flex;align-items:center;gap:8px;margin-top:34px;color:#c85618;text-decoration:none;font-weight:800}.service-bridge ul{display:grid;grid-template-columns:repeat(2,1fr);margin:0;padding:0;border-top:1px solid #6e57502e;list-style:none}.service-bridge li{padding:28px 10px;border-bottom:1px solid #6e57502e;color:#493833;font-size:clamp(1.05rem,1.5vw,1.3rem);font-weight:700}.service-bridge a:focus-visible{outline:3px solid #eb9079;outline-offset:4px}@media(max-width:700px){.service-bridge{grid-template-columns:1fr;padding:72px 18px}.service-bridge a{min-width:44px}.service-bridge li{padding-block:20px}}
 </style>
