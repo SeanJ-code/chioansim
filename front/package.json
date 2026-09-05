@@ -10,6 +10,7 @@
     "dev": "quasar dev -m ssr",
     "build": "quasar build -m ssr",
     "typecheck": "vue-tsc --noEmit",
+    "check:mobile-home": "node scripts/check-mobile-home.cjs",
     "check:recent-caregivers": "node --experimental-strip-types src/composables/recent-caregivers.check.ts",
     "check:leave-calendar": "node --experimental-strip-types src/utils/leave-calendar.check.ts",
     "postinstall": "quasar prepare --silent"
