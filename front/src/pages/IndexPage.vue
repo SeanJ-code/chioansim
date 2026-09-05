@@ -24,7 +24,12 @@
         "
       />
 
-      <HomeServiceBridge />
+      <!--
+        HomeServiceBridge 已移除。
+
+        重要資訊已合併到 Scene02：
+        照護資格 / 線上預約 / 服務進度。
+      -->
 
       <section
         class="caregivers scene story-panel story-panel--paper"
@@ -42,7 +47,7 @@
           </span>
 
           <h2 id="care-title">
-            找到值得信任的<br />
+            找到值得信任的<br>
             居服員
           </h2>
 
@@ -55,6 +60,7 @@
             to="/caregivers"
           >
             查看全部居服員
+
             <ArrowRight
               :size="19"
             />
@@ -95,7 +101,9 @@
 
           <button
             type="button"
-            @click="loadCaregivers"
+            @click="
+              loadCaregivers
+            "
           >
             重新整理
           </button>
@@ -108,10 +116,12 @@
           data-stagger
         >
           <router-link
-            v-for="c in caregivers.slice(
-              0,
-              3
-            )"
+            v-for="
+              c in caregivers.slice(
+                0,
+                3
+              )
+            "
             :key="c._id"
             to="/caregivers"
             class="caregiver-card"
@@ -132,12 +142,13 @@
                 @error="
                   useFallbackPhoto
                 "
-              />
+              >
 
               <span>
                 <BadgeCheck
                   :size="17"
                 />
+
                 已認證
               </span>
             </div>
@@ -153,6 +164,7 @@
                 <BriefcaseBusiness
                   :size="17"
                 />
+
                 {{
                   experienceLabel(
                     c
@@ -164,6 +176,7 @@
                 <MapPin
                   :size="17"
                 />
+
                 {{
                   areaLabel(c)
                 }}
@@ -171,6 +184,7 @@
 
               <b>
                 查看介紹
+
                 <ChevronRight
                   :size="17"
                 />
@@ -221,7 +235,7 @@
           </span>
 
           <h2 id="journey-title">
-            預約，<br />
+            預約，<br>
             其實可以很簡單。
           </h2>
 
@@ -279,9 +293,17 @@
             <div
               class="mini-calendar"
             >
-              <small>SEP</small>
-              <strong>02</strong>
-              <b>14:30</b>
+              <small>
+                SEP
+              </small>
+
+              <strong>
+                02
+              </strong>
+
+              <b>
+                14:30
+              </b>
             </div>
 
             <strong>
@@ -355,18 +377,7 @@
       </section>
     </main>
 
-    <!--
-      首頁右上方愛心快速服務。
-
-      HomeQuickAccess 自己負責：
-      1. 關於我們
-      2. 註冊 / 忘記密碼
-      3. LINE 客服
-    -->
     <HomeQuickAccess
-      @about="
-        aboutDialog = true
-      "
       @line="
         handleFeatureItem(
           'LINE 專人服務'
@@ -379,83 +390,6 @@
         handleOpeningFinished
       "
     />
-
-    <!-- ==================================================
-         About Dialog
-         ================================================== -->
-
-    <q-dialog
-      v-model="aboutDialog"
-      transition-show="scale"
-      transition-hide="scale"
-    >
-      <q-card
-        class="about-dialog"
-      >
-        <q-card-section
-          class="about-dialog__mark"
-        >
-          <HeartHandshake
-            :size="38"
-          />
-        </q-card-section>
-
-        <q-card-section
-          class="about-dialog__copy"
-        >
-          <button
-            type="button"
-            aria-label="關閉關於照安心"
-            v-close-popup
-          >
-            <X :size="22" />
-          </button>
-
-          <small>
-            ABOUT CHIOANSIM
-          </small>
-
-          <h2>
-            關於照安心
-          </h2>
-
-          <p>
-            照安心是一個以居家照護需求為核心的服務平台，希望讓家庭更容易整理需求、認識居服員並安排照護服務。
-          </p>
-
-          <p>
-            我們重視照護過程中的尊重、溝通與自主，讓每一次服務都從理解彼此開始。
-          </p>
-
-          <router-link
-            to="/caregivers"
-            v-close-popup
-          >
-            認識居服員
-
-            <ArrowRight
-              :size="19"
-            />
-          </router-link>
-        </q-card-section>
-
-        <q-card-actions
-          align="center"
-        >
-          <q-btn
-            flat
-            no-caps
-            label="關閉"
-            v-close-popup
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- ==================================================
-         原本 LINE Dialog
-         完整保留
-         ================================================== -->
 
     <q-dialog
       v-model="lineDialog"
@@ -544,7 +478,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Heart,
-  HeartHandshake,
   HouseHeart,
   MapPin,
   MapPinned,
@@ -557,7 +490,9 @@ import {
   X,
 } from '@lucide/vue';
 
-import { api } from '@/boot/axios';
+import {
+  api,
+} from '@/boot/axios';
 
 import CareCostCalculator
   from '@/components/CareCostCalculator.vue';
@@ -571,9 +506,6 @@ import HomeHero
 import HomeCareDayStory
   from '@/components/home/story/HomeCareDayStory.vue';
 
-import HomeServiceBridge
-  from '@/components/home/HomeServiceBridge.vue';
-
 import HomeQuickAccess
   from '@/components/home/HomeQuickAccess.vue';
 
@@ -581,12 +513,6 @@ import {
   gsap,
   ScrollTrigger,
 } from '@/composables/useGsap';
-
-/*
- * =========================================================
- * Types
- * =========================================================
- */
 
 interface Caregiver {
   _id: string;
@@ -604,14 +530,9 @@ interface Caregiver {
   serviceAreas?: string[];
 }
 
-/*
- * =========================================================
- * State
- * =========================================================
- */
-
 const reduceMotion =
-  typeof window !== 'undefined' &&
+  typeof window !==
+    'undefined' &&
   window
     .matchMedia(
       '(prefers-reduced-motion: reduce)',
@@ -643,13 +564,6 @@ const caregiverError =
 const lineDialog =
   ref(false);
 
-/*
- * 新增：
- * 關於照安心 Dialog。
- */
-const aboutDialog =
-  ref(false);
-
 let motionContext:
   | gsap.Context
   | undefined;
@@ -661,49 +575,57 @@ let media:
 let motionStarted =
   false;
 
-/*
- * =========================================================
- * Scene07 Progress
- * =========================================================
- */
-
 const progressSteps = [
   {
-    label: '承接任務',
+    label:
+      '承接任務',
+
     icon:
       markRaw(
         CheckCircle2,
       ),
   },
+
   {
-    label: '準備出發',
+    label:
+      '準備出發',
+
     icon:
-      markRaw(Bike),
+      markRaw(
+        Bike,
+      ),
   },
+
   {
     label:
       '抵達服務地點',
+
     icon:
-      markRaw(MapPinned),
+      markRaw(
+        MapPinned,
+      ),
   },
+
   {
     label:
       '家人收到通知',
+
     icon:
-      markRaw(BellRing),
+      markRaw(
+        BellRing,
+      ),
   },
+
   {
-    label: '完成服務',
+    label:
+      '完成服務',
+
     icon:
-      markRaw(Route),
+      markRaw(
+        Route,
+      ),
   },
 ];
-
-/*
- * =========================================================
- * Caregiver
- * =========================================================
- */
 
 function caregiverName(
   c: Caregiver,
@@ -733,12 +655,6 @@ function areaLabel(
     '服務地區洽談'
   );
 }
-
-/*
- * =========================================================
- * Assets
- * =========================================================
- */
 
 const apiBaseUrl =
   import.meta.env
@@ -793,12 +709,6 @@ function useFallbackPhoto(
   );
 }
 
-/*
- * =========================================================
- * Navigation
- * =========================================================
- */
-
 function scrollToSection(
   id: string,
 ) {
@@ -812,12 +722,6 @@ function scrollToSection(
     });
 }
 
-/*
- * =========================================================
- * Existing LINE Feature
- * =========================================================
- */
-
 function handleFeatureItem(
   name: string,
 ) {
@@ -829,12 +733,6 @@ function handleFeatureItem(
       true;
   }
 }
-
-/*
- * =========================================================
- * API
- * =========================================================
- */
 
 async function loadCaregivers() {
   caregiverLoading.value =
@@ -858,12 +756,6 @@ async function loadCaregivers() {
       false;
   }
 }
-
-/*
- * =========================================================
- * Existing Homepage GSAP
- * =========================================================
- */
 
 function setupHomeScrollAnimations() {
   if (
@@ -900,7 +792,8 @@ function setupHomeScrollAnimations() {
                   {
                     y: 10,
 
-                    autoAlpha: 0,
+                    autoAlpha:
+                      0,
 
                     duration:
                       0.25,
@@ -938,7 +831,8 @@ function setupHomeScrollAnimations() {
                   {
                     y: 42,
 
-                    autoAlpha: 0,
+                    autoAlpha:
+                      0,
 
                     duration:
                       0.85,
@@ -977,7 +871,8 @@ function setupHomeScrollAnimations() {
                   {
                     y: 34,
 
-                    autoAlpha: 0,
+                    autoAlpha:
+                      0,
 
                     duration:
                       0.7,
@@ -1003,26 +898,30 @@ function setupHomeScrollAnimations() {
                 ),
             );
 
-          gsap.timeline({
-            scrollTrigger: {
-              trigger:
-                journeyEl,
+          gsap
+            .timeline({
+              scrollTrigger:
+                {
+                  trigger:
+                    journeyEl,
 
-              start:
-                'top 68%',
+                  start:
+                    'top 68%',
 
-              end:
-                'bottom 38%',
+                  end:
+                    'bottom 38%',
 
-              scrub: 1,
-            },
-          })
+                  scrub:
+                    1,
+                },
+            })
             .from(
               '.booking-story__heading > *',
               {
                 y: 30,
 
-                autoAlpha: 0,
+                autoAlpha:
+                  0,
 
                 stagger:
                   0.08,
@@ -1032,15 +931,18 @@ function setupHomeScrollAnimations() {
             .fromTo(
               '.booking-path-line',
               {
-                scaleX: 0,
+                scaleX:
+                  0,
               },
               {
-                scaleX: 1,
+                scaleX:
+                  1,
 
                 transformOrigin:
                   'left center',
 
-                ease: 'none',
+                ease:
+                  'none',
               },
               0.12,
             )
@@ -1049,20 +951,25 @@ function setupHomeScrollAnimations() {
               {
                 y: 35,
 
-                scale: 0.8,
+                scale:
+                  0.8,
 
-                autoAlpha: 0,
+                autoAlpha:
+                  0,
               },
               0.1,
             )
             .from(
               '.booking-node--caregiver',
               {
-                y: -35,
+                y:
+                  -35,
 
-                scale: 0.8,
+                scale:
+                  0.8,
 
-                autoAlpha: 0,
+                autoAlpha:
+                  0,
               },
               0.32,
             )
@@ -1071,27 +978,33 @@ function setupHomeScrollAnimations() {
               {
                 y: 35,
 
-                scale: 0.8,
+                scale:
+                  0.8,
 
-                autoAlpha: 0,
+                autoAlpha:
+                  0,
               },
               0.54,
             )
             .from(
               '.booking-node--done',
               {
-                y: -35,
+                y:
+                  -35,
 
-                scale: 0.8,
+                scale:
+                  0.8,
 
-                autoAlpha: 0,
+                autoAlpha:
+                  0,
               },
               0.76,
             )
             .from(
               '.booking-heart',
               {
-                scale: 0,
+                scale:
+                  0,
 
                 rotation:
                   -25,
@@ -1110,7 +1023,9 @@ function setupHomeScrollAnimations() {
               '[data-panel]',
             )
             .forEach(
-              (panel) => {
+              (
+                panel,
+              ) => {
                 const reveal =
                   panel.querySelector<HTMLElement>(
                     '.panel-reveal',
@@ -1134,10 +1049,12 @@ function setupHomeScrollAnimations() {
                 gsap.fromTo(
                   reveal,
                   {
-                    scale: 1.05,
+                    scale:
+                      1.05,
                   },
                   {
-                    scale: 1,
+                    scale:
+                      1,
 
                     ease:
                       'none',
@@ -1153,7 +1070,8 @@ function setupHomeScrollAnimations() {
                         end:
                           'bottom 28%',
 
-                        scrub: 1,
+                        scrub:
+                          1,
                       },
                   },
                 );
@@ -1205,22 +1123,23 @@ function setupHomeScrollAnimations() {
               (
                 wrapper,
               ) =>
-                gsap.timeline({
-                  scrollTrigger:
-                    {
-                      trigger:
-                        wrapper,
+                gsap
+                  .timeline({
+                    scrollTrigger:
+                      {
+                        trigger:
+                          wrapper,
 
-                      start:
-                        'top 88%',
+                        start:
+                          'top 88%',
 
-                      end:
-                        'bottom 30%',
+                        end:
+                          'bottom 30%',
 
-                      scrub:
-                        0.8,
-                    },
-                })
+                        scrub:
+                          0.8,
+                      },
+                  })
                   .fromTo(
                     wrapper,
                     {
@@ -1235,7 +1154,8 @@ function setupHomeScrollAnimations() {
                     {
                       y: 0,
 
-                      scale: 1,
+                      scale:
+                        1,
 
                       opacity:
                         1,
@@ -1287,7 +1207,8 @@ function setupHomeScrollAnimations() {
                     )
                   ],
 
-                ease: 'none',
+                ease:
+                  'none',
 
                 scrollTrigger:
                   {
@@ -1311,12 +1232,6 @@ function setupHomeScrollAnimations() {
     }, homePage.value);
 }
 
-/*
- * =========================================================
- * Opening
- * =========================================================
- */
-
 async function handleOpeningFinished() {
   await nextTick();
 
@@ -1325,12 +1240,6 @@ async function handleOpeningFinished() {
 
   ScrollTrigger.refresh();
 }
-
-/*
- * =========================================================
- * Lifecycle
- * =========================================================
- */
 
 onMounted(() => {
   void loadCaregivers();
@@ -1354,30 +1263,43 @@ onBeforeUnmount(() => {
   --peach: #eb9079;
   --persimmon: #c85618;
 
-  color: var(--ink);
-  background: var(--milk);
+  color:
+    var(--ink);
+
+  background:
+    var(--milk);
 }
 
 .home-main {
-  overflow: clip;
+  overflow:
+    clip;
 }
 
 .eyebrow {
-  display: block;
+  display:
+    block;
 
-  margin-bottom: 12px;
+  margin-bottom:
+    12px;
 
-  color: var(--persimmon);
+  color:
+    var(--persimmon);
 
-  font-size: 0.88rem;
+  font-size:
+    0.88rem;
 
-  font-weight: 700;
+  font-weight:
+    700;
 
-  letter-spacing: 0.16em;
+  letter-spacing:
+    0.16em;
 }
 
 h2 {
-  margin: 0 0 16px;
+  margin:
+    0
+    0
+    16px;
 
   font-size:
     clamp(
@@ -1386,39 +1308,52 @@ h2 {
       4rem
     );
 
-  line-height: 1.14;
+  line-height:
+    1.14;
 
   letter-spacing:
     -0.035em;
 }
 
 h3 {
-  margin: 0 0 8px;
+  margin:
+    0
+    0
+    8px;
 
-  font-size: 1.3rem;
+  font-size:
+    1.3rem;
 }
 
 .story-panel {
-  position: relative;
+  position:
+    relative;
 
-  isolation: isolate;
+  isolation:
+    isolate;
 
-  overflow: hidden;
+  overflow:
+    hidden;
 }
 
 .story-panel
-  > *:not(.panel-reveal) {
-  position: relative;
+> *:not(.panel-reveal) {
+  position:
+    relative;
 
-  z-index: 1;
+  z-index:
+    1;
 }
 
 .panel-reveal {
-  position: absolute;
+  position:
+    absolute;
 
-  z-index: 0;
+  z-index:
+    0;
 
-  inset: 0;
+  inset:
+    0;
 
   will-change:
     transform;
@@ -1436,53 +1371,46 @@ h3 {
     #f4eee8;
 }
 
-.story-panel--blue
-.panel-reveal {
-  background:
-    #eef3ed;
-}
-
 .story-panel--chestnut
 .panel-reveal {
   background:
     #f4eee8;
 }
 
-.story-panel--green
-.panel-reveal {
-  background:
-    linear-gradient(
-      100deg,
-      #edf1df,
-      #fff9f5
-    );
-}
-
 .text-link,
 .primary {
-  min-height: 48px;
+  min-height:
+    48px;
 
-  display: inline-flex;
+  display:
+    inline-flex;
 
-  align-items: center;
+  align-items:
+    center;
 
-  gap: 7px;
+  gap:
+    7px;
 
   color:
     var(--persimmon);
 
-  font-weight: 700;
+  font-weight:
+    700;
 
-  text-decoration: none;
+  text-decoration:
+    none;
 }
 
 .primary {
-  min-height: 52px;
+  min-height:
+    52px;
 
   padding:
-    0 24px;
+    0
+    24px;
 
-  color: #fff;
+  color:
+    #fff;
 
   background:
     var(--persimmon);
@@ -1496,9 +1424,12 @@ h3 {
 button:focus-visible,
 a:focus-visible {
   outline:
-    3px solid #eb9079;
+    3px
+    solid
+    #eb9079;
 
-  outline-offset: 3px;
+  outline-offset:
+    3px;
 }
 
 /* =========================================================
@@ -1506,7 +1437,8 @@ a:focus-visible {
    ========================================================= */
 
 .caregivers {
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
     minmax(
@@ -1547,7 +1479,8 @@ a:focus-visible {
 }
 
 .caregivers header {
-  max-width: 420px;
+  max-width:
+    420px;
 }
 
 .caregivers header p {
@@ -1557,11 +1490,13 @@ a:focus-visible {
   font-size:
     1.08rem;
 
-  line-height: 1.7;
+  line-height:
+    1.7;
 }
 
 .caregiver-row {
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
     repeat(
@@ -1572,18 +1507,22 @@ a:focus-visible {
       )
     );
 
-  gap: 18px;
+  gap:
+    18px;
 
-  min-width: 0;
+  min-width:
+    0;
 }
 
 .caregiver-card {
-  overflow: hidden;
+  overflow:
+    hidden;
 
   scroll-snap-align:
     start;
 
-  color: var(--ink);
+  color:
+    var(--ink);
 
   background:
     var(--paper);
@@ -1596,49 +1535,67 @@ a:focus-visible {
     22px;
 
   box-shadow:
-    0 14px 36px
+    0
+    14px
+    36px
     #49383310;
 
-  text-decoration: none;
+  text-decoration:
+    none;
 }
 
 .photo {
-  position: relative;
+  position:
+    relative;
 
-  aspect-ratio: 4 / 5;
+  aspect-ratio:
+    4 / 5;
 
-  overflow: hidden;
+  overflow:
+    hidden;
 
   background:
     #f4e5de;
 }
 
 .photo img {
-  width: 100%;
-  height: 100%;
+  width:
+    100%;
 
-  object-fit: cover;
+  height:
+    100%;
+
+  object-fit:
+    cover;
 }
 
 .photo img.is-fallback {
-  padding: 36px;
+  padding:
+    36px;
 
   object-fit:
     contain;
 }
 
 .photo span {
-  position: absolute;
+  position:
+    absolute;
 
-  left: 10px;
-  bottom: 10px;
+  left:
+    10px;
 
-  display: flex;
+  bottom:
+    10px;
 
-  gap: 5px;
+  display:
+    flex;
+
+  gap:
+    5px;
 
   padding:
-    6px 9px;
+    6px
+    9px;
 
   color:
     #315746;
@@ -1651,19 +1608,24 @@ a:focus-visible {
 }
 
 .body {
-  padding: 20px;
+  padding:
+    20px;
 }
 
 .body p,
 .body b {
-  display: flex;
+  display:
+    flex;
 
-  align-items: center;
+  align-items:
+    center;
 
-  gap: 7px;
+  gap:
+    7px;
 
   margin:
-    7px 0;
+    7px
+    0;
 
   color:
     var(--chestnut);
@@ -1675,25 +1637,31 @@ a:focus-visible {
 }
 
 .skeleton {
-  height: 380px;
+  height:
+    380px;
 
   border-radius:
     22px;
 }
 
 .state {
-  grid-column: 2;
+  grid-column:
+    2;
 
-  display: flex;
+  display:
+    flex;
 
-  align-items: center;
+  align-items:
+    center;
 
   justify-content:
     center;
 
-  gap: 16px;
+  gap:
+    16px;
 
-  padding: 28px;
+  padding:
+    28px;
 
   background:
     #fff1eb;
@@ -1703,24 +1671,29 @@ a:focus-visible {
 }
 
 .state div {
-  display: flex;
+  display:
+    flex;
 
   flex-direction:
     column;
 }
 
 .state button {
-  min-height: 44px;
+  min-height:
+    44px;
 
   padding:
-    0 16px;
+    0
+    16px;
 
-  color: #fff;
+  color:
+    #fff;
 
   background:
     var(--persimmon);
 
-  border: 0;
+  border:
+    0;
 
   border-radius:
     12px;
@@ -1730,7 +1703,8 @@ a:focus-visible {
   grid-column:
     1 / -1;
 
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
     repeat(
@@ -1738,26 +1712,33 @@ a:focus-visible {
       1fr
     );
 
-  margin: 0;
+  margin:
+    0;
 
-  padding: 0;
+  padding:
+    0;
 
   border-top:
     1px solid
     #6e57502e;
 
-  list-style: none;
+  list-style:
+    none;
 }
 
 .trust-list li {
-  display: flex;
+  display:
+    flex;
 
-  align-items: center;
+  align-items:
+    center;
 
-  gap: 14px;
+  gap:
+    14px;
 
   padding:
-    24px 12px;
+    24px
+    12px;
 
   border-bottom:
     1px solid
@@ -1794,7 +1775,8 @@ a:focus-visible {
       )
     );
 
-  display: grid;
+  display:
+    grid;
 
   gap:
     clamp(
@@ -1805,7 +1787,8 @@ a:focus-visible {
 }
 
 .booking-story__heading {
-  max-width: 760px;
+  max-width:
+    760px;
 }
 
 .booking-story__heading p,
@@ -1816,13 +1799,16 @@ a:focus-visible {
   font-size:
     1.08rem;
 
-  line-height: 1.7;
+  line-height:
+    1.7;
 }
 
 .booking-stage {
-  position: relative;
+  position:
+    relative;
 
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
     repeat(
@@ -1842,16 +1828,23 @@ a:focus-visible {
 }
 
 .booking-stage__path {
-  position: absolute;
+  position:
+    absolute;
 
-  left: 9%;
-  right: 9%;
+  left:
+    9%;
 
-  top: 50%;
+  right:
+    9%;
 
-  height: 5px;
+  top:
+    50%;
 
-  overflow: hidden;
+  height:
+    5px;
+
+  overflow:
+    hidden;
 
   background:
     #fffdfb;
@@ -1861,36 +1854,47 @@ a:focus-visible {
 }
 
 .booking-path-line {
-  display: block;
+  display:
+    block;
 
-  width: 100%;
-  height: 100%;
+  width:
+    100%;
+
+  height:
+    100%;
 
   background:
     var(--persimmon);
 }
 
 .booking-node {
-  position: relative;
+  position:
+    relative;
 
-  z-index: 1;
+  z-index:
+    1;
 
-  min-height: 190px;
+  min-height:
+    190px;
 
-  display: flex;
+  display:
+    flex;
 
   flex-direction:
     column;
 
-  align-items: center;
+  align-items:
+    center;
 
   justify-content:
     center;
 
-  gap: 14px;
+  gap:
+    14px;
 
   padding:
-    24px 16px;
+    24px
+    16px;
 
   background:
     var(--paper);
@@ -1903,17 +1907,24 @@ a:focus-visible {
     26px;
 
   box-shadow:
-    0 18px 40px
+    0
+    18px
+    40px
     #49383312;
 
-  text-align: center;
+  text-align:
+    center;
 }
 
 .booking-node > span {
-  position: absolute;
+  position:
+    absolute;
 
-  top: 16px;
-  left: 18px;
+  top:
+    16px;
+
+  left:
+    18px;
 
   color:
     var(--persimmon);
@@ -1921,7 +1932,8 @@ a:focus-visible {
   font-size:
     0.78rem;
 
-  font-weight: 700;
+  font-weight:
+    700;
 }
 
 .booking-node > svg {
@@ -1930,16 +1942,21 @@ a:focus-visible {
 }
 
 .mini-calendar {
-  width: 88px;
+  width:
+    88px;
 
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
-    1fr 1fr;
+    1fr
+    1fr;
 
-  align-items: center;
+  align-items:
+    center;
 
-  padding: 10px;
+  padding:
+    10px;
 
   background:
     #f8e7df;
@@ -1955,7 +1972,8 @@ a:focus-visible {
   color:
     var(--persimmon);
 
-  font-weight: 700;
+  font-weight:
+    700;
 }
 
 .mini-calendar strong {
@@ -1969,13 +1987,17 @@ a:focus-visible {
 }
 
 .booking-heart {
-  position: absolute;
+  position:
+    absolute;
 
-  z-index: 2;
+  z-index:
+    2;
 
-  right: 0;
+  right:
+    0;
 
-  top: 18%;
+  top:
+    18%;
 
   color:
     var(--persimmon);
@@ -1989,12 +2011,15 @@ a:focus-visible {
    ========================================================= */
 
 .estimate {
-  display: grid;
+  display:
+    grid;
 
   grid-template-columns:
-    0.9fr 1.1fr;
+    0.9fr
+    1.1fr;
 
-  align-items: center;
+  align-items:
+    center;
 
   gap:
     clamp(
@@ -2025,11 +2050,14 @@ a:focus-visible {
 }
 
 .estimate aside {
-  display: flex;
+  display:
+    flex;
 
-  gap: 10px;
+  gap:
+    10px;
 
-  padding: 15px;
+  padding:
+    15px;
 
   color:
     var(--chestnut);
@@ -2056,15 +2084,16 @@ a:focus-visible {
     24px;
 
   box-shadow:
-    0 20px 50px
+    0
+    20px
+    50px
     #49383312;
 }
 
 /* =========================================================
-   About Dialog
+   LINE Dialog
    ========================================================= */
 
-.about-dialog,
 .line-dialog {
   width:
     min(
@@ -2090,12 +2119,15 @@ a:focus-visible {
     26px;
 }
 
-.about-dialog__mark,
 .line-dialog__mark {
-  width: 76px;
-  height: 76px;
+  width:
+    76px;
 
-  display: grid;
+  height:
+    76px;
+
+  display:
+    grid;
 
   place-items:
     center;
@@ -2105,7 +2137,8 @@ a:focus-visible {
     auto
     0;
 
-  color: #fff;
+  color:
+    #fff;
 
   background:
     #4f7264;
@@ -2114,45 +2147,38 @@ a:focus-visible {
     24px;
 }
 
-.about-dialog__copy,
 .line-dialog__copy {
-  position: relative;
+  position:
+    relative;
 
-  text-align: center;
+  text-align:
+    center;
 }
 
-.about-dialog__copy
-  > button,
 .line-dialog__copy
-  > button {
-  position: absolute;
+> button {
+  position:
+    absolute;
 
-  top: -86px;
-  right: -8px;
+  top:
+    -86px;
 
-  width: 44px;
-  height: 44px;
+  right:
+    -8px;
+
+  width:
+    44px;
+
+  height:
+    44px;
 
   background:
     transparent;
 
-  border: 0;
-
-  cursor: pointer;
+  border:
+    0;
 }
 
-.about-dialog__copy small,
-.line-dialog__copy small {
-  color:
-    var(--persimmon);
-
-  font-weight: 800;
-
-  letter-spacing:
-    0.12em;
-}
-
-.about-dialog__copy h2,
 .line-dialog__copy h2 {
   margin:
     10px
@@ -2160,34 +2186,40 @@ a:focus-visible {
     20px;
 }
 
-.about-dialog__copy p {
+.line-dialog__copy p {
   margin:
-    10px auto;
-
-  max-width: 32em;
-
-  color:
-    var(--chestnut);
-
-  line-height: 1.8;
+    0;
 }
 
-.about-dialog__copy a,
+.line-dialog__copy strong {
+  display:
+    block;
+
+  margin:
+    5px
+    0
+    20px;
+}
+
 .line-dialog__copy a {
-  min-height: 50px;
+  min-height:
+    50px;
 
-  display: inline-flex;
+  display:
+    inline-flex;
 
-  align-items: center;
+  align-items:
+    center;
 
-  gap: 8px;
-
-  margin-top: 12px;
+  gap:
+    8px;
 
   padding:
-    0 20px;
+    0
+    20px;
 
-  color: #fff;
+  color:
+    #fff;
 
   background:
     var(--persimmon);
@@ -2199,25 +2231,13 @@ a:focus-visible {
     none;
 }
 
-.line-dialog__copy p {
-  margin: 0;
-}
-
-.line-dialog__copy strong {
-  display: block;
-
-  margin:
-    5px
-    0
-    20px;
-}
-
 /* =========================================================
-   Responsive
+   Tablet
    ========================================================= */
 
 @media (
-  max-width: 900px
+  max-width:
+  900px
 ) {
   .caregivers,
   .estimate {
@@ -2267,12 +2287,18 @@ a:focus-visible {
   }
 
   .booking-stage__path {
-    display: none;
+    display:
+      none;
   }
 }
 
+/* =========================================================
+   Mobile
+   ========================================================= */
+
 @media (
-  max-width: 599px
+  max-width:
+  599px
 ) {
   .caregivers,
   .booking-story,
@@ -2296,31 +2322,39 @@ a:focus-visible {
     grid-template-columns:
       1fr;
 
-    gap: 20px;
+    gap:
+      20px;
 
     padding-left:
       24px;
   }
 
   .booking-stage__path {
-    left: 8px;
+    left:
+      8px;
 
-    right: auto;
+    right:
+      auto;
 
-    top: 8%;
+    top:
+      8%;
 
-    width: 5px;
+    width:
+      5px;
 
-    height: 84%;
+    height:
+      84%;
 
-    display: block;
+    display:
+      block;
 
     background:
       var(--persimmon);
   }
 
   .booking-path-line {
-    display: none;
+    display:
+      none;
   }
 
   .booking-node {
@@ -2329,15 +2363,42 @@ a:focus-visible {
   }
 
   .primary {
-    width: 100%;
+    width:
+      100%;
 
     justify-content:
       center;
   }
+
+  .home-page
+  :deep(.quick-access) {
+    top:
+      12px;
+
+    right:
+      12px;
+
+    z-index:
+      2001;
+
+    padding:
+      0;
+
+    background:
+      var(--paper);
+
+    box-shadow:
+      none;
+  }
 }
 
+/* =========================================================
+   Reduced Motion
+   ========================================================= */
+
 @media (
-  prefers-reduced-motion: reduce
+  prefers-reduced-motion:
+  reduce
 ) {
   .panel-reveal,
   .booking-path-line,

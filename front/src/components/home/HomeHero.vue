@@ -12,16 +12,16 @@
     </div>
 
     <div class="hero-copy" data-hero-copy>
-      <span class="hero-eyebrow">01・開始陪伴</span>
+      <span class="hero-eyebrow">照顧的路上，有人一起</span>
 
       <h1 id="hero-title">
-        <span>今天，需要</span>
-        <em>哪一種幫忙？</em>
+        <span>讓照顧，</span>
+        <em>有人一起分擔。</em>
       </h1>
 
       <p>
-        照顧不只是一件事，<br>
-        而是生活裡每天不同的需要。
+        找到合適的居服員，<br>
+        從預約開始，多一份安心。
       </p>
 
       <div class="hero-actions">
