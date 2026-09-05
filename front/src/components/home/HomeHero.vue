@@ -1,5 +1,5 @@
 <template>
-  <section ref="root" class="home-hero" aria-labelledby="hero-title">
+  <section id="home-mobile-start" ref="root" class="home-hero" aria-labelledby="hero-title">
     <div class="hero-background" aria-hidden="true">
       <div class="hero-atmosphere"></div>
       <div class="hero-light"></div>
@@ -7,9 +7,9 @@
     </div>
 
     <div class="hero-copy" data-hero-copy>
-      <span class="hero-eyebrow">照顧，不必一個人扛</span>
-      <h1 id="hero-title"><span>讓照顧，</span><em>有人一起分擔。</em></h1>
-      <p>找到合適的居服員，<br>從預約開始，多一份安心。</p>
+      <span class="hero-eyebrow">一個溫暖的開始</span>
+      <h1 id="hero-title"><span>照顧，</span><em>不必一個人扛。</em></h1>
+      <p>讓照顧，有人一起分擔。<br>找到合適的居服員，<br>從預約開始，多一份安心。</p>
       <div class="hero-actions">
         <router-link class="hero-primary" to="/caregivers">
           找居服員 <span aria-hidden="true">→</span>
@@ -31,6 +31,8 @@
       >
     </div>
 
+    <HomeMobileChapters :current="1" />
+
     <button class="hero-scroll-cue" type="button" @click="emit('journey')">
       往下看看 <span aria-hidden="true">↓</span>
     </button>
@@ -39,6 +41,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue';
+import HomeMobileChapters from './HomeMobileChapters.vue';
 import { gsap } from '@/composables/useGsap';
 
 const emit = defineEmits<{ journey: [] }>();
@@ -53,19 +56,13 @@ function startEntrance() {
   context = gsap.context(() => {
     const media = gsap.matchMedia();
     media.add('(prefers-reduced-motion: reduce)', () => gsap.set('[data-hero-copy] > *, [data-hero-world]', { clearProps: 'all' }));
-    media.add('(prefers-reduced-motion: no-preference)', () => {
+    media.add('(min-width: 600px) and (prefers-reduced-motion: no-preference)', () => {
       gsap.timeline()
         .from('.hero-eyebrow', { y: 16, autoAlpha: 0, duration: .45 })
         .from('.hero-copy h1', { y: 42, autoAlpha: 0, duration: .8, ease: 'power3.out' }, '-=.18')
         .from('.hero-copy p', { y: 22, autoAlpha: 0, duration: .6, ease: 'power3.out' }, '-=.38')
         .from('.hero-actions', { y: 18, autoAlpha: 0, duration: .55, ease: 'power3.out' }, '-=.3')
-        .from('[data-hero-world]', { x: 30, scale: .98, autoAlpha: 0, duration: 1, ease: 'power3.out' }, '-=.55')
-        .to('.hero-world__image', { scale: 1.02, duration: 24, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-      gsap.to('[data-hero-world]', {
-        yPercent: 3,
-        ease: 'none',
-        scrollTrigger: { trigger: rootEl, start: 'top top', end: 'bottom top', scrub: .8 },
-      });
+        .from('[data-hero-world]', { autoAlpha: 0, duration: .8, ease: 'power2.out' }, '-=.55');
     });
     return () => media.revert();
   }, rootEl);
@@ -85,4 +82,27 @@ onBeforeUnmount(() => context?.revert());
 @media(max-width:900px){.home-hero{grid-template-columns:1fr;align-content:start;gap:2rem;padding-top:clamp(3rem,8vh,5rem)}.hero-copy{max-width:35rem}.hero-copy h1{font-size:clamp(3.2rem,8vw,4.8rem)}.hero-world__image{object-position:62% center}.hero-scroll-cue{display:none}}
 @media(max-width:599px){.home-hero{min-height:auto;padding:3.5rem 1.125rem 0;background:#fff8ef}.hero-copy h1{font-size:clamp(2.75rem,12vw,4rem);line-height:1}.hero-copy p br{display:none}.hero-actions{align-items:stretch;flex-direction:column}.hero-primary{width:100%}.hero-secondary{align-self:flex-start;text-align:left}.hero-world{position:relative;z-index:0;inset:auto;width:calc(100% + 2.25rem);height:min(128vw,34rem);margin:2rem -1.125rem 0}.hero-world::after{background:linear-gradient(180deg,#fff8ef 0%,transparent 18%)}.hero-world__image{object-position:68% center}.hero-background{display:none}}
 @media(prefers-reduced-motion:reduce){.hero-atmosphere,.hero-light,.hero-scroll-cue span{animation:none}.hero-primary,.hero-primary span{transition:none}}
+
+.home-hero{min-height:calc(100svh - 80px);grid-template-columns:1fr;padding-block:80px}
+.hero-copy{max-width:620px}.hero-copy h1{font-family:'Kaiti TC','Songti TC',serif;font-size:clamp(3rem,4.7vw,5rem);line-height:1.3;letter-spacing:.025em}.hero-copy h1 em{color:var(--ink)}
+.hero-eyebrow{letter-spacing:.22em}.hero-copy p{margin-top:24px;line-height:1.9}.hero-world::after{background:linear-gradient(90deg,#fff8efaa,transparent 60%)}
+.hero-actions{gap:12px;flex-wrap:wrap}.hero-primary,.hero-secondary{border-radius:999px;min-height:52px;padding:12px 24px;font-size:1rem}.hero-primary{box-shadow:none;background:#b84916}.hero-secondary{border:1px solid #c8561840;background:#fffdfbe6;color:#a94216}.hero-scroll-cue{left:6%;transform:none}
+@media(max-width:900px){.hero-copy{max-width:520px}.hero-copy h1{font-size:clamp(2.6rem,6vw,4rem)}}
+@media(max-width:900px){.home-hero{display:flex;flex-direction:column;gap:0;padding:0 0 44px;min-height:calc(100svh - 64px)}.hero-world{position:relative;inset:auto;z-index:0;flex-shrink:0;order:-1;width:100%;height:42svh;min-height:260px;margin:0}.hero-world__image{object-position:85% center}.hero-world::after{background:linear-gradient(0deg,#fff8ef,transparent 28%)}.hero-copy{width:100%;max-width:640px;padding:8px 24px 0}.hero-copy h1{font-size:clamp(2.3rem,7vw,3.4rem);line-height:1.3}.hero-eyebrow{margin-bottom:12px;font-size:.8rem}.hero-copy p{font-size:1rem;margin-top:14px}.hero-copy p br{display:initial}.hero-actions{margin-top:22px;gap:10px}.hero-secondary{align-self:stretch;text-align:center}.hero-primary{width:100%}}
+/* Phone presentation is intentionally isolated from the desktop artwork. */
+@media(max-width:599px){
+  .home-hero{min-height:calc(100svh - 68px);padding:24px 20px calc(12px + env(safe-area-inset-bottom));gap:0;align-items:stretch;scroll-margin-top:68px;background:var(--milk)}
+  .hero-copy{display:contents}
+  .hero-eyebrow{font-size:0;margin:0 0 4px;order:0}
+  .hero-eyebrow::after{content:'01';font-size:22px;letter-spacing:0;color:var(--ink)}
+  .hero-copy h1{order:1;font-size:clamp(28px,8vw,36px);line-height:1.35}
+  .hero-copy p{order:2;align-self:flex-start;margin:12px 0 18px;font-size:16px;line-height:1.65}
+  .hero-world{order:3;flex:none;width:100%;height:auto;min-height:0;aspect-ratio:4/3;margin:0;border-radius:12px;overflow:hidden}
+  .hero-world__image{object-position:85% center}
+  .hero-world::after{display:none}
+  .hero-actions{order:4;width:100%;margin:12px 0 0;gap:10px}
+  .hero-primary,.hero-secondary{min-height:48px;padding:10px 14px;font-size:16px}
+  .hero-secondary{color:var(--ink);border-color:#8e786b;background:var(--paper)}
+  .mobile-chapters{order:5;width:100%}
+}
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="lHh Lpr lFf" class="site-layout">
+  <q-layout view="lHh Lpr lFf" class="site-layout" :class="{ 'site-layout--home': router.currentRoute.value.path === '/' }">
     <q-header class="site-header" :class="{ 'site-header--scrolled': headerScrolled }">
       <q-toolbar class="site-navbar">
         <q-btn
@@ -272,5 +272,10 @@ onBeforeUnmount(() => headerTrigger?.kill());
   .site-navbar { width: calc(100% - 16px); min-height: 68px; gap: 8px; }
   .navbar-brand { font-size: 1.15rem; }
   .navbar-brand__mark { width: 38px; height: 38px; }
+}
+@media(max-width:599px){
+  .site-layout--home .site-navbar{min-height:68px}
+  .site-layout--home .navbar-brand{position:absolute;left:50%;transform:translateX(-50%);gap:7px;font-size:18px}
+  .site-layout--home .navbar-brand__mark{width:30px;height:30px}
 }
 </style>

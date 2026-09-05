@@ -114,4 +114,7 @@ onBeforeUnmount(() => { media?.revert(); motionContext?.revert(); });
 @media(max-width:900px){.caregivers,.estimate{grid-template-columns:1fr}.caregiver-row{grid-auto-flow:column;grid-auto-columns:minmax(270px,78vw);grid-template-columns:none;overflow-x:auto;padding-bottom:16px;scroll-snap-type:x mandatory}.state{grid-column:auto}.trust-list{grid-column:auto}.booking-stage{grid-template-columns:repeat(2,1fr)}.booking-stage__path{display:none}}
 @media(max-width:599px){.caregivers,.booking-story,.estimate{padding:72px 18px}.caregiver-row{grid-auto-columns:82vw}.trust-list{grid-template-columns:1fr}.booking-stage{grid-template-columns:1fr;gap:20px;padding-left:24px}.booking-stage__path{left:8px;right:auto;top:8%;width:5px;height:84%;display:block;background:var(--persimmon)}.booking-path-line{display:none}.booking-node{min-height:145px}.primary{width:100%;justify-content:center}}
 @media(prefers-reduced-motion:reduce){.panel-reveal,.booking-path-line,.booking-node,.booking-heart,.cta-motion{transform:none!important;will-change:auto!important}}
+@media(max-width:599px){
+  .home-page :deep(.quick-access){top:12px;right:12px;z-index:2001;padding:0;background:var(--paper);box-shadow:none}
+}
 </style>
