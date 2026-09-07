@@ -1,38 +1,146 @@
-/*
- * 「照安心」全站中文字型
- * 字型檔存放在 public/fonts，部署後不需要依賴外部 CDN。
- * jf open 粉圓目前只有 Regular 字重，瀏覽器會依畫面需求合成較粗字重。
- */
-@font-face {
-  font-family: 'jf open 粉圓';
-  src: url('/fonts/jf-openhuninn-2.1.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
+@import url('https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 
 :root {
-  --font-family-brand: 'jf open 粉圓', 'Source Han Sans TC', 'Noto Sans TC',
-    'PingFang TC', 'Microsoft JhengHei', sans-serif;
-  --motion-fast: 180ms;
-  --motion-normal: 280ms;
+  --font-ui: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --font-display: 'Klee One', 'Noto Sans TC', sans-serif;
+  --font-family-brand: var(--font-ui);
+  --text-caption: .875rem;
+  --text-small: .9375rem;
+  --text-body-size: 1rem;
+  --text-body-lg: 1.125rem;
+  --text-h4: clamp(1.125rem, 1.4vw, 1.25rem);
+  --text-h3: clamp(1.25rem, 2vw, 1.5rem);
+  --text-h2: clamp(1.6rem, 3vw, 2.25rem);
+  --text-h1: clamp(2rem, 5vw, 4.25rem);
+  --milk: #fff9f5;
+  --paper: #fffdfb;
+  --ink: #493833;
+  --chestnut: #6e5750;
+  --peach: #eb9079;
+  --persimmon: #c85618;
+  --sage: #4f7264;
+  --text-strong: #493833;
+  --text-body: #5f4d47;
+  --text-muted: #786963;
+  --text-soft: #8b7d77;
+  --button-primary: #bd4f16;
+  --button-primary-hover: #9f3c0f;
+  --button-secondary-bg: rgb(79 114 100 / 10%);
+  --button-secondary-border: rgb(79 114 100 / 28%);
+  --button-danger-bg: #fff0ed;
+  --button-danger-text: #9e3129;
+  --button-radius: 14px;
+  --button-shadow: 0 6px 16px rgb(200 86 24 / 16%);
+  --focus-ring: 0 0 0 3px rgb(235 144 121 / 42%);
+  --motion-fast: 160ms;
+  --motion-normal: 220ms;
   --motion-slow: 650ms;
-  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-standard: cubic-bezier(.22, 1, .36, 1);
   --ease-emphasized: cubic-bezier(.16, 1, .3, 1);
 }
 
-/* 全站 RWD 尺寸計算統一 */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #q-app { width: 100%; max-width: 100%; overflow-x: hidden; }
+
+body, #q-app {
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--text-body-size);
+  line-height: 1.7;
+  letter-spacing: .015em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-html,
-body,
-#q-app {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  font-family: var(--font-family-brand);
+button, input, select, textarea,
+.q-btn, .q-field, .q-dialog, .q-item, .q-tab, .q-chip, .q-badge, .q-table { font-family: var(--font-ui); }
+h1 { color: var(--text-strong); font-size: var(--text-h1); font-weight: 700; }
+h2 { color: var(--text-strong); font-size: var(--text-h2); font-weight: 700; }
+h3 { color: var(--text-body); font-size: var(--text-h3); font-weight: 600; }
+h4 { color: var(--text-body); font-size: var(--text-h4); font-weight: 600; }
+p { line-height: 1.7; }
+small, caption, .text-caption { color: var(--text-muted); font-size: var(--text-caption); }
+time, [class*='date'], [class*='time'], [class*='amount'], [class*='price'] { font-variant-numeric: tabular-nums; }
+
+/* Klee One stays intentionally rare: brand/story display copy only. */
+.opening__brand strong, .home-hero h1, .hero-copy h1, .care-scene h2,
+.scene05-trust__intro h3, .scene-ending-cta h3, .service-bridge h2 {
+  font-family: var(--font-display) !important;
+  letter-spacing: .035em;
+}
+
+.q-btn, button[class*='button'], button[class*='btn'],
+a[class*='button'], a[class*='action'] {
+  min-height: 44px;
+  border-radius: var(--button-radius);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  touch-action: manipulation;
+  transition: transform var(--motion-normal) var(--ease-standard), box-shadow var(--motion-normal) var(--ease-standard), background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.q-btn:not(.q-btn--round):not(.q-btn--dense) { min-height: 48px; padding-inline: 22px; }
+.primary-action, .primary-button, .primary-btn, .submit-button,
+.booking-submit-button, .new-booking-btn, .accept-task-button,
+.journey-button, .complete-task-button {
+  color: var(--paper);
+  background: var(--button-primary);
+  box-shadow: var(--button-shadow);
+}
+.secondary-button, .outline-btn, .story-action {
+  color: var(--sage);
+  background: var(--button-secondary-bg);
+  border-color: var(--button-secondary-border);
+}
+.text-button, .booking-cancel-button, .mobile-switch { color: var(--text-body); background: transparent; }
+.danger, .danger-button, [class*='danger-button'] {
+  color: var(--button-danger-text);
+  background: var(--button-danger-bg);
+  border-color: rgb(158 49 41 / 24%);
+}
+
+.q-btn:hover:not(.disabled):not([disabled]),
+button[class*='button']:hover:not(:disabled), button[class*='btn']:hover:not(:disabled),
+a[class*='button']:hover, a[class*='action']:hover { transform: translateY(-2px); }
+.primary-action:hover:not(:disabled), .primary-button:hover:not(:disabled),
+.primary-btn:hover:not(:disabled), .submit-button:hover:not(:disabled),
+.booking-submit-button:hover:not(:disabled), .new-booking-btn:hover:not(:disabled),
+.journey-button:hover:not(:disabled), .complete-task-button:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  box-shadow: 0 9px 20px rgb(200 86 24 / 22%);
+}
+.q-btn:active:not(.disabled):not([disabled]),
+button[class*='button']:active:not(:disabled), button[class*='btn']:active:not(:disabled),
+a[class*='button']:active, a[class*='action']:active { transform: translateY(0) scale(.985); }
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+}
+.q-btn.disabled, .q-btn[disabled], button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: saturate(.55);
+  opacity: .62;
+}
+.q-field__native, .q-field__input, .q-field__label,
+.q-item__label, .q-tab__label, .q-btn__content { line-height: 1.5; }
+.q-field__native, .q-field__input { color: var(--text-strong); font-size: 1rem; }
+.q-field__label, .q-field__bottom { color: var(--text-muted); }
+.q-dialog p { color: var(--text-body); }
+
+@media (max-width: 599px) {
+  .q-btn:not(.q-btn--round):not(.q-btn--dense) { min-height: 48px; padding-inline: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

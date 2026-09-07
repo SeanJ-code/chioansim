@@ -1174,7 +1174,7 @@ onBeforeUnmount(() => { motionContext?.revert(); liveSync.stop(); });
 
 <style scoped>
 
-.admin-page { min-height: 100vh; color: #4b3934; background: #fff9f5; font-family: 'jf-openhuninn-2.1', 'Noto Sans TC', sans-serif; }
+.admin-page { min-height: 100vh; color: #4b3934; background: #fff9f5; font-family: var(--font-ui); }
 
 .admin-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 42px 0 72px; }
 
