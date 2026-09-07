@@ -7,7 +7,7 @@
 
       <div>
         <small>安心簡易試算</small>
-        <h3>先選四項，就能看到預估費用</h3>
+        <h3>先估這次照護費用</h3>
       </div>
     </div>
 
@@ -18,7 +18,7 @@
         emit-value
         map-options
         outlined
-        label="政府核定身分"
+        label="補助身分（參考）"
         behavior="menu"
       >
         <template #prepend>
@@ -36,7 +36,7 @@
         emit-value
         map-options
         outlined
-        label="CMS 長照等級"
+        label="照護等級（參考）"
         behavior="menu"
       >
         <template #prepend>
@@ -114,7 +114,7 @@
 
     <p class="calculator-note">
       <Info :size="18" />
-      此為簡易估算；實際項目、次數與補助，以照管專員核定的照顧計畫及服務單位帳單為準。
+      試算僅供參考；實際補助資格與金額依主管機關核定，本平台實際費用以預約內容為準。
     </p>
   </div>
 </template>
@@ -261,6 +261,11 @@ function money(value: number) {
   min-width: 0;
 
   color: var(--ink);
+}
+
+.care-calculator--compact .calculator-heading,
+.care-calculator--compact .calculator-note {
+  display: none;
 }
 
 .calculator-heading {
@@ -519,5 +524,120 @@ function money(value: number) {
   .result-primary strong {
     font-size: 2.15rem;
   }
+}
+
+/* Warm frosted-glass surface used by the shared calculator. */
+.care-calculator {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.calculator-heading > span {
+  color: var(--orange);
+  background: rgba(255, 231, 220, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  border-radius: 15px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.calculator-heading small {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.calculator-heading h3 {
+  margin-top: 4px;
+  font-size: clamp(1.35rem, 1.5vw, 1.7rem);
+  font-weight: 800;
+}
+
+.calculator-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.care-calculator :deep(.q-field--outlined .q-field__control) {
+  min-height: 58px;
+  background: rgba(255, 253, 251, .58);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.care-calculator :deep(.q-field--outlined .q-field__control::before) {
+  border: 1px solid rgba(110, 87, 80, 0.2);
+}
+
+.care-calculator :deep(.q-field--outlined:hover .q-field__control::before) {
+  border-color: rgba(200, 86, 24, 0.3);
+}
+
+.care-calculator :deep(.q-field--focused .q-field__control) {
+  background: rgba(255, 253, 251, 0.74);
+  box-shadow: 0 0 0 3px rgba(200, 86, 24, 0.09);
+}
+
+.care-calculator :deep(.q-field--focused .q-field__control::after) {
+  border-color: var(--orange);
+  border-width: 1px;
+}
+
+.care-calculator :deep(.q-field__label) {
+  color: rgba(110, 87, 80, 0.82);
+  font-size: 0.82rem;
+}
+
+.care-calculator :deep(.q-field__native),
+.care-calculator :deep(.q-field__input) {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.unit-label {
+  color: var(--wood);
+  font-size: 0.82rem;
+}
+
+.calculator-result {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.95fr);
+  gap: 28px;
+  margin-top: 18px;
+  padding: 22px 24px;
+  color: #fffdfb;
+  background: linear-gradient(135deg, rgba(99, 72, 62, 0.9), rgba(121, 88, 76, 0.84));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 22px rgba(73, 56, 51, 0.1);
+}
+
+.result-primary small { color: rgba(255, 253, 251, 0.78); font-size: 0.8rem; }
+.result-primary strong { margin: 4px 0 0; color: #fffdfb; font-size: clamp(2.3rem, 3vw, 3.4rem); font-weight: 700; }
+.result-primary span { margin-top: 10px; color: rgba(255, 253, 251, 0.72); font-size: 0.82rem; }
+.calculator-result dl { gap: 0; }
+.calculator-result dl div { gap: 16px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.calculator-result dl div:last-child { border-bottom: 0; }
+.calculator-result dt { color: rgba(255, 253, 251, 0.72); }
+.calculator-result dd { color: #fffdfb; font-weight: 750; }
+.calculator-note { margin-top: 16px; padding-top: 14px; color: rgba(73, 56, 51, 0.78); border-top: 1px solid rgba(110, 87, 80, 0.11); font-size: 0.74rem; line-height: 1.6; }
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .care-calculator :deep(.q-field--outlined .q-field__control) { background: rgba(255, 253, 251, 0.94); }
+}
+
+@media (max-width: 599px) {
+  .calculator-grid, .calculator-result { grid-template-columns: 1fr; }
+  .calculator-grid { gap: 11px; }
+  .calculator-result { gap: 14px; padding: 20px; }
+  .result-primary strong { font-size: 2.45rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .care-calculator :deep(.q-field__control) { transition: none; }
 }
 </style>

@@ -27,49 +27,6 @@
           )
         "
       />
-
-      <section
-        id="subsidy"
-        class="estimate scene story-panel story-panel--chestnut"
-        data-panel="center"
-        aria-labelledby="estimate-title"
-      >
-        <div
-          class="panel-reveal"
-          aria-hidden="true"
-        ></div>
-
-        <div data-reveal>
-          <span class="eyebrow">
-            簡單試算
-          </span>
-
-          <h2 id="estimate-title">
-            長照費用，先算算看
-          </h2>
-
-          <p>
-            完成四個選擇，就能看到預估費用。
-          </p>
-
-          <aside>
-            <ShieldCheck
-              :size="22"
-            />
-
-            試算僅供參考，實際補助依主管機關核定。
-          </aside>
-        </div>
-
-        <div
-          class="calculator"
-          data-reveal
-        >
-          <CareCostCalculator
-            compact
-          />
-        </div>
-      </section>
     </main>
 
     <HomeQuickAccess
@@ -174,12 +131,8 @@ import {
   MapPinned,
   MessageCircleHeart,
   Route,
-  ShieldCheck,
   X,
 } from '@lucide/vue';
-
-import CareCostCalculator
-  from '@/components/CareCostCalculator.vue';
 
 import OpeningExperience
   from '@/components/opening/OpeningExperience.vue';
@@ -1263,6 +1216,7 @@ a:focus-visible {
 }
 
 .calculator {
+
   padding:
     clamp(
       18px,
