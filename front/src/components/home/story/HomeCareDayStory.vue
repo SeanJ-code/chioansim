@@ -27,7 +27,7 @@
                 <article v-for="(caregiver, index) in featuredCaregivers" :key="caregiver._id" class="trust-profile">
                   <header class="trust-profile__header">
                     <div>
-                      <small>CARE PARTNER {{ String(index + 1).padStart(2, '0') }}</small>
+                      <small>照護夥伴</small>
                       <h4>{{ caregiverName(caregiver) }}</h4>
                     </div>
                     <span class="trust-profile__verified"><BadgeCheck :size="17" aria-hidden="true" />已認證</span>
@@ -86,11 +86,11 @@
       </template>
 
       <template v-if="scene.id === '07'" #progress>
-        <div class="scene-progress" data-progress-route><p class="scene-progress-caption">服務進度示意・每一步，都讓家人安心</p><div class="scene-progress-route"><div><UserRoundCheck :size="44"/><span>居服員</span></div><div class="scene-progress-line"><i></i><span class="route-dot"></span></div><div><HouseHeart :size="46"/><span>家</span></div></div><ol class="scene-progress-steps"><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="24"/><span>{{ item.label }}</span></li></ol></div>
+        <div class="scene-progress" data-progress-route><p class="scene-progress-caption">每一步 家人都看得到</p><div class="scene-progress-route"><div><UserRoundCheck :size="44"/><span>居服員</span></div><div class="scene-progress-line"><i></i><span class="route-dot"></span></div><div><HouseHeart :size="46"/><span>家</span></div></div><ol class="scene-progress-steps"><li v-for="item in progressSteps" :key="item.label"><component :is="item.icon" :size="24"/><span>{{ item.label }}</span></li></ol></div>
       </template>
 
       <template v-if="scene.id === '08'" #ending>
-        <div class="scene-ending-cta"><p class="scene-ending-eyebrow">一直都在</p><h3>照顧的路上，<br>有人陪你一起。</h3><p>照顧不孤單，我們一直都在。</p><div class="scene-ending-actions"><router-link to="/caregivers">找居服員 <ArrowRight :size="20"/></router-link><button type="button" @click="emit('line')">不熟悉網站？請 LINE 專人協助</button></div></div>
+        <div class="scene-ending-cta"><div class="scene-ending-actions"><router-link to="/caregivers">找居服員 <ArrowRight :size="20"/></router-link><button type="button" @click="emit('line')">不熟悉網站？請 LINE 專人協助</button></div></div>
       </template>
     </CareStoryScene>
   </section>
@@ -170,7 +170,19 @@ const scenes:CareScene[]=[{id:'01',label:'到家陪伴',title:'今天的照顧 �
 
   mobileScale: 1
 
-},{id:'07',label:'外出陪伴',title:'一起出門 走走看看',description:'慢慢走在熟悉的路上 有人陪著就更安心',image:scene07,alt:'居服員陪拿著手杖的長者走出家門，虎斑貓停在門檻內',layout:'outdoor',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1},{id:'08',label:'安心道別',title:'今天先到這裡 安心留在家裡',description:'服務告一段落 陪伴的安心沒有離開',image:scene08,alt:'傍晚長者在門口向準備離開的居服員揮手，虎斑貓在牆頭目送',layout:'ending',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1}];
+},{id:'07',label:'外出陪伴',title:'一起出門 走走看看',description:'慢慢走在熟悉的路上 有人陪著就更安心',image:scene07,alt:'居服員陪拿著手杖的長者走出家門，虎斑貓停在門檻內',layout:'outdoor',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1},{
+  id: '08',
+  label: '安心道別',
+  title: '今天先到這裡 安心留在家裡',
+  description: '陪伴告一段落 安心沒有離開',
+  image: scene08,
+  alt: '傍晚長者在門口向準備離開的居服員揮手，虎斑貓在牆頭目送',
+  layout: 'ending',
+  objectPosition: 'center',
+  desktopObjectPosition: 'center',
+  mobileObjectPosition: '50% center',
+  mobileScale: 1
+}];
 const root=ref<HTMLElement>();let context:gsap.Context|undefined;let media:gsap.MatchMedia|undefined;
 const carouselPage=ref(0);const visibleCaregivers=ref(3);
 const featuredCaregivers=computed(()=>props.caregivers.slice(0,7));
