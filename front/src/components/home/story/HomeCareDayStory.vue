@@ -129,13 +129,13 @@ import scene05 from '@/assets/home-world/story/scene-05.webp';
 import scene06 from '@/assets/home-world/story/scene-06-new.png';
 import scene07 from '@/assets/home-world/story/scene-07-new.png';
 import scene08 from '@/assets/home-world/story/scene-08-new.png';type SceneLayout='hero'|'split'|'cinematic'|'reverse'|'detail'|'work'|'outdoor'|'ending';interface CareScene{id:string;label:string;title:string;description:string;image:string;alt:string;layout:SceneLayout;objectPosition?:string;mobileImage?:string;desktopObjectPosition?:string;mobileObjectPosition?:string;mobileScale?:number;journey?:Array<{number:string;label:string}>}const props=defineProps<{progressSteps:Array<{label:string;icon:any}>;caregivers:Caregiver[];caregiverLoading:boolean;caregiverErrorMessage:string}>();const emit=defineEmits<{line:[];retryCaregivers:[]}>();
-const scenes:CareScene[]=[{id:'01',label:'抵達的家',title:'今天的陪伴，從家門口開始。',description:'熟悉彼此，也準備開始今天的照顧。',image:scene01,alt:'居服員在玄關替長者整理衣領，虎斑貓好奇地在旁觀察',layout:'hero',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'center',mobileScale:1},{id:'02',label:'開始陪伴',title:'今天，需要哪一種幫忙？',description:'從需要什麼開始，一步一步找到適合的陪伴。',image:scene02,alt:'居服員與長者在客廳喝茶聊天，虎斑貓霸佔沙發前最舒服的位置',layout:'split',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'55% center',mobileScale:1,journey:[{number:'01',label:'說說需求'},{number:'02',label:'找居服員'},{number:'03',label:'選擇時間'},{number:'04',label:'安心開始'}]},{id:'03',label:'準備午餐',title:'一起準備午餐。',description:'一餐熱騰騰的飯，也是每天的安心。',image:scene03,alt:'居服員與長者一起在廚房準備午餐，虎斑貓靠近聞香',layout:'cinematic',objectPosition:'43% center',desktopObjectPosition:'43% center',mobileObjectPosition:'48% center',mobileScale:1},
+const scenes:CareScene[]=[{id:'01',label:'到家陪伴',title:'今天的照顧 從安心見面開始',description:'熟悉彼此 也準備開始今天的陪伴',image:scene01,alt:'居服員在玄關替長者整理衣領，虎斑貓好奇地在旁觀察',layout:'hero',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'center',mobileScale:1},{id:'02',label:'了解需要',title:'今天想從哪件事開始',description:'先說說需要 再一起安排適合的照顧',image:scene02,alt:'居服員與長者在客廳喝茶聊天，虎斑貓在沙發前陪伴',layout:'split',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'55% center',mobileScale:1,journey:[{number:'01',label:'說說需求'},{number:'02',label:'找居服員'},{number:'03',label:'選擇時間'},{number:'04',label:'安心開始'}]},{id:'03',label:'一起備餐',title:'一頓熱飯 也是一天的安心',description:'陪著準備午餐 讓熟悉的日常更輕鬆',image:scene03,alt:'居服員與長者一起在廚房準備午餐，虎斑貓靠近聞香',layout:'cinematic',objectPosition:'43% center',desktopObjectPosition:'43% center',mobileObjectPosition:'48% center',mobileScale:1},
 {
    id: '04',
-  label: '整理環境',
-  title: '把生活空間，整理得更舒服。',
+  label: '整理日常',
+  title: '把生活空間整理得舒服一點',
   description:
-    '整理房間、床鋪與個人衣物，讓每天的生活更清爽安心。',
+    '整理床鋪 房間和衣物 讓每天住得更自在',
   image: scene04,
   alt:
     '居服員使用吸塵器整理長者房間，奶奶協助整理床鋪，虎斑貓在旁玩毛線球',
@@ -144,16 +144,16 @@ const scenes:CareScene[]=[{id:'01',label:'抵達的家',title:'今天的陪伴�
   desktopObjectPosition: 'center',
   mobileObjectPosition: '52% center',
   mobileScale: 1}
-  ,{id:'05',label:'飯後時光',title:'飯後，喝杯茶聊聊天。',description:'有些照顧，只是有人願意坐下來聽。',image:scene05,alt:'居服員與長者在客廳喝茶聊天，虎斑貓在沙發旁休息',layout:'detail',objectPosition:'38% center',desktopObjectPosition:'38% center',mobileObjectPosition:'58% center',mobileScale:1},{
+  ,{id:'05',label:'飯後陪伴',title:'喝杯茶 好好聊一會',description:'有時候陪伴 就是願意坐下來聽',image:scene05,alt:'居服員與長者在客廳喝茶聊天，虎斑貓在沙發旁休息',layout:'detail',objectPosition:'38% center',desktopObjectPosition:'38% center',mobileObjectPosition:'58% center',mobileScale:1},{
 
   id: '06',
 
   label: '清爽照護',
 
-  title: '把每天的清潔，也照顧得更安心。',
+  title: '洗去疲憊 留下舒服的日常',
 
   description:
-    '協助洗頭、沐浴與日常清潔，讓長輩保持清爽舒適。',
+    '協助洗頭 沐浴與清潔 讓長輩自在又安心',
 
   image: scene06,
 
@@ -170,7 +170,7 @@ const scenes:CareScene[]=[{id:'01',label:'抵達的家',title:'今天的陪伴�
 
   mobileScale: 1
 
-},{id:'07',label:'外出走走',title:'陪奶奶走出家門。',description:'外面的世界，也有人陪你一起。',image:scene07,alt:'居服員陪拿著手杖的長者走出家門，虎斑貓停在門檻內',layout:'outdoor',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1},{id:'08',label:'安心道別',title:'今天的服務結束了。',description:'照顧告一段落，安心沒有離開。',image:scene08,alt:'傍晚長者在門口向準備離開的居服員揮手，虎斑貓在牆頭目送',layout:'ending',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1}];
+},{id:'07',label:'外出陪伴',title:'一起出門 走走看看',description:'慢慢走在熟悉的路上 有人陪著就更安心',image:scene07,alt:'居服員陪拿著手杖的長者走出家門，虎斑貓停在門檻內',layout:'outdoor',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1},{id:'08',label:'安心道別',title:'今天先到這裡 安心留在家裡',description:'服務告一段落 陪伴的安心沒有離開',image:scene08,alt:'傍晚長者在門口向準備離開的居服員揮手，虎斑貓在牆頭目送',layout:'ending',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'50% center',mobileScale:1}];
 const root=ref<HTMLElement>();let context:gsap.Context|undefined;let media:gsap.MatchMedia|undefined;
 const carouselPage=ref(0);const visibleCaregivers=ref(3);
 const featuredCaregivers=computed(()=>props.caregivers.slice(0,7));
