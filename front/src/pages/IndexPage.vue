@@ -8,7 +8,7 @@
         ref="homeHero"
         @journey="
           scrollToSection(
-            'home-journey'
+            'care-scene-02'
           )
         "
       />
@@ -17,321 +17,16 @@
         :progress-steps="
           progressSteps
         "
+        :caregivers="caregivers"
+        :caregiver-loading="caregiverLoading"
+        :caregiver-error-message="caregiverErrorMessage"
+        @retry-caregivers="caregiverStore.fetchCaregivers(undefined, true)"
         @line="
           handleFeatureItem(
             'LINE 專人服務'
           )
         "
       />
-
-      <!--
-        HomeServiceBridge 已移除。
-
-        重要資訊已合併到 Scene02：
-        照護資格 / 線上預約 / 服務進度。
-      -->
-
-      <section
-        class="caregivers scene story-panel story-panel--paper"
-        data-panel="bottom-left"
-        aria-labelledby="care-title"
-      >
-        <div
-          class="panel-reveal"
-          aria-hidden="true"
-        ></div>
-
-        <header data-reveal>
-          <span class="eyebrow">
-            適合的照護夥伴
-          </span>
-
-          <h2 id="care-title">
-            找到值得信任的<br>
-            居服員
-          </h2>
-
-          <p>
-            資格、經驗與服務地區，都清楚呈現。
-          </p>
-
-          <router-link
-            class="text-link"
-            to="/caregivers"
-          >
-            查看全部居服員
-
-            <ArrowRight
-              :size="19"
-            />
-          </router-link>
-        </header>
-
-        <div
-          v-if="caregiverLoading"
-          class="caregiver-row"
-          aria-label="正在載入居服員"
-        >
-          <q-skeleton
-            v-for="n in 4"
-            :key="n"
-            type="rect"
-            class="skeleton"
-          />
-        </div>
-
-        <div
-          v-else-if="
-            caregiverError
-          "
-          class="state"
-          role="status"
-        >
-          <WifiOff />
-
-          <div>
-            <strong>
-              暫時讀不到居服員資料
-            </strong>
-
-            <span>
-              請稍後再試一次。
-            </span>
-          </div>
-
-          <button
-            type="button"
-            @click="
-              loadCaregivers
-            "
-          >
-            重新整理
-          </button>
-        </div>
-
-        <div
-          v-else
-          class="caregiver-row"
-          aria-label="已認證且可接案的居服員"
-          data-stagger
-        >
-          <router-link
-            v-for="
-              c in caregivers.slice(
-                0,
-                3
-              )
-            "
-            :key="c._id"
-            to="/caregivers"
-            class="caregiver-card"
-          >
-            <div class="photo">
-              <img
-                :src="
-                  assetUrl(
-                    c.profilePhotoUrl
-                  )
-                "
-                :alt="
-                  `${caregiverName(
-                    c
-                  )}的居服員近照`
-                "
-                loading="lazy"
-                @error="
-                  useFallbackPhoto
-                "
-              >
-
-              <span>
-                <BadgeCheck
-                  :size="17"
-                />
-
-                已認證
-              </span>
-            </div>
-
-            <div class="body">
-              <h3>
-                {{
-                  caregiverName(c)
-                }}
-              </h3>
-
-              <p>
-                <BriefcaseBusiness
-                  :size="17"
-                />
-
-                {{
-                  experienceLabel(
-                    c
-                  )
-                }}
-              </p>
-
-              <p>
-                <MapPin
-                  :size="17"
-                />
-
-                {{
-                  areaLabel(c)
-                }}
-              </p>
-
-              <b>
-                查看介紹
-
-                <ChevronRight
-                  :size="17"
-                />
-              </b>
-            </div>
-          </router-link>
-        </div>
-
-        <ol
-          class="trust-list"
-          aria-label="居服員信任保障"
-          data-reveal
-        >
-          <li>
-            <b>01</b>
-            <span>安心資格</span>
-          </li>
-
-          <li>
-            <b>02</b>
-            <span>服務經驗</span>
-          </li>
-
-          <li>
-            <b>03</b>
-            <span>真實評價</span>
-          </li>
-        </ol>
-      </section>
-
-      <section
-        id="home-journey"
-        ref="journey"
-        class="booking-story story-panel story-panel--oat"
-        data-panel="center"
-        aria-labelledby="journey-title"
-      >
-        <div
-          class="panel-reveal"
-          aria-hidden="true"
-        ></div>
-
-        <header
-          class="booking-story__heading"
-        >
-          <span class="eyebrow">
-            線上預約
-          </span>
-
-          <h2 id="journey-title">
-            預約，<br>
-            其實可以很簡單。
-          </h2>
-
-          <p>
-            四個步驟，就有人來陪你。
-          </p>
-        </header>
-
-        <div
-          class="booking-stage"
-          aria-label="預約流程：告訴需求、找到居服員、選擇時間、安心開始"
-        >
-          <div
-            class="booking-stage__path"
-            aria-hidden="true"
-          >
-            <span
-              class="booking-path-line"
-            ></span>
-          </div>
-
-          <div
-            class="booking-node booking-node--need"
-          >
-            <span>01</span>
-
-            <MessagesSquare
-              :size="36"
-            />
-
-            <strong>
-              告訴我們需求
-            </strong>
-          </div>
-
-          <div
-            class="booking-node booking-node--caregiver"
-          >
-            <span>02</span>
-
-            <UserRoundCheck
-              :size="38"
-            />
-
-            <strong>
-              找到居服員
-            </strong>
-          </div>
-
-          <div
-            class="booking-node booking-node--date"
-          >
-            <span>03</span>
-
-            <div
-              class="mini-calendar"
-            >
-              <small>
-                SEP
-              </small>
-
-              <strong>
-                02
-              </strong>
-
-              <b>
-                14:30
-              </b>
-            </div>
-
-            <strong>
-              選擇時間
-            </strong>
-          </div>
-
-          <div
-            class="booking-node booking-node--done"
-          >
-            <span>04</span>
-
-            <HouseHeart
-              :size="42"
-            />
-
-            <strong>
-              安心開始
-            </strong>
-          </div>
-
-          <Heart
-            class="booking-heart"
-            :size="34"
-            aria-hidden="true"
-          />
-        </div>
-      </section>
 
       <section
         id="subsidy"
@@ -469,30 +164,19 @@ import {
   ref,
 } from 'vue';
 
-import {
-  ArrowRight,
-  BadgeCheck,
-  BellRing,
-  Bike,
-  BriefcaseBusiness,
-  CheckCircle2,
-  ChevronRight,
-  Heart,
-  HouseHeart,
-  MapPin,
-  MapPinned,
-  MessageCircleHeart,
-  MessagesSquare,
-  Route,
-  ShieldCheck,
-  UserRoundCheck,
-  WifiOff,
-  X,
-} from '@lucide/vue';
+import { storeToRefs } from 'pinia';
 
 import {
-  api,
-} from '@/boot/axios';
+  ArrowRight,
+  BellRing,
+  Bike,
+  CheckCircle2,
+  MapPinned,
+  MessageCircleHeart,
+  Route,
+  ShieldCheck,
+  X,
+} from '@lucide/vue';
 
 import CareCostCalculator
   from '@/components/CareCostCalculator.vue';
@@ -509,26 +193,12 @@ import HomeCareDayStory
 import HomeQuickAccess
   from '@/components/home/HomeQuickAccess.vue';
 
+import { useCaregiverStore } from '@/stores/caregiver-store';
+
 import {
   gsap,
   ScrollTrigger,
 } from '@/composables/useGsap';
-
-interface Caregiver {
-  _id: string;
-
-  userId?:
-    | {
-        name?: string;
-      }
-    | string;
-
-  profilePhotoUrl?: string;
-
-  yearsExperience?: number;
-
-  serviceAreas?: string[];
-}
 
 const reduceMotion =
   typeof window !==
@@ -549,17 +219,13 @@ const homeHero =
     >
   >();
 
-const journey =
-  ref<HTMLElement>();
+const caregiverStore = useCaregiverStore();
 
-const caregivers =
-  ref<Caregiver[]>([]);
-
-const caregiverLoading =
-  ref(true);
-
-const caregiverError =
-  ref(false);
+const {
+  caregivers,
+  loading: caregiverLoading,
+  errorMessage: caregiverErrorMessage,
+} = storeToRefs(caregiverStore);
 
 const lineDialog =
   ref(false);
@@ -627,88 +293,6 @@ const progressSteps = [
   },
 ];
 
-function caregiverName(
-  c: Caregiver,
-) {
-  return typeof c.userId ===
-    'object'
-    ? c.userId.name ||
-        '照安心夥伴'
-    : '照安心夥伴';
-}
-
-function experienceLabel(
-  c: Caregiver,
-) {
-  return c.yearsExperience
-    ? `${c.yearsExperience} 年服務經驗`
-    : '新進照護夥伴';
-}
-
-function areaLabel(
-  c: Caregiver,
-) {
-  return (
-    c.serviceAreas
-      ?.slice(0, 2)
-      .join('、') ||
-    '服務地區洽談'
-  );
-}
-
-const apiBaseUrl =
-  import.meta.env
-    .VITE_API_BASE_URL ||
-  '/api';
-
-const backendBaseUrl =
-  apiBaseUrl.replace(
-    /\/api\/?$/,
-    '',
-  );
-
-function assetUrl(
-  path?: string,
-) {
-  if (!path) {
-    return '/chioansimicon.svg';
-  }
-
-  if (
-    /^https?:\/\//.test(
-      path,
-    )
-  ) {
-    return path;
-  }
-
-  const p =
-    path.startsWith('/')
-      ? path
-      : `/${path}`;
-
-  return p.startsWith(
-    '/uploads/',
-  )
-    ? `${backendBaseUrl}${p}`
-    : p;
-}
-
-function useFallbackPhoto(
-  event: Event,
-) {
-  const image =
-    event.currentTarget as
-      HTMLImageElement;
-
-  image.src =
-    '/chioansimicon.svg';
-
-  image.classList.add(
-    'is-fallback',
-  );
-}
-
 function scrollToSection(
   id: string,
 ) {
@@ -734,42 +318,15 @@ function handleFeatureItem(
   }
 }
 
-async function loadCaregivers() {
-  caregiverLoading.value =
-    true;
-
-  caregiverError.value =
-    false;
-
-  try {
-    caregivers.value =
-      (
-        await api.get<
-          Caregiver[]
-        >('/nurses')
-      ).data;
-  } catch {
-    caregiverError.value =
-      true;
-  } finally {
-    caregiverLoading.value =
-      false;
-  }
-}
-
 function setupHomeScrollAnimations() {
   if (
     motionStarted ||
-    !homePage.value ||
-    !journey.value
+    !homePage.value
   ) {
     return;
   }
 
   motionStarted = true;
-
-  const journeyEl =
-    journey.value;
 
   motionContext =
     gsap.context(() => {
@@ -898,126 +455,6 @@ function setupHomeScrollAnimations() {
                 ),
             );
 
-          gsap
-            .timeline({
-              scrollTrigger:
-                {
-                  trigger:
-                    journeyEl,
-
-                  start:
-                    'top 68%',
-
-                  end:
-                    'bottom 38%',
-
-                  scrub:
-                    1,
-                },
-            })
-            .from(
-              '.booking-story__heading > *',
-              {
-                y: 30,
-
-                autoAlpha:
-                  0,
-
-                stagger:
-                  0.08,
-              },
-              0,
-            )
-            .fromTo(
-              '.booking-path-line',
-              {
-                scaleX:
-                  0,
-              },
-              {
-                scaleX:
-                  1,
-
-                transformOrigin:
-                  'left center',
-
-                ease:
-                  'none',
-              },
-              0.12,
-            )
-            .from(
-              '.booking-node--need',
-              {
-                y: 35,
-
-                scale:
-                  0.8,
-
-                autoAlpha:
-                  0,
-              },
-              0.1,
-            )
-            .from(
-              '.booking-node--caregiver',
-              {
-                y:
-                  -35,
-
-                scale:
-                  0.8,
-
-                autoAlpha:
-                  0,
-              },
-              0.32,
-            )
-            .from(
-              '.booking-node--date',
-              {
-                y: 35,
-
-                scale:
-                  0.8,
-
-                autoAlpha:
-                  0,
-              },
-              0.54,
-            )
-            .from(
-              '.booking-node--done',
-              {
-                y:
-                  -35,
-
-                scale:
-                  0.8,
-
-                autoAlpha:
-                  0,
-              },
-              0.76,
-            )
-            .from(
-              '.booking-heart',
-              {
-                scale:
-                  0,
-
-                rotation:
-                  -25,
-
-                autoAlpha:
-                  0,
-
-                ease:
-                  'back.out(2)',
-              },
-              0.88,
-            );
-
           gsap.utils
             .toArray<HTMLElement>(
               '[data-panel]',
@@ -1038,8 +475,6 @@ function setupHomeScrollAnimations() {
 
                 if (
                   !reveal ||
-                  panel ===
-                    journeyEl ||
                   panel.id ===
                     'needs'
                 ) {
@@ -1242,7 +677,7 @@ async function handleOpeningFinished() {
 }
 
 onMounted(() => {
-  void loadCaregivers();
+  void caregiverStore.fetchCaregivers();
 
   setupHomeScrollAnimations();
 });
@@ -1753,45 +1188,6 @@ a:focus-visible {
     0.14em;
 }
 
-/* =========================================================
-   Booking
-   ========================================================= */
-
-.booking-story {
-  padding:
-    clamp(
-      80px,
-      8vw,
-      120px
-    )
-    max(
-      24px,
-      calc(
-        (
-          100vw -
-          1440px
-        ) /
-        2
-      )
-    );
-
-  display:
-    grid;
-
-  gap:
-    clamp(
-      48px,
-      7vw,
-      88px
-    );
-}
-
-.booking-story__heading {
-  max-width:
-    760px;
-}
-
-.booking-story__heading p,
 .estimate p {
   color:
     var(--chestnut);
@@ -1801,209 +1197,6 @@ a:focus-visible {
 
   line-height:
     1.7;
-}
-
-.booking-stage {
-  position:
-    relative;
-
-  display:
-    grid;
-
-  grid-template-columns:
-    repeat(
-      4,
-      minmax(
-        0,
-        1fr
-      )
-    );
-
-  gap:
-    clamp(
-      16px,
-      2.5vw,
-      40px
-    );
-}
-
-.booking-stage__path {
-  position:
-    absolute;
-
-  left:
-    9%;
-
-  right:
-    9%;
-
-  top:
-    50%;
-
-  height:
-    5px;
-
-  overflow:
-    hidden;
-
-  background:
-    #fffdfb;
-
-  border-radius:
-    99px;
-}
-
-.booking-path-line {
-  display:
-    block;
-
-  width:
-    100%;
-
-  height:
-    100%;
-
-  background:
-    var(--persimmon);
-}
-
-.booking-node {
-  position:
-    relative;
-
-  z-index:
-    1;
-
-  min-height:
-    190px;
-
-  display:
-    flex;
-
-  flex-direction:
-    column;
-
-  align-items:
-    center;
-
-  justify-content:
-    center;
-
-  gap:
-    14px;
-
-  padding:
-    24px
-    16px;
-
-  background:
-    var(--paper);
-
-  border:
-    1px solid
-    #6e57501f;
-
-  border-radius:
-    26px;
-
-  box-shadow:
-    0
-    18px
-    40px
-    #49383312;
-
-  text-align:
-    center;
-}
-
-.booking-node > span {
-  position:
-    absolute;
-
-  top:
-    16px;
-
-  left:
-    18px;
-
-  color:
-    var(--persimmon);
-
-  font-size:
-    0.78rem;
-
-  font-weight:
-    700;
-}
-
-.booking-node > svg {
-  color:
-    var(--persimmon);
-}
-
-.mini-calendar {
-  width:
-    88px;
-
-  display:
-    grid;
-
-  grid-template-columns:
-    1fr
-    1fr;
-
-  align-items:
-    center;
-
-  padding:
-    10px;
-
-  background:
-    #f8e7df;
-
-  border-radius:
-    14px;
-}
-
-.mini-calendar small {
-  grid-column:
-    1 / -1;
-
-  color:
-    var(--persimmon);
-
-  font-weight:
-    700;
-}
-
-.mini-calendar strong {
-  font-size:
-    1.8rem;
-}
-
-.mini-calendar b {
-  font-size:
-    0.85rem;
-}
-
-.booking-heart {
-  position:
-    absolute;
-
-  z-index:
-    2;
-
-  right:
-    0;
-
-  top:
-    18%;
-
-  color:
-    var(--persimmon);
-
-  fill:
-    #fffdfb;
 }
 
 /* =========================================================
@@ -2278,18 +1471,6 @@ a:focus-visible {
       auto;
   }
 
-  .booking-stage {
-    grid-template-columns:
-      repeat(
-        2,
-        1fr
-      );
-  }
-
-  .booking-stage__path {
-    display:
-      none;
-  }
 }
 
 /* =========================================================
@@ -2301,7 +1482,6 @@ a:focus-visible {
   599px
 ) {
   .caregivers,
-  .booking-story,
   .estimate {
     padding:
       72px
@@ -2316,50 +1496,6 @@ a:focus-visible {
   .trust-list {
     grid-template-columns:
       1fr;
-  }
-
-  .booking-stage {
-    grid-template-columns:
-      1fr;
-
-    gap:
-      20px;
-
-    padding-left:
-      24px;
-  }
-
-  .booking-stage__path {
-    left:
-      8px;
-
-    right:
-      auto;
-
-    top:
-      8%;
-
-    width:
-      5px;
-
-    height:
-      84%;
-
-    display:
-      block;
-
-    background:
-      var(--persimmon);
-  }
-
-  .booking-path-line {
-    display:
-      none;
-  }
-
-  .booking-node {
-    min-height:
-      145px;
   }
 
   .primary {
@@ -2401,9 +1537,6 @@ a:focus-visible {
   reduce
 ) {
   .panel-reveal,
-  .booking-path-line,
-  .booking-node,
-  .booking-heart,
   .cta-motion {
     transform:
       none !important;

@@ -10,8 +10,19 @@ import { Booking, Review, User } from '../models'
 import { Complaint } from '../models/complaint'
 import { CaregiverLeaveRequest, CaregiverWorkJournal } from '../models/caregiver-work'
 import * as yup from 'yup'
-import { taipeiDateKey, taipeiDateTimeToUtc, taipeiDayStartUtc, taipeiWeekday } from '../utils/datetime'
-import { BLOCKING_BOOKING_STATUSES, findApprovedLeaveConflict, findBookingConflict, findPendingLeaveConflict, intervalsOverlap } from '../utils/availability-policy'
+import {
+  taipeiDateKey,
+  taipeiDateTimeToUtc,
+  taipeiDayStartUtc,
+  taipeiWeekday,
+} from '../utils/datetime'
+import {
+  BLOCKING_BOOKING_STATUSES,
+  findApprovedLeaveConflict,
+  findBookingConflict,
+  findPendingLeaveConflict,
+  intervalsOverlap,
+} from '../utils/availability-policy'
 import { Notification } from '../models/notification'
 import { emitLeaveRealtime } from '../realtime'
 
@@ -127,7 +138,14 @@ nurseRoutes.get(
         completedBookings: bookings.filter((item) => item.get('status') === 'COMPLETED').length,
         pendingLeaves: leaves.filter((item) => item.get('status') === 'PENDING').length,
         pendingReports: complaints.filter((item) =>
-          ['SUBMITTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'UNDER_REVIEW', 'NEED_MORE_INFORMATION', 'RESOLVED'].includes(item.get('status')),
+          [
+            'SUBMITTED',
+            'ACKNOWLEDGED',
+            'IN_PROGRESS',
+            'UNDER_REVIEW',
+            'NEED_MORE_INFORMATION',
+            'RESOLVED',
+          ].includes(item.get('status')),
         ).length,
       },
     })
@@ -335,17 +353,35 @@ nurseRoutes.post(
       return
     }
     const leave = await CaregiverLeaveRequest.create({
-        ...input,
-        caregiverId: profile._id,
-        proofFileUrl: request.file ? `/uploads/${request.file.filename}` : undefined,
-      })
+      ...input,
+      caregiverId: profile._id,
+      proofFileUrl: request.file ? `/uploads/${request.file.filename}` : undefined,
+    })
     const bookingConflicts = await findBookingConflict(profile._id, input.startAt, input.endAt)
     await Promise.all([
-      recordAudit(request, 'CAREGIVER_LEAVE_SUBMITTED', 'caregiverleaverequests', String(leave._id), undefined, leave.toObject()),
-      Notification.insertMany((await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((admin) => ({ recipientUserId: admin._id, type: 'SYSTEM', title: '有新的居服員請假待審核', message: bookingConflicts.length ? '此申請與既有照護任務重疊，請優先處理。' : '請前往管理頁確認請假時段。' }))),
+      recordAudit(
+        request,
+        'CAREGIVER_LEAVE_SUBMITTED',
+        'caregiverleaverequests',
+        String(leave._id),
+        undefined,
+        leave.toObject(),
+      ),
+      Notification.insertMany(
+        (await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id')).map((admin) => ({
+          recipientUserId: admin._id,
+          type: 'SYSTEM',
+          title: '有新的居服員請假待審核',
+          message: bookingConflicts.length
+            ? '此申請與既有照護任務重疊，請優先處理。'
+            : '請前往管理頁確認請假時段。',
+        })),
+      ),
       emitLeaveRealtime(profile._id),
     ])
-    response.status(201).json({ ...leave.toObject(), hasBookingConflict: bookingConflicts.length > 0 })
+    response
+      .status(201)
+      .json({ ...leave.toObject(), hasBookingConflict: bookingConflicts.length > 0 })
   }),
 )
 
@@ -361,10 +397,18 @@ nurseRoutes.patch(
       { status: 'CANCELLED' },
       { new: true },
     )
-    if (leave) await Promise.all([
-      recordAudit(request, 'CAREGIVER_LEAVE_CANCELLED', 'caregiverleaverequests', String(leave._id), { status: 'PENDING' }, leave.toObject()),
-      emitLeaveRealtime(profile?._id),
-    ])
+    if (leave)
+      await Promise.all([
+        recordAudit(
+          request,
+          'CAREGIVER_LEAVE_CANCELLED',
+          'caregiverleaverequests',
+          String(leave._id),
+          { status: 'PENDING' },
+          leave.toObject(),
+        ),
+        emitLeaveRealtime(profile?._id),
+      ])
     response.status(leave ? 200 : 409).json(leave || { message: '只有待審中的請假可以撤回' })
   }),
 )
@@ -528,9 +572,26 @@ nurseRoutes.get(
     const start = taipeiDayStartUtc(firstKey)
     const end = new Date(start.getTime() + 14 * 86_400_000)
     const [exceptions, leaves, bookings] = await Promise.all([
-      Availability.find({ caregiverId: request.params.id, date: { $gte: start, $lt: end }, hidden: { $ne: true }, status: 'UNAVAILABLE' }).select('date startTime endTime'),
-      CaregiverLeaveRequest.find({ caregiverId: request.params.id, startAt: { $lt: end }, endAt: { $gt: start }, status: { $in: ['PENDING', 'APPROVED'] }, hidden: { $ne: true } }).select('startAt endAt'),
-      Booking.find({ caregiverId: request.params.id, scheduledStartAt: { $lt: end }, scheduledEndAt: { $gt: start }, status: { $in: BLOCKING_BOOKING_STATUSES }, hidden: { $ne: true } }).select('scheduledStartAt scheduledEndAt'),
+      Availability.find({
+        caregiverId: request.params.id,
+        date: { $gte: start, $lt: end },
+        hidden: { $ne: true },
+        status: 'UNAVAILABLE',
+      }).select('date startTime endTime'),
+      CaregiverLeaveRequest.find({
+        caregiverId: request.params.id,
+        startAt: { $lt: end },
+        endAt: { $gt: start },
+        status: { $in: ['PENDING', 'APPROVED'] },
+        hidden: { $ne: true },
+      }).select('startAt endAt'),
+      Booking.find({
+        caregiverId: request.params.id,
+        scheduledStartAt: { $lt: end },
+        scheduledEndAt: { $gt: start },
+        status: { $in: BLOCKING_BOOKING_STATUSES },
+        hidden: { $ne: true },
+      }).select('scheduledStartAt scheduledEndAt'),
     ])
     const slots = []
     const now = new Date()
@@ -544,9 +605,22 @@ nurseRoutes.get(
         const from = taipeiDateTimeToUtc(key, startTime)
         const to = taipeiDateTimeToUtc(key, endTime)
         if (from <= now) continue
-        const unavailable = exceptions.some((item) => taipeiDateKey(item.get('date')) === key && intervalsOverlap(from, to, taipeiDateTimeToUtc(key, item.get('startTime')), taipeiDateTimeToUtc(key, item.get('endTime'))))
-        const onLeave = leaves.some((item) => intervalsOverlap(from, to, item.get('startAt'), item.get('endAt')))
-        const booked = bookings.some((item) => intervalsOverlap(from, to, item.get('scheduledStartAt'), item.get('scheduledEndAt')))
+        const unavailable = exceptions.some(
+          (item) =>
+            taipeiDateKey(item.get('date')) === key &&
+            intervalsOverlap(
+              from,
+              to,
+              taipeiDateTimeToUtc(key, item.get('startTime')),
+              taipeiDateTimeToUtc(key, item.get('endTime')),
+            ),
+        )
+        const onLeave = leaves.some((item) =>
+          intervalsOverlap(from, to, item.get('startAt'), item.get('endAt')),
+        )
+        const booked = bookings.some((item) =>
+          intervalsOverlap(from, to, item.get('scheduledStartAt'), item.get('scheduledEndAt')),
+        )
         if (!unavailable && !onLeave && !booked)
           slots.push({
             _id: `${request.params.id}|${key}|${startTime}|${endTime}`,

@@ -27,7 +27,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '關閉 LINE 專人服務' }).click();
     await page.locator('.line-dialog').waitFor({ state: 'hidden' });
     await page.locator('.hero-secondary').click();
-    await page.waitForFunction(() => Math.abs(document.querySelector('#home-journey').getBoundingClientRect().top) < 150);
+    await page.waitForFunction(() => Math.abs(document.querySelector('#care-scene-02').getBoundingClientRect().top) < 150);
     assert.equal(await page.locator('.hero-primary').getAttribute('href'), '/caregivers');
     await page.evaluate(() => scrollTo(0, 0));
     await page.waitForTimeout(300);
