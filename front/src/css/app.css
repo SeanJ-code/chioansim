@@ -119,6 +119,7 @@ a[class*='button']:active, a[class*='action']:active { transform: translateY(0) 
   outline-offset: 3px;
   box-shadow: var(--focus-ring);
 }
+.q-field__native:focus-visible { outline: none; box-shadow: none; }
 .q-btn.disabled, .q-btn[disabled], button:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
