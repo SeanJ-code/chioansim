@@ -126,15 +126,15 @@ import type { Caregiver } from '@/stores/caregiver-store';
 
 import scene01 from '@/assets/home-world/story/scene-01.webp';
 import scene02 from '@/assets/home-world/story/scene-02.webp';
-import scene03 from '@/assets/home-world/story/scene-03.webp';
+import scene03 from '@/assets/home-world/story/scene-03-new.png';
 
 /* Scene04 使用新的環境整理圖片 */
 import scene04 from '@/assets/home-world/story/scene-04-new.png';
 
 import scene05 from '@/assets/home-world/story/scene-05.webp';
 import scene06 from '@/assets/home-world/story/scene-06-new.png';
-import scene07 from '@/assets/home-world/story/scene-07.webp';
-import scene08 from '@/assets/home-world/story/scene-08.webp';type SceneLayout='hero'|'split'|'cinematic'|'reverse'|'detail'|'work'|'outdoor'|'ending';interface CareScene{id:string;label:string;title:string;description:string;image:string;alt:string;layout:SceneLayout;objectPosition?:string;mobileImage?:string;desktopObjectPosition?:string;mobileObjectPosition?:string;mobileScale?:number;journey?:Array<{number:string;label:string}>}const props=defineProps<{progressSteps:Array<{label:string;icon:any}>;caregivers:Caregiver[];caregiverLoading:boolean;caregiverErrorMessage:string}>();const emit=defineEmits<{line:[];retryCaregivers:[]}>();
+import scene07 from '@/assets/home-world/story/scene-07-new.png';
+import scene08 from '@/assets/home-world/story/scene-08-new.png';type SceneLayout='hero'|'split'|'cinematic'|'reverse'|'detail'|'work'|'outdoor'|'ending';interface CareScene{id:string;label:string;title:string;description:string;image:string;alt:string;layout:SceneLayout;objectPosition?:string;mobileImage?:string;desktopObjectPosition?:string;mobileObjectPosition?:string;mobileScale?:number;journey?:Array<{number:string;label:string}>}const props=defineProps<{progressSteps:Array<{label:string;icon:any}>;caregivers:Caregiver[];caregiverLoading:boolean;caregiverErrorMessage:string}>();const emit=defineEmits<{line:[];retryCaregivers:[]}>();
 const scenes:CareScene[]=[{id:'01',label:'抵達的家',title:'今天的陪伴，從家門口開始。',description:'熟悉彼此，也準備開始今天的照顧。',image:scene01,alt:'居服員在玄關替長者整理衣領，虎斑貓好奇地在旁觀察',layout:'hero',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'center',mobileScale:1},{id:'02',label:'開始陪伴',title:'今天，需要哪一種幫忙？',description:'從需要什麼開始，一步一步找到適合的陪伴。',image:scene02,alt:'居服員與長者在客廳喝茶聊天，虎斑貓霸佔沙發前最舒服的位置',layout:'split',objectPosition:'center',desktopObjectPosition:'center',mobileObjectPosition:'55% center',mobileScale:1,journey:[{number:'01',label:'說說需求'},{number:'02',label:'找居服員'},{number:'03',label:'選擇時間'},{number:'04',label:'安心開始'}]},{id:'03',label:'準備午餐',title:'一起準備午餐。',description:'一餐熱騰騰的飯，也是每天的安心。',image:scene03,alt:'居服員與長者一起在廚房準備午餐，虎斑貓靠近聞香',layout:'cinematic',objectPosition:'43% center',desktopObjectPosition:'43% center',mobileObjectPosition:'48% center',mobileScale:1},
 {
    id: '04',
