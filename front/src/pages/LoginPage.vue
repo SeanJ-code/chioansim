@@ -532,7 +532,9 @@ onBeforeUnmount(() => {
 
 :deep(.q-field--outlined .q-field__control) { min-height: 54px; border-radius: 12px; }
 :deep(.q-field--outlined .q-field__control::before) { border-color: rgb(110 87 80 / 28%); }
-:deep(.q-field--focused .q-field__control::after) { border-color: var(--persimmon); border-width: 2px; }
+:deep(.q-field--outlined .q-field__control::after) { border: 0 !important; }
+:deep(.q-field--outlined.q-field--focused .q-field__control::before) { border: 1.5px solid var(--persimmon); }
+:deep(.q-field--focused .q-field__label) { color: var(--persimmon); }
 :deep(.q-field__label), :deep(.q-field__marginal) { color: var(--chestnut); }
 :deep(.q-field--error .q-field__label),
 :deep(.q-field--error .q-field__messages) {
