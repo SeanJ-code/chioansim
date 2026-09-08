@@ -303,11 +303,95 @@
             <main ref="selectedDayPanelRef" class="selected-day-panel">
               <header class="selected-day-heading"><div><small>{{ selectedDayRelativeLabel }}</small><h3>{{ selectedBookingDateLabel }}</h3><p v-if="selectedDayBookings.length">這一天共有 {{ selectedDayBookings.length }} 項照護安排</p></div><q-btn v-if="!selectedDayBookings.length && canBookSelectedDay" unelevated no-caps label="預約這一天" class="new-booking-btn" @click="startBookingForSelectedDay" /></header>
               <div v-if="selectedDayBookings.length" class="selected-booking-list">
-                <article v-for="booking in selectedDayBookings" :key="booking._id" class="care-booking-card">
-                  <div class="care-booking-time"><strong>{{ bookingTime(booking) }}</strong><small>{{ bookingDurationLabel(booking) }}</small></div>
-                  <div class="care-booking-main"><div class="care-booking-title"><h4>{{ serviceNames(booking) }}</h4><q-badge rounded :class="bookingStatusTone(bookingDisplayStatus(booking))" :label="bookingStatusLabel(bookingDisplayStatus(booking))" /></div><div class="care-booking-meta"><span><UserRound :size="17" />受照護者：{{ booking.recipientId?.name || '申請人本人' }}</span><span><BadgeCheck :size="17" />居服員：{{ bookingCaregiverName(booking) }}</span><span v-if="booking.serviceAddress?.text"><MapPin :size="17" />{{ booking.serviceAddress.text }}</span><span><WalletCards :size="17" />{{ booking.totalAmount == null ? '費用待確認' : `NT$ ${formatMoney(booking.totalAmount)}` }}</span></div><div class="care-booking-actions"><q-btn flat no-caps icon="timeline" label="查看進度" @click="openBookingProgressFromSchedule(booking)" /><q-btn v-if="canRescheduleBooking(booking)" flat no-caps icon="schedule" label="變更時間" @click="startReschedule(booking)" /><q-btn v-if="canCancelBooking(booking)" flat no-caps icon="event_busy" label="取消任務" class="booking-action--danger" @click="prepareCancellation(booking)" /><q-btn v-if="booking.status === 'AWAITING_USER_CONFIRMATION'" unelevated no-caps class="completion-confirm" icon="task_alt" label="確認完成" @click="openCompletionConfirm(booking)" /></div></div>
-                </article>
-              </div>
+<article
+  v-for="booking in selectedDayBookings"
+  :key="booking._id"
+  class="care-booking-card"
+>
+  <div class="care-booking-time">
+    <strong>{{ bookingTime(booking) }}</strong>
+    <small>{{ bookingDurationLabel(booking) }}</small>
+  </div>
+
+  <div class="care-booking-main">
+    <div class="care-booking-title">
+      <h4>{{ serviceNames(booking) }}</h4>
+
+      <q-badge
+        rounded
+        :class="bookingStatusTone(bookingDisplayStatus(booking))"
+        :label="bookingStatusLabel(bookingDisplayStatus(booking))"
+      />
+    </div>
+
+    <div class="care-booking-meta">
+      <span>
+        <UserRound :size="17" />
+        受照護者：{{ booking.recipientId?.name || '申請人本人' }}
+      </span>
+
+      <span>
+        <BadgeCheck :size="17" />
+        居服員：{{ bookingCaregiverName(booking) }}
+      </span>
+
+      <span v-if="booking.serviceAddress?.text">
+        <MapPin :size="17" />
+        {{ booking.serviceAddress.text }}
+      </span>
+
+      <span>
+        <WalletCards :size="17" />
+        {{
+          booking.totalAmount == null
+            ? '費用待確認'
+            : `NT$ ${formatMoney(booking.totalAmount)}`
+        }}
+      </span>
+    </div>
+
+    <div class="care-booking-actions">
+      <button
+        type="button"
+        class="care-booking-action"
+        @click="openBookingProgressFromSchedule(booking)"
+      >
+        <Route :size="18" />
+        <span>查看進度</span>
+      </button>
+
+      <button
+        v-if="canRescheduleBooking(booking)"
+        type="button"
+        class="care-booking-action"
+        @click="startReschedule(booking)"
+      >
+        <CalendarClock :size="18" />
+        <span>變更時間</span>
+      </button>
+
+      <button
+        v-if="canCancelBooking(booking)"
+        type="button"
+        class="care-booking-action booking-action--danger"
+        @click="prepareCancellation(booking)"
+      >
+        <CalendarX2 :size="18" />
+        <span>取消任務</span>
+      </button>
+
+      <button
+        v-if="booking.status === 'AWAITING_USER_CONFIRMATION'"
+        type="button"
+        class="care-booking-action completion-confirm"
+        @click="openCompletionConfirm(booking)"
+      >
+        <CircleCheckBig :size="18" />
+        <span>確認完成</span>
+      </button>
+    </div>
+  </div>
+</article>              </div>
               <div v-else class="selected-day-empty"><CalendarPlus :size="44" /><h4>這一天還沒有安排</h4><p>{{ canBookSelectedDay ? '有照護需求的話，可以從這一天開始找合適的居服員。' : '過去的日期僅供查看，不能新增預約。' }}</p><q-btn v-if="canBookSelectedDay" unelevated no-caps label="開始安排照護" class="new-booking-btn" @click="startBookingForSelectedDay" /></div>
             </main>
           </q-card-section>
@@ -755,11 +839,15 @@
 </template>
 
 <script setup lang="ts">
+
 import BoringAvatar from '@/components/BoringAvatar.vue'
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+
 import {
+  Route,
+CalendarX2,
   AlertCircle,
   ArchiveX,
   ArrowRight,
@@ -1634,6 +1722,40 @@ onBeforeUnmount(stopTracking);
 </script>
 
 <style scoped>
+.care-booking-action{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:0 14px;
+  border:0;
+  border-radius:12px;
+  background:transparent;
+  color:var(--chestnut);
+  font:inherit;
+  font-weight:800;
+  line-height:1;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.care-booking-action svg{
+  flex:0 0 auto;
+}
+
+.care-booking-action span{
+  white-space:nowrap;
+}
+
+.care-booking-action:hover{
+  background:#fff1ea;
+}
+
+.care-booking-action.booking-action--danger{
+  color:#963b30;
+  background:#fff0ed;
+}
 .member-page {
   --milk: #fff9f5;
   --paper: #fffdfb;
