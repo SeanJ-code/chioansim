@@ -43,73 +43,61 @@
       "
     />
 
-    <q-dialog
-      v-model="lineDialog"
+<q-dialog v-model="lineDialog">
+  <q-card class="line-dialog">
+
+    <button
+      class="line-dialog__close"
+      type="button"
+      aria-label="關閉 LINE 專人協助"
+      v-close-popup
     >
-      <q-card
-        class="line-dialog"
+      <X :size="20" />
+    </button>
+
+    <q-card-section class="line-dialog__content">
+
+      <div
+        class="line-dialog__mark"
+        aria-hidden="true"
       >
-        <q-card-section
-          class="line-dialog__mark"
-        >
-          <MessageCircleHeart
-            :size="42"
-          />
-        </q-card-section>
+        <MessageCircleHeart :size="30" />
+      </div>
 
-        <q-card-section
-          class="line-dialog__copy"
-        >
-          <button
-            type="button"
-            aria-label="關閉 LINE 專人服務"
-            v-close-popup
-          >
-            <X :size="22" />
-          </button>
+      <small class="line-dialog__eyebrow">
+        LINE 專人協助
+      </small>
 
-          <small>
-            照安心 LINE 官方帳號
-          </small>
+      <h2>
+        有需要，我們都在
+      </h2>
 
-          <h2>
-            需要時，我們就在 LINE 裡陪您
-          </h2>
+      <p class="line-dialog__id">
+        @690hzupc
+      </p>
 
-          <p>
-            官方 LINE ID
-          </p>
+      <a
+        class="line-dialog__primary"
+        href="https://line.me/R/ti/p/@690hzupc"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        開啟 LINE
+        <ArrowRight :size="18" />
+      </a>
 
-          <strong>
-            @690hzupc
-          </strong>
+      <button
+        class="line-dialog__later"
+        type="button"
+        v-close-popup
+      >
+        稍後再說
+      </button>
 
-          <a
-            href="https://line.me/R/ti/p/@690hzupc"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            開啟 LINE 加好友
+    </q-card-section>
 
-            <ArrowRight
-              :size="20"
-            />
-          </a>
-        </q-card-section>
-
-        <q-card-actions
-          align="center"
-        >
-          <q-btn
-            flat
-            no-caps
-            label="稍後再說"
-            v-close-popup
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-  </q-page>
+  </q-card>
+</q-dialog>  </q-page>
 </template>
 
 <script setup lang="ts">
@@ -1242,28 +1230,47 @@ a:focus-visible {
    ========================================================= */
 
 .line-dialog {
+  position: relative;
+
   width:
     min(
-      430px,
-      calc(
-        100vw -
-        28px
-      )
+      380px,
+      calc(100vw - 32px)
     );
 
-  padding:
-    10px
-    18px
-    18px;
+  padding: 0;
 
-  color:
-    var(--ink);
+  overflow: hidden;
+
+  color: var(--ink);
 
   background:
-    var(--paper);
+    rgba(
+      255,
+      253,
+      251,
+      .96
+    );
 
-  border-radius:
-    26px;
+  border:
+    1px solid
+    rgba(
+      110,
+      87,
+      80,
+      .10
+    );
+
+  border-radius: 28px;
+
+  box-shadow:
+    0 24px 70px
+    rgba(
+      50,
+      35,
+      27,
+      .18
+    );
 }
 
 .line-dialog__mark {
@@ -1292,6 +1299,255 @@ a:focus-visible {
 
   border-radius:
     24px;
+}
+.line-dialog__close {
+  position: absolute;
+
+  z-index: 3;
+
+  top: 16px;
+  right: 16px;
+
+  width: 40px;
+  height: 40px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  color: var(--chestnut);
+
+  background: transparent;
+
+  border: 0;
+  border-radius: 50%;
+
+  cursor: pointer;
+
+  transition:
+    background .2s ease,
+    transform .2s ease;
+}
+.line-dialog__content {
+  display: flex;
+  align-items: center;
+
+  flex-direction: column;
+
+  padding:
+    34px
+    34px
+    28px;
+
+  text-align: center;
+}
+.line-dialog__mark {
+  width: 58px;
+  height: 58px;
+
+  display: grid;
+  place-items: center;
+
+  margin-bottom: 18px;
+
+  color: #fffdfb;
+
+  background: #4f7264;
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 8px 20px
+    rgba(
+      79,
+      114,
+      100,
+      .14
+    );
+}
+.line-dialog__eyebrow {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: var(--persimmon);
+
+  font-size: .78rem;
+  font-weight: 800;
+
+  letter-spacing: .12em;
+}
+.line-dialog h2 {
+  margin: 0;
+
+  color: var(--ink);
+
+  font-family:
+    'Kaiti TC',
+    'Songti TC',
+    serif;
+
+  font-size:
+    clamp(
+      1.8rem,
+      3vw,
+      2.25rem
+    );
+
+  font-weight: 700;
+
+  line-height: 1.35;
+
+  letter-spacing: .025em;
+}
+.line-dialog__id {
+  margin:
+    18px
+    0
+    22px;
+
+  color: var(--chestnut);
+
+  font-size: .95rem;
+  font-weight: 700;
+
+  letter-spacing: .04em;
+}
+.line-dialog__primary {
+  width: 100%;
+  min-height: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding:
+    0
+    20px;
+
+  color: #fffdfb;
+
+  background:
+    var(--persimmon);
+
+  border-radius: 14px;
+
+  font-size: .95rem;
+  font-weight: 800;
+
+  text-decoration: none;
+
+  box-shadow:
+    0 7px 18px
+    rgba(
+      200,
+      86,
+      24,
+      .16
+    );
+
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    background .2s ease;
+}
+
+.line-dialog__later {
+  min-height: 42px;
+
+  margin-top: 10px;
+
+  padding:
+    0
+    14px;
+
+  color:
+    rgba(
+      110,
+      87,
+      80,
+      .72
+    );
+
+  background: transparent;
+
+  border: 0;
+
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+/* Desktop hover */
+
+@media (hover: hover) and (pointer: fine) {
+
+  .line-dialog__primary:hover {
+    background: #b84916;
+
+    transform:
+      translateY(-1px);
+
+    box-shadow:
+      0 10px 24px
+      rgba(
+        200,
+        86,
+        24,
+        .20
+      );
+  }
+
+  .line-dialog__close:hover {
+    background:
+      rgba(
+        110,
+        87,
+        80,
+        .07
+      );
+
+    transform:
+      rotate(4deg);
+  }
+
+  .line-dialog__later:hover {
+    color: var(--ink);
+  }
+}
+
+
+/* Mobile */
+
+@media (max-width: 599px) {
+
+  .line-dialog {
+    width:
+      min(
+        360px,
+        calc(100vw - 28px)
+      );
+
+    border-radius: 24px;
+  }
+
+  .line-dialog__content {
+    padding:
+      32px
+      24px
+      24px;
+  }
+
+  .line-dialog h2 {
+    font-size: 1.8rem;
+  }
+
 }
 
 .line-dialog__copy {
