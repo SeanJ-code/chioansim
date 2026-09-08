@@ -100,7 +100,7 @@ nurseRoutes.get(
         Booking.find({ caregiverId: profile._id, hidden: { $ne: true } })
           .populate(
             'recipientId',
-            'name careLevel mobilityStatus heightCm weightKg profilePhotoUrls healthNotes allergyNotes specialRequirements',
+            'name careLevel mobilityStatus heightCm weightKg carePhotoUrls medicalNotes allergyNotes attentionNotes transferSupport bathingSupport assistiveDevices',
           )
           .populate('requesterUserId', 'name role account phone')
           .populate('serviceTypeIds', 'name durationMinutes')
@@ -597,7 +597,7 @@ nurseRoutes.get(
     const now = new Date()
     for (let offset = 0; offset < 14; offset += 1) {
       const day = new Date(start.getTime() + offset * 86_400_000)
-      const key = day.toISOString().slice(0, 10)
+      const key = taipeiDateKey(day)
       if ([0, 6].includes(taipeiWeekday(key))) continue
       for (let hour = 9; hour < 17; hour += 2) {
         const startTime = `${String(hour).padStart(2, '0')}:00`

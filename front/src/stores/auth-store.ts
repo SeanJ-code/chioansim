@@ -6,6 +6,7 @@ export type UserRole = 'USER' | 'PATIENT' | 'NURSE' | 'ADMIN';
 
 type AuthUser = {
   id: string;
+  _id?: string;
   account: string;
   name: string;
   role: UserRole;
@@ -38,7 +39,7 @@ export const useAuthStore = defineStore('auth', {
       this.initialized = true;
     },
     saveSession(result: AuthResponse) {
-      this.user = result.user;
+      this.user = { ...result.user, id: result.user.id || result.user._id || '' };
       this.initialized = true;
     },
     async login(account: string, password: string) {

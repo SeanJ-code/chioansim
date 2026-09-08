@@ -14,7 +14,7 @@
           <div class="member-profile">
 <q-avatar size="76px" class="member-avatar">
               <BoringAvatar
-                name="Maya"
+                :name="authStore.user.name"
                 :size="76"
                 :colors="['#de4c45', '#d9764d', '#cc9e8a', '#c1c5c7', '#ebdfc6']"
                 variant="beam"
@@ -72,7 +72,7 @@
               <header :class="feature.tone">
                 <component :is="feature.icon" :size="29" />
                 <div class="feature-title"><h3>{{ feature.title }}</h3><small v-if="feature.title === '受照護者檔案' && selectedOverviewRecipient">目前：{{ selectedOverviewRecipient.name }}</small></div>
-                <q-badge v-if="feature.badge" rounded :label="feature.title === '預約與照護進度' ? `${activeBookings.length} 筆進行中` : feature.title === '訊息與通知' ? `${totalUnreadCount} 則未讀` : feature.badge" class="feature-badge" />
+                <q-badge v-if="feature.badge" rounded :label="feature.title === '預約與照護' ? `${activeBookings.length} 筆進行中` : feature.title === '訊息與通知' ? `${totalUnreadCount} 則未讀` : feature.badge" class="feature-badge" />
               </header>
               <q-list separator class="feature-list">
                 <q-item

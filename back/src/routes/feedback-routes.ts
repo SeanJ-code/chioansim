@@ -425,7 +425,7 @@ feedbackRoutes.post(
       description,
       evidenceUrls: files?.map((file) => `/uploads/${file.filename}`) || [],
       priority,
-      activities: [{ type: 'SUBMITTED', label: '居服員已送出安全通報', actorRole: 'NURSE' }],
+      activities: [{ type: 'SUBMITTED', label: request.auth?.role === 'NURSE' ? '居服員已送出安全通報' : '使用者已送出申訴', actorRole: request.auth?.role }],
     })
     const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }).replaceAll('-', '')
     complaint.set('reportNumber', `SAFE-${date}-${complaint.id.slice(-6).toUpperCase()}`)

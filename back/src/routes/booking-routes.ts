@@ -169,13 +169,13 @@ bookingRoutes.post(
         verificationStatus: 'APPROVED',
         active: true,
       })
-      if (!approvedCaregiver) throw new Error('這位居服員目前未開放預約')
+      if (!approvedCaregiver) throw Object.assign(new Error('這位居服員目前未開放預約'), { statusCode: 404 })
       const types = await ServiceType.find({
         _id: { $in: serviceTypeIds },
         active: true,
         hidden: { $ne: true },
       })
-      if (types.length !== serviceTypeIds.length) throw new Error('服務項目不存在或已停用')
+      if (types.length !== serviceTypeIds.length) throw Object.assign(new Error('服務項目不存在或已停用'), { statusCode: 400 })
       const scheduledStartAt = taipeiDateTimeToUtc(dateText, startTime)
       const scheduledEndAt = taipeiDateTimeToUtc(dateText, endTime)
       if (

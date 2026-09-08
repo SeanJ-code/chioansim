@@ -286,6 +286,7 @@ import {
   X,
 } from '@lucide/vue';
 import { api } from '@/boot/axios';
+import { taipeiDateKey } from '@/utils/datetime';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCaregiverStore, type Caregiver } from '@/stores/caregiver-store';
 import { useRoute, useRouter } from 'vue-router';
@@ -327,7 +328,7 @@ const selectedRecipient = computed(() => recipients.value.find((item) => item._i
 const groupedAvailability = computed(() => {
   const groups = new Map<string, Availability[]>();
   availability.value.forEach((slot) => {
-    const key = slot.date.slice(0, 10);
+    const key = taipeiDateKey(slot.date);
     groups.set(key, [...(groups.get(key) || []), slot]);
   });
   return [...groups.entries()].map(([date, slots]) => ({ date, slots, availableCount: slots.filter((slot) => slot.status === 'AVAILABLE').length })).sort((a, b) => a.date === requestedBookingDate.value ? -1 : b.date === requestedBookingDate.value ? 1 : a.date.localeCompare(b.date));
